@@ -1954,35 +1954,6 @@ Error HeifContext::Image::encode_image_as_av1(std::shared_ptr<HeifPixelImage> im
   }
 
 
-  // --- if there is an alpha channel, add it as an additional image
-
-  if (options->save_alpha_channel && image->has_channel(heif_channel_Alpha)) {
-
-    // --- generate alpha image
-    // TODO: can we directly code a monochrome image instead of the dummy color channels?
-
-    std::shared_ptr<HeifPixelImage> alpha_image;
-    alpha_image = create_alpha_image_from_image_alpha_channel(image);
-
-
-    // --- encode the alpha image
-
-    heif_item_id alpha_image_id = m_heif_context->m_heif_file->add_new_image("av01");
-
-    std::shared_ptr<HeifContext::Image> heif_alpha_image;
-    heif_alpha_image = std::make_shared<Image>(m_heif_context, alpha_image_id);
-
-
-    Error error = heif_alpha_image->encode_image_as_av1(alpha_image, encoder, options,
-                                                        heif_image_input_class_alpha);
-    if (error) {
-      return error;
-    }
-
-    m_heif_context->m_heif_file->add_iref_reference(alpha_image_id, fourcc("auxl"), {m_id});
-    m_heif_context->m_heif_file->set_auxC_property(alpha_image_id, "urn:mpeg:mpegB:cicp:systems:auxiliary:alpha");
-  }
-
   Box_av1C::configuration config;
   fill_av1C_configuration(&config, image);
 
@@ -2016,6 +1987,35 @@ Error HeifContext::Image::encode_image_as_av1(std::shared_ptr<HeifPixelImage> im
   width = image->get_width();
   height = image->get_height();
   m_heif_context->m_heif_file->add_ispe_property(m_id, width, height);
+
+  // --- if there is an alpha channel, add it as an additional image
+
+  if (options->save_alpha_channel && image->has_channel(heif_channel_Alpha)) {
+
+    // --- generate alpha image
+    // TODO: can we directly code a monochrome image instead of the dummy color channels?
+
+    std::shared_ptr<HeifPixelImage> alpha_image;
+    alpha_image = create_alpha_image_from_image_alpha_channel(image);
+
+
+    // --- encode the alpha image
+
+    heif_item_id alpha_image_id = m_heif_context->m_heif_file->add_new_image("av01");
+
+    std::shared_ptr<HeifContext::Image> heif_alpha_image;
+    heif_alpha_image = std::make_shared<Image>(m_heif_context, alpha_image_id);
+
+
+    Error error = heif_alpha_image->encode_image_as_av1(alpha_image, encoder, options,
+                                                        heif_image_input_class_alpha);
+    if (error) {
+      return error;
+    }
+
+    m_heif_context->m_heif_file->add_iref_reference(alpha_image_id, fourcc("auxl"), {m_id});
+    m_heif_context->m_heif_file->set_auxC_property(alpha_image_id, "urn:mpeg:mpegB:cicp:systems:auxiliary:alpha");
+  }
 
   return Error::Ok;
 }
