@@ -1049,7 +1049,7 @@ func decodeImage(r io.Reader) (image.Image, error) {
 		return nil, err
 	}
 
-	img, err := handle.DecodeImage(ColorspaceUndefined, ChromaUndefined, nil)
+	img, err := handle.DecodeImage(ColorspaceRGB, ChromaInterleavedRGBA, nil)
 	if err != nil {
 		return nil, err
 	}
