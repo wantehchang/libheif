@@ -26,8 +26,6 @@
 */
 
 #include <cstring>
-#include <iomanip>
-#include <iostream>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -48,7 +46,17 @@ extern "C" {
 #include "decoder_tiff.h"
 #include "libheif/heif_uncompressed.h"
 
-static struct heif_error heif_error_ok = {heif_error_Ok, heif_suberror_Unspecified, "Success"};
+static heif_error heif_error_ok = {heif_error_Ok, heif_suberror_Unspecified, "Success"};
+
+// Forward declarations for YCbCr helpers (defined after validateTiffFormat)
+static YCbCrInfo getYCbCrInfo(TIFF* tif);
+static heif_chroma ycbcrChroma(const YCbCrInfo& ycbcr);
+static void deinterleaveYCbCr(const uint8_t* src, uint32_t block_w, uint32_t block_h,
+                              uint32_t actual_w, uint32_t actual_h,
+                              uint16_t horiz_sub, uint16_t vert_sub,
+                              uint8_t* y_plane, size_t y_stride,
+                              uint8_t* cb_plane, size_t cb_stride,
+                              uint8_t* cr_plane, size_t cr_stride);
 
 // Forward declarations for YCbCr helpers (defined after validateTiffFormat)
 static YCbCrInfo getYCbCrInfo(TIFF* tif);
@@ -1826,7 +1834,7 @@ void TiledTiffReader::readExif(InputImage* input_image)
   }
 }
 
-
+/*
 void TiledTiffReader::printGeoInfo(const char* filename) const
 {
 #if HAVE_GEOTIFF
@@ -1897,4 +1905,4 @@ void TiledTiffReader::printGeoInfo(const char* filename) const
     std::cout << "\n";
   }
 }
-
+*/
