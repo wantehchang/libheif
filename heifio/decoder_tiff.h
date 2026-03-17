@@ -33,6 +33,12 @@
 #include <cstdint>
 #include <vector>
 
+struct YCbCrInfo {
+  bool is_ycbcr = false;
+  uint16_t horiz_sub = 1;  // horizontal subsampling factor
+  uint16_t vert_sub = 1;   // vertical subsampling factor
+};
+
 LIBHEIF_API
 heif_error loadTIFF(const char *filename, int output_bit_depth, InputImage *input_image);
 
@@ -83,6 +89,7 @@ private:
   uint16_t m_planar_config = 0;
   uint16_t m_sample_format = 1; // SAMPLEFORMAT_UINT
   bool m_has_alpha = false;
+  YCbCrInfo m_ycbcr;
 
   std::vector<OverviewInfo> m_overviews;
 };

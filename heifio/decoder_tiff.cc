@@ -50,6 +50,16 @@ extern "C" {
 
 static struct heif_error heif_error_ok = {heif_error_Ok, heif_suberror_Unspecified, "Success"};
 
+// Forward declarations for YCbCr helpers (defined after validateTiffFormat)
+static YCbCrInfo getYCbCrInfo(TIFF* tif);
+static heif_chroma ycbcrChroma(const YCbCrInfo& ycbcr);
+static void deinterleaveYCbCr(const uint8_t* src, uint32_t block_w, uint32_t block_h,
+                              uint32_t actual_w, uint32_t actual_h,
+                              uint16_t horiz_sub, uint16_t vert_sub,
+                              uint8_t* y_plane, size_t y_stride,
+                              uint8_t* cb_plane, size_t cb_stride,
+                              uint8_t* cr_plane, size_t cr_stride);
+
 static bool seekTIFF(TIFF* tif, toff_t offset, int whence) {
   TIFFSeekProc seekProc = TIFFGetSeekProc(tif);
   if (!seekProc) {
@@ -372,6 +382,61 @@ heif_error readPixelInterleaveRGB(TIFF *tif, uint16_t samplesPerPixel, bool hasA
   heif_error err = getImageWidthAndHeight(tif, width, height);
   if (err.code != heif_error_Ok) {
     return err;
+  }
+
+  // --- YCbCr strip path: TIFFReadScanline doesn't work with packed YCbCr ---
+  YCbCrInfo ycbcr = getYCbCrInfo(tif);
+  if (ycbcr.is_ycbcr) {
+    if (bps != 8) {
+      return {heif_error_Unsupported_feature, heif_suberror_Unspecified,
+              "Only 8-bit YCbCr TIFF is supported."};
+    }
+
+    heif_chroma chroma = ycbcrChroma(ycbcr);
+    err = heif_image_create((int)width, (int)height, heif_colorspace_YCbCr, chroma, image);
+    if (err.code != heif_error_Ok) return err;
+
+    heif_image_add_plane(*image, heif_channel_Y, (int)width, (int)height, 8);
+    uint32_t chroma_w = (width + ycbcr.horiz_sub - 1) / ycbcr.horiz_sub;
+    uint32_t chroma_h = (height + ycbcr.vert_sub - 1) / ycbcr.vert_sub;
+    heif_image_add_plane(*image, heif_channel_Cb, (int)chroma_w, (int)chroma_h, 8);
+    heif_image_add_plane(*image, heif_channel_Cr, (int)chroma_w, (int)chroma_h, 8);
+
+    size_t y_stride, cb_stride, cr_stride;
+    uint8_t* y_plane = heif_image_get_plane2(*image, heif_channel_Y, &y_stride);
+    uint8_t* cb_plane = heif_image_get_plane2(*image, heif_channel_Cb, &cb_stride);
+    uint8_t* cr_plane = heif_image_get_plane2(*image, heif_channel_Cr, &cr_stride);
+
+    uint32_t rows_per_strip = 0;
+    TIFFGetFieldDefaulted(tif, TIFFTAG_ROWSPERSTRIP, &rows_per_strip);
+    if (rows_per_strip == 0) rows_per_strip = height;
+
+    tmsize_t strip_size = TIFFStripSize(tif);
+    std::vector<uint8_t> strip_buf(strip_size);
+
+    uint32_t n_strips = TIFFNumberOfStrips(tif);
+    for (uint32_t s = 0; s < n_strips; s++) {
+      tmsize_t read = TIFFReadEncodedStrip(tif, s, strip_buf.data(), strip_size);
+      if (read < 0) {
+        heif_image_release(*image);
+        *image = nullptr;
+        return {heif_error_Invalid_input, heif_suberror_Unspecified, "Failed to read TIFF strip"};
+      }
+
+      uint32_t strip_y = s * rows_per_strip;
+      uint32_t actual_h = std::min(rows_per_strip, height - strip_y);
+      // Packed YCbCr block dimensions must be multiples of subsampling factors
+      uint32_t block_w = ((width + ycbcr.horiz_sub - 1) / ycbcr.horiz_sub) * ycbcr.horiz_sub;
+      uint32_t block_h = ((actual_h + ycbcr.vert_sub - 1) / ycbcr.vert_sub) * ycbcr.vert_sub;
+
+      deinterleaveYCbCr(strip_buf.data(), block_w, block_h, width, actual_h,
+                        ycbcr.horiz_sub, ycbcr.vert_sub,
+                        y_plane + strip_y * y_stride, y_stride,
+                        cb_plane + (strip_y / ycbcr.vert_sub) * cb_stride, cb_stride,
+                        cr_plane + (strip_y / ycbcr.vert_sub) * cr_stride, cr_stride);
+    }
+
+    return heif_error_ok;
   }
 
   uint16_t outSpp = (samplesPerPixel == 4 && !hasAlpha) ? 3 : samplesPerPixel;
@@ -777,12 +842,167 @@ static heif_error validateTiffFormat(TIFF* tif, uint16_t& samplesPerPixel, uint1
 }
 
 
+static YCbCrInfo getYCbCrInfo(TIFF* tif)
+{
+  YCbCrInfo info;
+  uint16_t photometric;
+  if (TIFFGetField(tif, TIFFTAG_PHOTOMETRIC, &photometric) && photometric == PHOTOMETRIC_YCBCR) {
+    info.is_ycbcr = true;
+    TIFFGetFieldDefaulted(tif, TIFFTAG_YCBCRSUBSAMPLING, &info.horiz_sub, &info.vert_sub);
+  }
+  return info;
+}
+
+
+static heif_chroma ycbcrChroma(const YCbCrInfo& ycbcr)
+{
+  if (ycbcr.horiz_sub == 2 && ycbcr.vert_sub == 2) return heif_chroma_420;
+  if (ycbcr.horiz_sub == 2 && ycbcr.vert_sub == 1) return heif_chroma_422;
+  return heif_chroma_444;
+}
+
+
+// Deinterleave libtiff's packed YCbCr format into separate Y/Cb/Cr planes.
+// Packed format: MCUs of (horiz_sub * vert_sub) Y samples + 1 Cb + 1 Cr.
+// block_w/block_h must be multiples of horiz_sub/vert_sub respectively.
+// actual_w/actual_h are the clipped dimensions for edge tiles/strips.
+static void deinterleaveYCbCr(
+    const uint8_t* src,
+    uint32_t block_w, uint32_t block_h,
+    uint32_t actual_w, uint32_t actual_h,
+    uint16_t horiz_sub, uint16_t vert_sub,
+    uint8_t* y_plane, size_t y_stride,
+    uint8_t* cb_plane, size_t cb_stride,
+    uint8_t* cr_plane, size_t cr_stride)
+{
+  uint32_t mcus_h = block_w / horiz_sub;
+  uint32_t mcu_rows = block_h / vert_sub;
+  uint32_t mcu_size = horiz_sub * vert_sub + 2;
+
+  uint32_t chroma_w = (actual_w + horiz_sub - 1) / horiz_sub;
+  uint32_t chroma_h = (actual_h + vert_sub - 1) / vert_sub;
+
+  for (uint32_t mcu_y = 0; mcu_y < mcu_rows; mcu_y++) {
+    for (uint32_t mcu_x = 0; mcu_x < mcus_h; mcu_x++) {
+      const uint8_t* mcu = src + (mcu_y * mcus_h + mcu_x) * mcu_size;
+
+      // Scatter Y samples
+      for (uint32_t vy = 0; vy < vert_sub; vy++) {
+        uint32_t py = mcu_y * vert_sub + vy;
+        if (py >= actual_h) break;
+        for (uint32_t hx = 0; hx < horiz_sub; hx++) {
+          uint32_t px = mcu_x * horiz_sub + hx;
+          if (px >= actual_w) break;
+          y_plane[py * y_stride + px] = mcu[vy * horiz_sub + hx];
+        }
+      }
+
+      // Scatter Cb/Cr
+      if (mcu_x < chroma_w && mcu_y < chroma_h) {
+        cb_plane[mcu_y * cb_stride + mcu_x] = mcu[horiz_sub * vert_sub];
+        cr_plane[mcu_y * cr_stride + mcu_x] = mcu[horiz_sub * vert_sub + 1];
+      }
+    }
+  }
+}
+
+
+// Create a YCbCr heif_image from a single packed YCbCr tile/block.
+static heif_error readYCbCrBlock(
+    const uint8_t* tile_buf,
+    uint32_t block_w, uint32_t block_h,
+    uint32_t actual_w, uint32_t actual_h,
+    const YCbCrInfo& ycbcr,
+    heif_image** out_image)
+{
+  heif_chroma chroma = ycbcrChroma(ycbcr);
+
+  heif_error err = heif_image_create((int)actual_w, (int)actual_h, heif_colorspace_YCbCr, chroma, out_image);
+  if (err.code != heif_error_Ok) return err;
+
+  heif_image_add_plane(*out_image, heif_channel_Y, (int)actual_w, (int)actual_h, 8);
+  uint32_t chroma_w = (actual_w + ycbcr.horiz_sub - 1) / ycbcr.horiz_sub;
+  uint32_t chroma_h = (actual_h + ycbcr.vert_sub - 1) / ycbcr.vert_sub;
+  heif_image_add_plane(*out_image, heif_channel_Cb, (int)chroma_w, (int)chroma_h, 8);
+  heif_image_add_plane(*out_image, heif_channel_Cr, (int)chroma_w, (int)chroma_h, 8);
+
+  size_t y_stride, cb_stride, cr_stride;
+  uint8_t* y_plane = heif_image_get_plane2(*out_image, heif_channel_Y, &y_stride);
+  uint8_t* cb_plane = heif_image_get_plane2(*out_image, heif_channel_Cb, &cb_stride);
+  uint8_t* cr_plane = heif_image_get_plane2(*out_image, heif_channel_Cr, &cr_stride);
+
+  deinterleaveYCbCr(tile_buf, block_w, block_h, actual_w, actual_h,
+                    ycbcr.horiz_sub, ycbcr.vert_sub,
+                    y_plane, y_stride, cb_plane, cb_stride, cr_plane, cr_stride);
+
+  return heif_error_ok;
+}
+
+
 static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height,
                                   uint32_t tile_width, uint32_t tile_height,
                                   uint16_t samplesPerPixel, bool hasAlpha,
                                   uint16_t bps, int output_bit_depth,
                                   uint16_t sampleFormat, heif_image** out_image)
 {
+  // --- YCbCr path: deinterleave packed MCU data into planar Y/Cb/Cr ---
+  YCbCrInfo ycbcr = getYCbCrInfo(tif);
+  if (ycbcr.is_ycbcr) {
+    if (bps != 8) {
+      return {heif_error_Unsupported_feature, heif_suberror_Unspecified,
+              "Only 8-bit YCbCr TIFF is supported."};
+    }
+
+    heif_chroma chroma = ycbcrChroma(ycbcr);
+    heif_error err = heif_image_create((int)width, (int)height, heif_colorspace_YCbCr, chroma, out_image);
+    if (err.code != heif_error_Ok) return err;
+
+    heif_image_add_plane(*out_image, heif_channel_Y, (int)width, (int)height, 8);
+    uint32_t chroma_w = (width + ycbcr.horiz_sub - 1) / ycbcr.horiz_sub;
+    uint32_t chroma_h = (height + ycbcr.vert_sub - 1) / ycbcr.vert_sub;
+    heif_image_add_plane(*out_image, heif_channel_Cb, (int)chroma_w, (int)chroma_h, 8);
+    heif_image_add_plane(*out_image, heif_channel_Cr, (int)chroma_w, (int)chroma_h, 8);
+
+    size_t y_stride, cb_stride, cr_stride;
+    uint8_t* y_plane = heif_image_get_plane2(*out_image, heif_channel_Y, &y_stride);
+    uint8_t* cb_plane = heif_image_get_plane2(*out_image, heif_channel_Cb, &cb_stride);
+    uint8_t* cr_plane = heif_image_get_plane2(*out_image, heif_channel_Cr, &cr_stride);
+
+    tmsize_t tile_buf_size = TIFFTileSize(tif);
+    std::vector<uint8_t> tile_buf(tile_buf_size);
+
+    uint32_t n_cols = (width + tile_width - 1) / tile_width;
+    uint32_t n_rows = (height + tile_height - 1) / tile_height;
+
+    for (uint32_t ty = 0; ty < n_rows; ty++) {
+      for (uint32_t tx = 0; tx < n_cols; tx++) {
+        tmsize_t read = TIFFReadEncodedTile(tif, TIFFComputeTile(tif, tx * tile_width, ty * tile_height, 0, 0),
+                                            tile_buf.data(), tile_buf_size);
+        if (read < 0) {
+          heif_image_release(*out_image);
+          *out_image = nullptr;
+          return {heif_error_Invalid_input, heif_suberror_Unspecified, "Failed to read TIFF tile"};
+        }
+
+        uint32_t actual_w = std::min(tile_width, width - tx * tile_width);
+        uint32_t actual_h = std::min(tile_height, height - ty * tile_height);
+
+        uint32_t y_offset = ty * tile_height;
+        uint32_t x_offset = tx * tile_width;
+        uint32_t chroma_x_offset = x_offset / ycbcr.horiz_sub;
+        uint32_t chroma_y_offset = y_offset / ycbcr.vert_sub;
+
+        deinterleaveYCbCr(tile_buf.data(), tile_width, tile_height, actual_w, actual_h,
+                          ycbcr.horiz_sub, ycbcr.vert_sub,
+                          y_plane + y_offset * y_stride + x_offset, y_stride,
+                          cb_plane + chroma_y_offset * cb_stride + chroma_x_offset, cb_stride,
+                          cr_plane + chroma_y_offset * cr_stride + chroma_x_offset, cr_stride);
+      }
+    }
+
+    return heif_error_ok;
+  }
+
   bool isFloat = (sampleFormat == SAMPLEFORMAT_IEEEFP);
 
   if (isFloat) {
@@ -1112,6 +1332,12 @@ heif_error loadTIFF(const char* filename, int output_bit_depth, InputImage *inpu
   heif_error err = validateTiffFormat(tif, samplesPerPixel, bps, config, hasAlpha, sampleFormat);
   if (err.code != heif_error_Ok) return err;
 
+  // For PLANARCONFIG_SEPARATE + YCbCr, tell libtiff to convert to RGB on the fly
+  YCbCrInfo ycbcr = getYCbCrInfo(tif);
+  if (ycbcr.is_ycbcr && config == PLANARCONFIG_SEPARATE) {
+    TIFFSetField(tif, TIFFTAG_JPEGCOLORMODE, JPEGCOLORMODE_RGB);
+  }
+
   bool isFloat = (sampleFormat == SAMPLEFORMAT_IEEEFP);
   bool isSignedInt = (sampleFormat == SAMPLEFORMAT_INT);
 
@@ -1227,6 +1453,12 @@ std::unique_ptr<TiledTiffReader> TiledTiffReader::open(const char* filename, hei
   }
   reader->m_bits_per_sample = bps;
 
+  reader->m_ycbcr = getYCbCrInfo(tif);
+  if (reader->m_ycbcr.is_ycbcr && reader->m_planar_config == PLANARCONFIG_SEPARATE) {
+    TIFFSetField(tif, TIFFTAG_JPEGCOLORMODE, JPEGCOLORMODE_RGB);
+    reader->m_ycbcr.is_ycbcr = false;  // data comes out as RGB now
+  }
+
   if (!TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &reader->m_image_width) ||
       !TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &reader->m_image_height)) {
     *out_err = {heif_error_Invalid_input, heif_suberror_Unspecified, "Cannot read TIFF image dimensions"};
@@ -1315,6 +1547,12 @@ bool TiledTiffReader::setDirectory(uint32_t dir_index)
   }
   m_bits_per_sample = bps;
 
+  m_ycbcr = getYCbCrInfo(tif);
+  if (m_ycbcr.is_ycbcr && m_planar_config == PLANARCONFIG_SEPARATE) {
+    TIFFSetField(tif, TIFFTAG_JPEGCOLORMODE, JPEGCOLORMODE_RGB);
+    m_ycbcr.is_ycbcr = false;
+  }
+
   m_n_columns = (m_image_width + m_tile_width - 1) / m_tile_width;
   m_n_rows = (m_image_height + m_tile_height - 1) / m_tile_height;
 
@@ -1328,6 +1566,25 @@ heif_error TiledTiffReader::readTile(uint32_t tx, uint32_t ty, int output_bit_de
 
   uint32_t actual_w = std::min(m_tile_width, m_image_width - tx * m_tile_width);
   uint32_t actual_h = std::min(m_tile_height, m_image_height - ty * m_tile_height);
+
+  // --- YCbCr path (PLANARCONFIG_CONTIG only; SEPARATE was converted to RGB in open/setDirectory) ---
+  if (m_ycbcr.is_ycbcr && m_planar_config == PLANARCONFIG_CONTIG) {
+    if (m_bits_per_sample != 8) {
+      return {heif_error_Unsupported_feature, heif_suberror_Unspecified,
+              "Only 8-bit YCbCr TIFF is supported."};
+    }
+
+    tmsize_t tile_buf_size = TIFFTileSize(tif);
+    std::vector<uint8_t> tile_buf(tile_buf_size);
+
+    tmsize_t read = TIFFReadEncodedTile(tif, TIFFComputeTile(tif, tx * m_tile_width, ty * m_tile_height, 0, 0),
+                                        tile_buf.data(), tile_buf_size);
+    if (read < 0) {
+      return {heif_error_Invalid_input, heif_suberror_Unspecified, "Failed to read TIFF tile"};
+    }
+
+    return readYCbCrBlock(tile_buf.data(), m_tile_width, m_tile_height, actual_w, actual_h, m_ycbcr, out_image);
+  }
 
   if (m_sample_format == SAMPLEFORMAT_IEEEFP) {
 #if WITH_UNCOMPRESSED_CODEC
