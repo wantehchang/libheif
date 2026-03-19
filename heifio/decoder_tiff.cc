@@ -30,6 +30,7 @@
 #include <utility>
 #include <vector>
 #include <algorithm>
+#include <limits>
 
 extern "C" {
 #include <tiff.h>
@@ -312,6 +313,11 @@ heif_error getImageWidthAndHeight(TIFF *tif, uint32_t &width, uint32_t &height)
       .message = "Can not read width and/or height from TIFF image."};
     return err;
   }
+
+  if (width == 0 || height == 0) {
+    return {heif_error_Invalid_input, heif_suberror_Unspecified, "Zero TIFF image size is invalid."};
+  }
+
   return heif_error_ok;
 }
 
@@ -961,6 +967,11 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
               "Only 8-bit YCbCr TIFF is supported."};
     }
 
+    if (width > std::numeric_limits<int>::max() || height > std::numeric_limits<int>::max()) {
+      return {heif_error_Invalid_input, heif_suberror_Unspecified, "TIFF image size exceeds maximum supported by libheif."};
+    }
+
+
     heif_chroma chroma = ycbcrChroma(ycbcr);
     heif_error err = heif_image_create((int)width, (int)height, heif_colorspace_YCbCr, chroma, out_image);
     if (err.code != heif_error_Ok) return err;
@@ -979,8 +990,8 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
     tmsize_t tile_buf_size = TIFFTileSize(tif);
     std::vector<uint8_t> tile_buf(tile_buf_size);
 
-    uint32_t n_cols = (width + tile_width - 1) / tile_width;
-    uint32_t n_rows = (height + tile_height - 1) / tile_height;
+    uint32_t n_cols = (width - 1) / tile_width + 1;
+    uint32_t n_rows = (height - 1) / tile_height + 1;
 
     for (uint32_t ty = 0; ty < n_rows; ty++) {
       for (uint32_t tx = 0; tx < n_cols; tx++) {
@@ -1039,8 +1050,8 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
     tmsize_t tile_buf_size = TIFFTileSize(tif);
     std::vector<uint8_t> tile_buf(tile_buf_size);
 
-    uint32_t n_cols = (width + tile_width - 1) / tile_width;
-    uint32_t n_rows = (height + tile_height - 1) / tile_height;
+    uint32_t n_cols = (width - 1) / tile_width + 1;
+    uint32_t n_rows = (height - 1) / tile_height + 1;
 
     for (uint32_t ty = 0; ty < n_rows; ty++) {
       for (uint32_t tx = 0; tx < n_cols; tx++) {
@@ -1106,8 +1117,8 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
     tmsize_t tile_buf_size = TIFFTileSize(tif);
     std::vector<uint8_t> tile_buf(tile_buf_size);
 
-    uint32_t n_cols = (width + tile_width - 1) / tile_width;
-    uint32_t n_rows = (height + tile_height - 1) / tile_height;
+    uint32_t n_cols = (width - 1) / tile_width + 1;
+    uint32_t n_rows = (height - 1) / tile_height + 1;
 
     for (uint32_t ty = 0; ty < n_rows; ty++) {
       for (uint32_t tx = 0; tx < n_cols; tx++) {
@@ -1156,8 +1167,8 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
   tmsize_t tile_buf_size = TIFFTileSize(tif);
   std::vector<uint8_t> tile_buf(tile_buf_size);
 
-  uint32_t n_cols = (width + tile_width - 1) / tile_width;
-  uint32_t n_rows = (height + tile_height - 1) / tile_height;
+  uint32_t n_cols = (width - 1) / tile_width + 1;
+  uint32_t n_rows = (height - 1) / tile_height + 1;
 
   for (uint32_t ty = 0; ty < n_rows; ty++) {
     for (uint32_t tx = 0; tx < n_cols; tx++) {
@@ -1272,8 +1283,8 @@ static heif_error readTiledSeparate(TIFF* tif, uint32_t width, uint32_t height,
   tmsize_t tile_buf_size = TIFFTileSize(tif);
   std::vector<uint8_t> tile_buf(tile_buf_size);
 
-  uint32_t n_cols = (width + tile_width - 1) / tile_width;
-  uint32_t n_rows = (height + tile_height - 1) / tile_height;
+  uint32_t n_cols = (width - 1) / tile_width + 1;
+  uint32_t n_rows = (height - 1) / tile_height + 1;
 
   for (uint16_t s = 0; s < outSpp; s++) {
     for (uint32_t ty = 0; ty < n_rows; ty++) {
@@ -1363,6 +1374,10 @@ heif_error loadTIFF(const char* filename, int output_bit_depth, InputImage *inpu
     if (!TIFFGetField(tif, TIFFTAG_TILEWIDTH, &tile_width) ||
         !TIFFGetField(tif, TIFFTAG_TILELENGTH, &tile_height)) {
       return {heif_error_Invalid_input, heif_suberror_Unspecified, "Cannot read TIFF tile dimensions"};
+    }
+
+    if (tile_width == 0 || tile_height == 0) {
+      return {heif_error_Invalid_input, heif_suberror_Unspecified, "Invalid TIFF tile dimensions"};
     }
 
     switch (config) {
@@ -1479,8 +1494,13 @@ std::unique_ptr<TiledTiffReader> TiledTiffReader::open(const char* filename, hei
     return nullptr;
   }
 
-  reader->m_n_columns = (reader->m_image_width + reader->m_tile_width - 1) / reader->m_tile_width;
-  reader->m_n_rows = (reader->m_image_height + reader->m_tile_height - 1) / reader->m_tile_height;
+  if (reader->m_tile_width == 0 || reader->m_tile_height == 0) {
+    *out_err = {heif_error_Invalid_input, heif_suberror_Unspecified, "Invalid TIFF tile dimensions"};
+    return nullptr;
+  }
+
+  reader->m_n_columns = (reader->m_image_width - 1) / reader->m_tile_width + 1;
+  reader->m_n_rows = (reader->m_image_height - 1) / reader->m_tile_height + 1;
 
   // Detect overview directories (reduced-resolution images)
   tdir_t n_dirs = TIFFNumberOfDirectories(tif);
@@ -1516,6 +1536,14 @@ std::unique_ptr<TiledTiffReader> TiledTiffReader::open(const char* filename, hei
       continue;
     }
 
+    if (ov_width == 0 || ov_height == 0) {
+      continue;
+    }
+
+    if (ov_tw == 0 || ov_th == 0) {
+      continue;
+    }
+
     reader->m_overviews.push_back({d, ov_width, ov_height, ov_tw, ov_th});
   }
 
@@ -1548,6 +1576,14 @@ bool TiledTiffReader::setDirectory(uint32_t dir_index)
     return false;
   }
 
+  if (m_image_width == 0 || m_image_height == 0) {
+    return false;
+  }
+
+  if (m_tile_width == 0 || m_tile_height == 0) {
+    return false;
+  }
+
   uint16_t bps;
   heif_error err = validateTiffFormat(tif, m_samples_per_pixel, bps, m_planar_config, m_has_alpha, m_sample_format);
   if (err.code != heif_error_Ok) {
@@ -1561,8 +1597,8 @@ bool TiledTiffReader::setDirectory(uint32_t dir_index)
     m_ycbcr.is_ycbcr = false;
   }
 
-  m_n_columns = (m_image_width + m_tile_width - 1) / m_tile_width;
-  m_n_rows = (m_image_height + m_tile_height - 1) / m_tile_height;
+  m_n_columns = (m_image_width - 1) / m_tile_width + 1;
+  m_n_rows = (m_image_height - 1) / m_tile_height + 1;
 
   return true;
 }
