@@ -1067,9 +1067,9 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
         uint32_t actual_h = std::min(tile_height, height - ty * tile_height);
 
         for (uint32_t row = 0; row < actual_h; row++) {
-          uint8_t* dst = reinterpret_cast<uint8_t*>(out_plane) + (ty * tile_height + row) * out_stride
-                         + tx * tile_width * sizeof(float);
-          float* src = reinterpret_cast<float*>(tile_buf.data() + row * tile_width * sizeof(float));
+          uint8_t* dst = reinterpret_cast<uint8_t*>(out_plane) + (size_t)(ty * tile_height + row) * out_stride
+                         + (size_t)tx * tile_width * sizeof(float);
+          float* src = reinterpret_cast<float*>(tile_buf.data() + (size_t)row * tile_width * sizeof(float));
           memcpy(dst, src, actual_w * sizeof(float));
         }
       }
@@ -1134,9 +1134,9 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
         uint32_t actual_h = std::min(tile_height, height - ty * tile_height);
 
         for (uint32_t row = 0; row < actual_h; row++) {
-          uint8_t* dst = out_plane + (ty * tile_height + row) * out_stride
-                         + tx * tile_width * bytesPerSample;
-          uint8_t* src = tile_buf.data() + row * tile_width * bytesPerSample;
+          uint8_t* dst = out_plane + ((size_t)ty * tile_height + row) * out_stride
+                         + (size_t)tx * tile_width * bytesPerSample;
+          uint8_t* src = tile_buf.data() + (size_t)row * tile_width * bytesPerSample;
           memcpy(dst, src, actual_w * bytesPerSample);
         }
       }
@@ -1185,8 +1185,8 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
 
       if (bps <= 8) {
         for (uint32_t row = 0; row < actual_h; row++) {
-          uint8_t* dst = out_plane + (ty * tile_height + row) * out_stride + tx * tile_width * outSpp;
-          uint8_t* src = tile_buf.data() + row * tile_width * samplesPerPixel;
+          uint8_t* dst = out_plane + ((size_t)ty * tile_height + row) * out_stride + (size_t)tx * tile_width * outSpp;
+          uint8_t* src = tile_buf.data() + (size_t)row * tile_width * samplesPerPixel;
           if (outSpp == samplesPerPixel) {
             memcpy(dst, src, actual_w * outSpp);
           }
@@ -1199,8 +1199,8 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
       }
       else if (output_bit_depth <= 8) {
         for (uint32_t row = 0; row < actual_h; row++) {
-          uint8_t* dst = out_plane + (ty * tile_height + row) * out_stride + tx * tile_width * outSpp;
-          uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + row * tile_width * samplesPerPixel * 2);
+          uint8_t* dst = out_plane + ((size_t)ty * tile_height + row) * out_stride + (size_t)tx * tile_width * outSpp;
+          uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + (size_t)row * tile_width * samplesPerPixel * 2);
           if (outSpp == samplesPerPixel) {
             for (uint32_t x = 0; x < actual_w * outSpp; x++) {
               dst[x] = static_cast<uint8_t>(src[x] >> 8);
@@ -1218,9 +1218,9 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
       else {
         int bdShift = 16 - output_bit_depth;
         for (uint32_t row = 0; row < actual_h; row++) {
-          uint16_t* dst = reinterpret_cast<uint16_t*>(out_plane + (ty * tile_height + row) * out_stride
-                                                      + tx * tile_width * outSpp * 2);
-          uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + row * tile_width * samplesPerPixel * 2);
+          uint16_t* dst = reinterpret_cast<uint16_t*>(out_plane + ((size_t)ty * tile_height + row) * out_stride
+                                                      + (size_t)tx * tile_width * outSpp * 2);
+          uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + (size_t)row * tile_width * samplesPerPixel * 2);
           if (outSpp == samplesPerPixel) {
             if (bdShift == 0) {
               memcpy(dst, src, actual_w * outSpp * 2);
@@ -1302,8 +1302,8 @@ static heif_error readTiledSeparate(TIFF* tif, uint32_t width, uint32_t height,
 
         if (bps <= 8) {
           for (uint32_t row = 0; row < actual_h; row++) {
-            uint8_t* dst = out_plane + (ty * tile_height + row) * out_stride + tx * tile_width * outSpp + s;
-            uint8_t* src = tile_buf.data() + row * tile_width;
+            uint8_t* dst = out_plane + ((size_t)ty * tile_height + row) * out_stride + (size_t)tx * tile_width * outSpp + s;
+            uint8_t* src = tile_buf.data() + (size_t)row * tile_width;
             for (uint32_t x = 0; x < actual_w; x++) {
               dst[x * outSpp] = src[x];
             }
@@ -1311,8 +1311,8 @@ static heif_error readTiledSeparate(TIFF* tif, uint32_t width, uint32_t height,
         }
         else if (output_bit_depth <= 8) {
           for (uint32_t row = 0; row < actual_h; row++) {
-            uint8_t* dst = out_plane + (ty * tile_height + row) * out_stride + tx * tile_width * outSpp + s;
-            uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + row * tile_width * 2);
+            uint8_t* dst = out_plane + ((size_t)ty * tile_height + row) * out_stride + (size_t)tx * tile_width * outSpp + s;
+            uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + (size_t)row * tile_width * 2);
             for (uint32_t x = 0; x < actual_w; x++) {
               dst[x * outSpp] = static_cast<uint8_t>(src[x] >> 8);
             }
@@ -1321,8 +1321,8 @@ static heif_error readTiledSeparate(TIFF* tif, uint32_t width, uint32_t height,
         else {
           int bdShift = 16 - output_bit_depth;
           for (uint32_t row = 0; row < actual_h; row++) {
-            uint16_t* dst = reinterpret_cast<uint16_t*>(out_plane + (ty * tile_height + row) * out_stride) + tx * tile_width * outSpp + s;
-            uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + row * tile_width * 2);
+            uint16_t* dst = reinterpret_cast<uint16_t*>(out_plane + ((size_t)ty * tile_height + row) * out_stride) + (size_t)tx * tile_width * outSpp + s;
+            uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + (size_t)row * tile_width * 2);
             for (uint32_t x = 0; x < actual_w; x++) {
               dst[x * outSpp] = static_cast<uint16_t>(src[x] >> bdShift);
             }
