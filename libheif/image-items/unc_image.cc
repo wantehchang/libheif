@@ -136,10 +136,10 @@ Result<std::shared_ptr<ImageItem_uncompressed>> ImageItem_uncompressed::add_unci
   auto unci_image = std::make_shared<ImageItem_uncompressed>(ctx, unci_id);
   unci_image->set_resolution(parameters->image_width, parameters->image_height);
   unci_image->m_unc_encoder = std::move(*uncEncoder);
-  unci_image->m_encoding_options = *encoding_options;
+  unci_image->m_tile_encoding_options = *encoding_options;
+  unci_image->m_tile_encoding_options.image_orientation = heif_orientation_normal;
 
   ctx->insert_image_item(unci_id, unci_image);
-
 
 
   // Generate headers
@@ -179,6 +179,11 @@ Result<std::shared_ptr<ImageItem_uncompressed>> ImageItem_uncompressed::add_unci
     auto icef = std::make_shared<Box_icef>();
     unci_image->add_property_without_deduplication(icef, true); // icef is empty. A normal add_property() would lead to a wrong deduplication.
   }
+
+  // Add transformative properties
+
+  ctx->get_heif_file()->add_orientation_properties(unci_id, encoding_options->image_orientation);
+
 
   // Create empty image. If we use compression, we append the data piece by piece.
 

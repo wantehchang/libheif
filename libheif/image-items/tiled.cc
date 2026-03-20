@@ -844,7 +844,7 @@ ImageItem_Tiled::decode_compressed_image(const heif_decoding_options& options,
   }
   else {
     return Error{heif_error_Unsupported_feature, heif_suberror_Unspecified,
-                 "'tili' images can only be access per tile"};
+                 "'tili' images can only be accessed per tile"};
   }
 }
 

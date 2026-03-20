@@ -100,7 +100,7 @@ private:
   std::shared_ptr<class Encoder_uncompressed> m_encoder;
 
   std::unique_ptr<const unc_encoder> m_unc_encoder;
-  heif_encoding_options m_encoding_options;
+  heif_encoding_options m_tile_encoding_options;
 
   /*
   Result<ImageItem::CodedImageData> generate_headers(const std::shared_ptr<const HeifPixelImage>& src_image,
