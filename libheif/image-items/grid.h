@@ -115,11 +115,7 @@ public:
 
   int get_chroma_bits_per_pixel() const override;
 
-  void set_encoding_options(const heif_encoding_options* options) {
-    heif_encoding_options_copy(m_encoding_options, options);
-  }
-
-  const heif_encoding_options* get_encoding_options() const { return m_encoding_options; }
+  void set_tile_encoding_options(const heif_encoding_options* options);
 
   Result<Encoder::CodedImageData> encode(const std::shared_ptr<HeifPixelImage>& image,
                                          heif_encoder* encoder,
@@ -159,7 +155,7 @@ private:
   ImageGrid m_grid_spec;
   std::vector<heif_item_id> m_grid_tile_ids;
 
-  heif_encoding_options* m_encoding_options = nullptr;
+  heif_encoding_options* m_tile_encoding_options = nullptr;
 
   Error read_grid_spec();
 

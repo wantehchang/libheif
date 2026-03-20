@@ -137,20 +137,20 @@ std::string ImageGrid::dump() const
 ImageItem_Grid::ImageItem_Grid(HeifContext* ctx)
     : ImageItem(ctx)
 {
-  m_encoding_options = heif_encoding_options_alloc();
+  m_tile_encoding_options = heif_encoding_options_alloc();
 }
 
 
 ImageItem_Grid::ImageItem_Grid(HeifContext* ctx, heif_item_id id)
     : ImageItem(ctx, id)
 {
-  m_encoding_options = heif_encoding_options_alloc();
+  m_tile_encoding_options = heif_encoding_options_alloc();
 }
 
 
 ImageItem_Grid::~ImageItem_Grid()
 {
-  heif_encoding_options_free(m_encoding_options);
+  heif_encoding_options_free(m_tile_encoding_options);
 }
 
 
@@ -728,9 +728,10 @@ Result<std::shared_ptr<ImageItem_Grid>> ImageItem_Grid::add_new_grid_item(HeifCo
   }
   heif_item_id grid_id = *grid_id_result;
   grid_image = std::make_shared<ImageItem_Grid>(ctx, grid_id);
-  grid_image->set_encoding_options(encoding_options);
+  grid_image->set_tile_encoding_options(encoding_options);
   grid_image->set_grid_spec(grid);
   grid_image->set_resolution(output_width, output_height);
+  ctx->get_heif_file()->add_orientation_properties(grid_id, encoding_options->image_orientation);
 
   ctx->insert_image_item(grid_id, grid_image);
   const int construction_method = 1; // 0=mdat 1=idat
@@ -755,16 +756,22 @@ Result<std::shared_ptr<ImageItem_Grid>> ImageItem_Grid::add_new_grid_item(HeifCo
   return grid_image;
 }
 
+void ImageItem_Grid::set_tile_encoding_options(const heif_encoding_options* options)
+{
+  heif_encoding_options_copy(m_tile_encoding_options, options);
+
+  // do not propagate image transformation to tiles
+  m_tile_encoding_options->image_orientation = heif_orientation_normal;
+}
+
 
 Error ImageItem_Grid::add_image_tile(uint32_t tile_x, uint32_t tile_y,
                                      const std::shared_ptr<HeifPixelImage>& image,
                                      heif_encoder* encoder)
 {
-  auto encoding_options = get_encoding_options();
-
   auto encodingResult = get_context()->encode_image(image,
                                             encoder,
-                                            *encoding_options,
+                                            *m_tile_encoding_options,
                                             heif_image_input_class_normal);
   if (!encodingResult) {
     return encodingResult.error();
@@ -795,9 +802,9 @@ Error ImageItem_Grid::add_image_tile(uint32_t tile_x, uint32_t tile_y,
 
     // add color profile similar to first tile image
     // TODO: this shouldn't be necessary. The colr profiles should be in the ImageExtraData above.
-    auto colr_boxes = add_color_profile(image, *encoding_options,
+    auto colr_boxes = add_color_profile(image, *m_tile_encoding_options,
                                         heif_image_input_class_normal,
-                                        encoding_options->output_nclx_profile);
+                                        m_tile_encoding_options->output_nclx_profile);
     for (auto& property : colr_boxes) {
       add_property(property, is_property_essential(property));
     }
