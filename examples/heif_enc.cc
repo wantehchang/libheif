@@ -125,6 +125,7 @@ bool encode_sequence = false;
 bool option_unif = false;
 bool use_video_handler = false;
 bool option_component_content_ids = false;
+heif_orientation transform = heif_orientation_normal;
 std::string option_mime_item_type;
 std::string option_mime_item_file;
 std::string option_mime_item_name;
@@ -162,6 +163,17 @@ std::string property_pitm_description;
 
 RawImageParameters raw_input_params;
 bool force_raw_input = false;
+
+std::optional<long> parse_int(const char* s)
+{
+  char* end;
+  long val = strtol(s, &end, 10);
+  if (*end != '\0' || end == s) {
+    return {};
+  }
+  return val;
+}
+
 
 // for benchmarking
 
@@ -223,6 +235,9 @@ const int OPTION_RAW_HEIGHT = 1042;
 const int OPTION_RAW_TYPE = 1043;
 const int OPTION_RAW_ENDIAN = 1044;
 const int OPTION_RAW = 1045;
+const int OPTION_DO_ROTATE = 1046;
+const int OPTION_DO_FLIP_H = 1047;
+const int OPTION_DO_FLIP_V = 1048;
 
 
 #if HEIF_ENABLE_EXPERIMENTAL_FEATURES
@@ -365,6 +380,9 @@ static option long_options[] = {
     {(char* const) "clli",                        required_argument, 0,                     OPTION_SET_CLLI},
     {(char* const) "pasp",                        required_argument, 0,                     OPTION_SET_PASP},
     {(char* const) "premultiplied-alpha",         no_argument,       &premultiplied_alpha,  1},
+    {(char* const) "rotate-cw",                   required_argument, 0,                     OPTION_DO_ROTATE},
+    {(char* const) "flip-h",                      no_argument,       0,                     OPTION_DO_FLIP_H},
+    {(char* const) "flip-v",                      no_argument,       0,                     OPTION_DO_FLIP_V},
     {(char* const) "plugin-directory",            required_argument, 0,                     OPTION_PLUGIN_DIRECTORY},
     {(char* const) "benchmark",                   no_argument,       &run_benchmark,        1},
     {(char* const) "enable-metadata-compression", required_argument, 0, OPTION_METADATA_COMPRESSION},
@@ -510,6 +528,8 @@ void show_help(const char* argv0)
             << "      --enable-two-colr-boxes   will write both an ICC and an nclx color profile if both are present\n"
             << "      --clli MaxCLL,MaxPALL     add 'content light level information' property to all encoded images\n"
             << "      --pasp h,v                set pixel aspect ratio property to all encoded images\n"
+            << "      --rotate-cw #             rotate input image by 0, 90, 180, 270 degrees (clock-wise)\n"
+            << "      --flip-h / --flip-v       flip input image horizontally or vertically\n"
             << "\n"
             << "tiling:\n"
             << "      --cut-tiles #             cuts the input image into square tiles of the given width\n"
@@ -1767,6 +1787,29 @@ int main(int argc, char** argv)
         }
         break;
       }
+      case OPTION_DO_ROTATE: {
+        auto angle = parse_int(optarg);
+        if (!angle || (*angle != 0 && *angle != 90 && *angle != 180 && *angle != 270)) {
+          std::cerr << "Invalid rotation angle. Must be 0, 90, 180, or 270.\n";
+          return 5;
+        }
+        if (*angle == 90) {
+          transform = heif_orientation_concat(transform, heif_orientation_rotate_90_cw);
+        }
+        else if (*angle == 180) {
+          transform = heif_orientation_concat(transform, heif_orientation_rotate_180);
+        }
+        else if (*angle == 270) {
+          transform = heif_orientation_concat(transform, heif_orientation_rotate_270_cw);
+        }
+        break;
+      }
+      case OPTION_DO_FLIP_H:
+        transform = heif_orientation_concat(transform, heif_orientation_flip_horizontally);
+        break;
+      case OPTION_DO_FLIP_V:
+        transform = heif_orientation_concat(transform, heif_orientation_flip_vertically);
+        break;
       case OPTION_ADD_MIME_ITEM:
         option_mime_item_type = optarg;
         break;
@@ -2298,7 +2341,7 @@ int do_encode_images(heif_context* context, heif_encoder* encoder, heif_encoding
 
     options->save_alpha_channel = (uint8_t) master_alpha;
     options->output_nclx_profile = nclx;
-    options->image_orientation = input_image.orientation;
+    options->image_orientation = heif_orientation_concat(input_image.orientation, transform);
 
     if (premultiplied_alpha) {
       heif_image_set_premultiplied_alpha(image.get(), premultiplied_alpha);
