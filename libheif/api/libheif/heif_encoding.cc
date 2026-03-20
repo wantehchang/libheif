@@ -568,6 +568,38 @@ int heif_encoder_has_default(heif_encoder* encoder,
 }
 
 
+// 1 = heif_orientation_normal
+// 2 = heif_orientation_flip_horizontally
+// 3 = heif_orientation_rotate_180
+// 4 = heif_orientation_flip_vertically
+// 5 = heif_orientation_rotate_90_cw_then_flip_horizontally
+// 6 = heif_orientation_rotate_90_cw
+// 7 = heif_orientation_rotate_90_cw_then_flip_vertically
+// 8 = heif_orientation_rotate_270_cw
+static int orientation_concat[8][8] {
+  //         second: 1  2  3  4  5  6  7  8
+  /* first=1 */   {1, 2, 3, 4, 5, 6, 7, 8},
+  /* first=2 */   {2, 1, 4, 3, 8, 7, 6, 5},
+  /* first=3 */   {3, 4, 1, 2, 7, 8, 5, 6},
+  /* first=4 */   {4, 3, 2, 1, 6, 5, 8, 7},
+  /* first=5 */   {5, 6, 7, 8, 1, 2, 3, 4},
+  /* first=6 */   {6, 5, 8, 7, 4, 3, 2, 1},
+  /* first=7 */   {7, 8, 5, 6, 3, 4, 1, 2},
+  /* first=8 */   {8, 7, 6, 5, 2, 1, 4, 3}
+};
+
+
+heif_orientation heif_orientation_concat(heif_orientation first, heif_orientation second)
+{
+  // handle invalid input
+  if (first < 1 || first > 8 || second < 1 || second > 8) {
+    return heif_orientation_normal;
+  }
+
+  return static_cast<heif_orientation>(orientation_concat[first - 1][second - 1]);
+}
+
+
 static void set_default_encoding_options(heif_encoding_options& options)
 {
   options.version = 8;

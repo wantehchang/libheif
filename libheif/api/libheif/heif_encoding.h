@@ -270,6 +270,9 @@ typedef enum heif_orientation
 } heif_orientation;
 
 
+heif_orientation heif_orientation_concat(heif_orientation first, heif_orientation second);
+
+
 typedef struct heif_encoding_options
 {
   uint8_t version;
@@ -298,7 +301,7 @@ typedef struct heif_encoding_options
   // version 5 options
 
   // libheif will generate irot/imir boxes to match these orientations
-  enum heif_orientation image_orientation;
+  heif_orientation image_orientation;
 
   // version 6 options
 
