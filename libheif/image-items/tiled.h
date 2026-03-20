@@ -156,12 +156,6 @@ public:
 
   heif_compression_format get_compression_format() const override;
 
-  void set_encoding_options(const heif_encoding_options* options) {
-    heif_encoding_options_copy(m_encoding_options, options);
-  }
-
-  const heif_encoding_options* get_encoding_options() const { return m_encoding_options; }
-
   static Result<std::shared_ptr<ImageItem_Tiled>> add_new_tiled_item(HeifContext* ctx, const heif_tiled_image_parameters* parameters,
                                                                      const heif_encoder* encoder,
                                                                      const heif_encoding_options* encoding_options);
@@ -213,13 +207,15 @@ public:
 private:
   TiledHeader m_tild_header;
   uint64_t m_next_tild_position = 0;
-  heif_encoding_options* m_encoding_options = nullptr;
+
+  heif_orientation m_image_orientation = heif_orientation_normal;
+  heif_encoding_options* m_tile_encoding_options = nullptr;
 
   uint32_t mReadChunkSize_bytes = 64*1024; // 64 kiB
   bool m_preload_offset_table = false;
 
   std::shared_ptr<ImageItem> m_tile_item;
-  std::shared_ptr<class Decoder> m_tile_decoder;
+  std::shared_ptr<Decoder> m_tile_decoder;
 
   Result<DataExtent>
   get_compressed_data_for_tile(uint32_t tx, uint32_t ty) const;

@@ -487,20 +487,20 @@ std::string TiledHeader::dump() const
 ImageItem_Tiled::ImageItem_Tiled(HeifContext* ctx)
         : ImageItem(ctx)
 {
-  m_encoding_options = heif_encoding_options_alloc();
+  m_tile_encoding_options = heif_encoding_options_alloc();
 }
 
 
 ImageItem_Tiled::ImageItem_Tiled(HeifContext* ctx, heif_item_id id)
         : ImageItem(ctx, id)
 {
-  m_encoding_options = heif_encoding_options_alloc();
+  m_tile_encoding_options = heif_encoding_options_alloc();
 }
 
 
 ImageItem_Tiled::~ImageItem_Tiled()
 {
-  heif_encoding_options_free(m_encoding_options);
+  heif_encoding_options_free(m_tile_encoding_options);
 }
 
 
@@ -664,7 +664,12 @@ ImageItem_Tiled::add_new_tiled_item(HeifContext* ctx, const heif_tiled_image_par
   ctx->insert_image_item(tild_id, tild_image);
 
   if (encoding_options) {
-    tild_image->set_encoding_options(encoding_options);
+    // encoding options for the tiles, but do not apply transformative properties
+    heif_encoding_options_copy(tild_image->m_tile_encoding_options, encoding_options);
+    tild_image->m_tile_encoding_options->image_orientation = heif_orientation_normal;
+
+    // orientation of the main image
+    tild_image->m_image_orientation = encoding_options->image_orientation;
   }
 
   // Create tilC box
@@ -722,12 +727,10 @@ Error ImageItem_Tiled::add_image_tile(uint32_t tile_x, uint32_t tile_y,
 {
   auto item = ImageItem::alloc_for_compression_format(get_context(), encoder->plugin->compression_format);
 
-  const heif_encoding_options* options = get_encoding_options();
-
   Result<std::shared_ptr<HeifPixelImage>> colorConversionResult;
   colorConversionResult = item->get_encoder()->convert_colorspace_for_encoding(image, encoder,
-                                                                               options->output_nclx_profile,
-                                                                               &options->color_conversion_options,
+                                                                               m_tile_encoding_options->output_nclx_profile,
+                                                                               &m_tile_encoding_options->color_conversion_options,
                                                                                get_context()->get_security_limits());
   if (!colorConversionResult) {
     return colorConversionResult.error();
@@ -735,7 +738,7 @@ Error ImageItem_Tiled::add_image_tile(uint32_t tile_x, uint32_t tile_y,
 
   std::shared_ptr<HeifPixelImage> colorConvertedImage = *colorConversionResult;
 
-  Result<Encoder::CodedImageData> encodeResult = item->encode_to_bitstream_and_boxes(colorConvertedImage, encoder, *options, heif_image_input_class_normal);
+  Result<Encoder::CodedImageData> encodeResult = item->encode_to_bitstream_and_boxes(colorConvertedImage, encoder, *m_tile_encoding_options, heif_image_input_class_normal);
 
   if (!encodeResult) {
     return encodeResult.error();
@@ -814,6 +817,8 @@ Error ImageItem_Tiled::add_image_tile(uint32_t tile_x, uint32_t tile_y,
         get_file()->add_property(get_id(), propertyBox, propertyBox->is_essential());
         break;
     }
+
+    get_file()->add_orientation_properties(get_id(), m_image_orientation);
   }
 
   //get_file()->set_brand(encoder->plugin->compression_format,
