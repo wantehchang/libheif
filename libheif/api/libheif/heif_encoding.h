@@ -270,6 +270,7 @@ typedef enum heif_orientation
 } heif_orientation;
 
 
+LIBHEIF_API
 heif_orientation heif_orientation_concat(heif_orientation first, heif_orientation second);
 
 
