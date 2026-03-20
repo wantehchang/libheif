@@ -731,7 +731,7 @@ Result<std::shared_ptr<ImageItem_Grid>> ImageItem_Grid::add_new_grid_item(HeifCo
   grid_image->set_tile_encoding_options(encoding_options);
   grid_image->set_grid_spec(grid);
   grid_image->set_resolution(output_width, output_height);
-  ctx->get_heif_file()->add_orientation_properties(grid_id, encoding_options->image_orientation);
+  grid_image->m_grid_orientation = encoding_options->image_orientation;
 
   ctx->insert_image_item(grid_id, grid_image);
   const int construction_method = 1; // 0=mdat 1=idat
@@ -808,6 +808,10 @@ Error ImageItem_Grid::add_image_tile(uint32_t tile_x, uint32_t tile_y,
     for (auto& property : colr_boxes) {
       add_property(property, is_property_essential(property));
     }
+
+    // Add transformative properties
+
+    get_context()->get_heif_file()->add_orientation_properties(get_id(), m_grid_orientation);
   }
 
   return Error::Ok;

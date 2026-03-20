@@ -155,6 +155,7 @@ private:
   ImageGrid m_grid_spec;
   std::vector<heif_item_id> m_grid_tile_ids;
 
+  heif_orientation m_grid_orientation = heif_orientation_normal;
   heif_encoding_options* m_tile_encoding_options = nullptr;
 
   Error read_grid_spec();
