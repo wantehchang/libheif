@@ -10,6 +10,7 @@ environment:
   - arch: arm64
 
 install:
+  - vcpkg upgrade --no-dry-run
   - vcpkg install aom:%arch%-windows
   - vcpkg install dav1d:%arch%-windows
   - vcpkg install ffmpeg[avcodec]:%arch%-windows
