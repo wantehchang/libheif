@@ -13,7 +13,7 @@ install:
   - vcpkg upgrade --no-dry-run
   - vcpkg install aom:%arch%-windows
   - vcpkg install dav1d:%arch%-windows
-  - vcpkg install ffmpeg[avcodec]:%arch%-windows
+#  - vcpkg install ffmpeg[avcodec]:%arch%-windows
   - vcpkg install libde265:%arch%-windows
   - vcpkg install libjpeg-turbo:%arch%-windows
   - vcpkg install libpng:%arch%-windows
