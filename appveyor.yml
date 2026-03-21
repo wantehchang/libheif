@@ -10,6 +10,13 @@ environment:
   - arch: arm64
 
 install:
+  # Build only Release vcpkg libraries (skip Debug) to halve install time
+  - ps: |
+      @('x64-windows', 'arm64-windows') | ForEach-Object {
+        $tripletDir = "C:\tools\vcpkg\triplets"
+        $content = (Get-Content "$tripletDir\$_.cmake" -Raw) + "`nset(VCPKG_BUILD_TYPE release)`n"
+        Set-Content "$tripletDir\$_.cmake" $content
+      }
   - vcpkg upgrade --no-dry-run
   - vcpkg install aom:%arch%-windows
   - vcpkg install dav1d:%arch%-windows
