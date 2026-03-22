@@ -18,11 +18,11 @@ install:
         Set-Content "$tripletDir\$_.cmake" $content
       }
   # --- Phase 1: remove ffmpeg, upgrade everything else ---
-  - vcpkg remove ffmpeg:%arch%-windows --recurse 2>NUL & ver>NUL
-  - vcpkg upgrade --no-dry-run
-  # --- Phase 2: uncomment the two lines below to compile ffmpeg ---
+  #- vcpkg remove ffmpeg:%arch%-windows --recurse 2>NUL & ver>NUL
   #- vcpkg upgrade --no-dry-run
-  #- vcpkg install ffmpeg[avcodec]:%arch%-windows
+  # --- Phase 2: uncomment the two lines below to compile ffmpeg ---
+  - vcpkg upgrade --no-dry-run
+  - vcpkg install ffmpeg[avcodec]:%arch%-windows
   - vcpkg install aom:%arch%-windows
   - vcpkg install dav1d:%arch%-windows
   - vcpkg install libde265:%arch%-windows
