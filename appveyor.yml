@@ -28,7 +28,7 @@ install:
   - vcpkg upgrade --no-dry-run
   #- vcpkg install ffmpeg[avcodec]:%triplet%
   - vcpkg install aom:%triplet%
-  - vcpkg install dav1d:%triplet%
+  - ps: If (${env:arch} -ne "Win32") { vcpkg install dav1d:${env:triplet} }
   - vcpkg install libde265:%triplet%
   - vcpkg install libjpeg-turbo:%triplet%
   - vcpkg install libpng:%triplet%
