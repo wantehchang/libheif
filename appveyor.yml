@@ -26,14 +26,14 @@ install:
   #- vcpkg upgrade --no-dry-run
   # --- Phase 2: uncomment the two lines below to compile ffmpeg ---
   - vcpkg upgrade --no-dry-run
-  #- vcpkg install ffmpeg[avcodec]:%triplet%
+  - vcpkg install ffmpeg[avcodec]:%triplet%
   - vcpkg install aom:%triplet%
   - ps: If (${env:arch} -ne "Win32") { vcpkg install dav1d:${env:triplet} }
   - vcpkg install libde265:%triplet%
   - vcpkg install libjpeg-turbo:%triplet%
   - vcpkg install libpng:%triplet%
   - vcpkg install tiff:%triplet%
-  - ps: If (${env:arch} -eq "x64") { vcpkg install x265:${env:triplet} }
+  - vcpkg install x265:${env:triplet}
   - vcpkg install zlib:%triplet%
   - cd c:\tools\vcpkg
   - vcpkg integrate install
