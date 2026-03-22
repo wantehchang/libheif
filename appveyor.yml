@@ -33,7 +33,7 @@ install:
   - vcpkg install libjpeg-turbo:%triplet%
   - vcpkg install libpng:%triplet%
   - vcpkg install tiff:%triplet%
-  - vcpkg install x265:${env:triplet}
+  - vcpkg install x265:%triplet%
   - vcpkg install zlib:%triplet%
   - cd c:\tools\vcpkg
   - vcpkg integrate install
