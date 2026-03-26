@@ -3,7 +3,8 @@
 
   MIT License
 
-  Copyright (c) 2017 Dirk Farin <dirk.farin@gmail.com>
+  Copyright (c) 2025 Dirk Farin <dirk.farin@gmail.com>
+  Copyright (c) 2026 Rob Smith <rob.smith@awayteam.co.uk>
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
