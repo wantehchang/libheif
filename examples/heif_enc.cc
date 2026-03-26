@@ -482,6 +482,7 @@ void show_help(const char* argv0)
 #if HEIF_ENABLE_EXPERIMENTAL_FEATURES
             << "      --add-mime-item TYPE       add a mime item of the specified content type (experimental)\n"
             << "      --mime-item-file FILE      use the specified FILE as the data to put into the mime item (experimental)\n"
+            << "      --mime-item-name NAME      assign the name to the embedded item (experimental)\n"
             << "      --turtle FILENAME          read Turtle (RDF) file and assign GIMI content IDs to tiles (experimental)\n"
             << "      --embed-turtle             also embed the Turtle file as metadata item in the HEIF (experimental)\n"
 #endif
