@@ -270,16 +270,16 @@ private:
   std::shared_ptr<Box_mini> m_mini_box; // meta alternative
 #endif
 
-  std::shared_ptr<Box_ipco> m_ipco_box;
-  std::shared_ptr<Box_ipma> m_ipma_box;
   std::shared_ptr<Box_iloc> m_iloc_box;
   std::shared_ptr<Box_idat> m_idat_box;
   std::shared_ptr<Box_iref> m_iref_box;
-  std::shared_ptr<Box_pitm> m_pitm_box;
   std::shared_ptr<Box_iinf> m_iinf_box;
   std::shared_ptr<Box_grpl> m_grpl_box;
+  std::shared_ptr<Box_pitm> m_pitm_box; // only non-null if has_images()==true
+  std::shared_ptr<Box_iprp> m_iprp_box; // only non-null if has_images()==true
+  std::shared_ptr<Box_ipco> m_ipco_box; // only non-null if has_images()==true
+  std::shared_ptr<Box_ipma> m_ipma_box; // only non-null if has_images()==true
 
-  std::shared_ptr<Box_iprp> m_iprp_box;
 
   std::map<heif_item_id, std::shared_ptr<Box_infe> > m_infe_boxes;
 

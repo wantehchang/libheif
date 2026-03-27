@@ -471,41 +471,37 @@ Error HeifFile::parse_heif_images()
   }
 
 
-  if (m_hdlr_box &&
-      m_hdlr_box->get_handler_type() != fourcc("pict")) {
-    return {};
-  }
+  if (has_images()) {
+    // --- find mandatory boxes needed for image decoding
 
+    m_pitm_box = m_meta_box->get_child_box<Box_pitm>();
+    if (!m_pitm_box) {
+      return Error(heif_error_Invalid_input,
+                   heif_suberror_No_pitm_box);
+    }
 
-  // --- find mandatory boxes needed for image decoding
+    m_iprp_box = m_meta_box->get_child_box<Box_iprp>();
+    if (!m_iprp_box) {
+      return Error(heif_error_Invalid_input,
+                   heif_suberror_No_iprp_box);
+    }
 
-  m_pitm_box = m_meta_box->get_child_box<Box_pitm>();
-  if (!m_pitm_box) {
-    return Error(heif_error_Invalid_input,
-                 heif_suberror_No_pitm_box);
-  }
+    m_ipco_box = m_iprp_box->get_child_box<Box_ipco>();
+    if (!m_ipco_box) {
+      return Error(heif_error_Invalid_input,
+                   heif_suberror_No_ipco_box);
+    }
 
-  m_iprp_box = m_meta_box->get_child_box<Box_iprp>();
-  if (!m_iprp_box) {
-    return Error(heif_error_Invalid_input,
-                 heif_suberror_No_iprp_box);
+    auto ipma_boxes = m_iprp_box->get_child_boxes<Box_ipma>();
+    if (ipma_boxes.empty()) {
+      return Error(heif_error_Invalid_input,
+                   heif_suberror_No_ipma_box);
+    }
+    for (size_t i=1;i<ipma_boxes.size();i++) {
+      ipma_boxes[0]->insert_entries_from_other_ipma_box(*ipma_boxes[i]);
+    }
+    m_ipma_box = ipma_boxes[0];
   }
-
-  m_ipco_box = m_iprp_box->get_child_box<Box_ipco>();
-  if (!m_ipco_box) {
-    return Error(heif_error_Invalid_input,
-                 heif_suberror_No_ipco_box);
-  }
-
-  auto ipma_boxes = m_iprp_box->get_child_boxes<Box_ipma>();
-  if (ipma_boxes.empty()) {
-    return Error(heif_error_Invalid_input,
-                 heif_suberror_No_ipma_box);
-  }
-  for (size_t i=1;i<ipma_boxes.size();i++) {
-    ipma_boxes[0]->insert_entries_from_other_ipma_box(*ipma_boxes[i]);
-  }
-  m_ipma_box = ipma_boxes[0];
 
   m_iloc_box = m_meta_box->get_child_box<Box_iloc>();
   if (!m_iloc_box) {
@@ -516,7 +512,7 @@ Error HeifFile::parse_heif_images()
   m_idat_box = m_meta_box->get_child_box<Box_idat>();
 
   m_iref_box = m_meta_box->get_child_box<Box_iref>();
-  if (m_iref_box) {
+  if (m_iref_box && m_pitm_box) {
     Error error = check_for_ref_cycle(get_primary_image_ID(), m_iref_box);
     if (error) {
       return error;
@@ -644,6 +640,10 @@ Result<std::vector<uint8_t>> HeifFile::get_uncompressed_item_data(heif_item_id I
   // std::lock_guard<std::mutex> guard(m_read_mutex);   // TODO: I think that this is not needed anymore because this function is not used for image data anymore.
 #endif
 
+  if (!m_iloc_box) {
+    return Error(heif_error_Invalid_input, heif_suberror_No_iloc_box);
+  }
+
   if (!item_exists(ID)) {
     return Error(heif_error_Usage_error,
                  heif_suberror_Nonexisting_item_referenced);
@@ -748,6 +748,10 @@ Error HeifFile::append_data_from_file_range(std::vector<uint8_t>& out_data, uint
 
 Error HeifFile::append_data_from_iloc(heif_item_id ID, std::vector<uint8_t>& out_data, uint64_t offset, uint64_t size) const
 {
+  if (!m_iloc_box) {
+    return Error(heif_error_Invalid_input, heif_suberror_No_iloc_box);
+  }
+
   const auto& items = m_iloc_box->get_items();
   const Box_iloc::Item* item = nullptr;
   for (const auto& i : items) {
@@ -774,6 +778,10 @@ Result<std::vector<uint8_t>> HeifFile::get_item_data(heif_item_id ID, heif_metad
   Error error;
 
   assert(m_limits);
+
+  if (!m_iloc_box) {
+    return Error(heif_error_Invalid_input, heif_suberror_No_iloc_box);
+  }
 
   auto infe_box = get_infe_box(ID);
   if (!infe_box) {
