@@ -328,7 +328,7 @@ static uint64_t rescale(uint64_t duration, uint32_t old_base, uint32_t new_base)
 }
 
 
-void HeifContext::write(StreamWriter& writer)
+Error HeifContext::write(StreamWriter& writer)
 {
   // --- finalize some parameters
 
@@ -389,7 +389,9 @@ void HeifContext::write(StreamWriter& writer)
   for (auto& region : m_region_items) {
     std::vector<uint8_t> data_array;
     Error err = region->encode(data_array);
-    // TODO: err
+    if (err) {
+      return err;
+    }
 
     m_heif_file->append_iloc_data(region->item_id, data_array, 0);
   }
@@ -412,7 +414,10 @@ void HeifContext::write(StreamWriter& writer)
   // --- post-process images
 
   for (auto& img : m_all_images) {
-    img.second->process_before_write();
+    Error err = img.second->process_before_write();
+    if (err) {
+      return err;
+    }
   }
 
   // --- sort item properties
@@ -452,6 +457,8 @@ void HeifContext::write(StreamWriter& writer)
   // --- write to file
 
   m_heif_file->write(writer);
+
+  return {};
 }
 
 std::string HeifContext::debug_dump_boxes() const

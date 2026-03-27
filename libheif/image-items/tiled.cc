@@ -42,7 +42,7 @@ static uint64_t readvec(const std::vector<uint8_t>& data, size_t& ptr, int len)
 }
 
 
-uint64_t number_of_tiles(const heif_tiled_image_parameters& params)
+Result<uint64_t> number_of_tiles(const heif_tiled_image_parameters& params, const heif_security_limits* limits)
 {
   uint64_t nTiles = nTiles_h(params) * static_cast<uint64_t>(nTiles_v(params));
 
@@ -52,7 +52,32 @@ uint64_t number_of_tiles(const heif_tiled_image_parameters& params)
       break;
     }
 
+    if (params.extra_dimensions[i] != 0 &&
+        nTiles > UINT64_MAX / params.extra_dimensions[i]) {
+        return Error{
+          heif_error_Unsupported_filetype,
+          heif_suberror_Unspecified,
+          "Number of tiles exceeds uint64 maximum."
+        };
+    }
+
+    if (params.extra_dimensions[i] == 0) {
+      return Error{
+        heif_error_Unsupported_filetype,
+        heif_suberror_Unspecified,
+        "Zero extra dimension size."
+      };
+    }
+
     nTiles *= params.extra_dimensions[i];
+
+    if (limits && nTiles > limits->max_number_of_tiles) {
+      return Error{
+        heif_error_Unsupported_filetype,
+        heif_suberror_Security_limit_exceeded,
+        "Number of tiles exceeds security limit"
+      };
+    }
   }
 
   return nTiles;
@@ -305,15 +330,12 @@ Error TiledHeader::set_parameters(const heif_tiled_image_parameters& params)
 {
   m_parameters = params;
 
-  auto max_tiles = heif_get_global_security_limits()->max_number_of_tiles;
-
-  if (max_tiles && number_of_tiles(params) > max_tiles) {
-    return {heif_error_Unsupported_filetype,
-            heif_suberror_Security_limit_exceeded,
-            "Number of tiles exceeds security limit"};
+  Result<uint64_t> num_tiles_result = number_of_tiles(params, heif_get_global_security_limits());
+  if (auto err = num_tiles_result.error()) {
+    return err;
   }
 
-  m_offsets.resize(number_of_tiles(params));
+  m_offsets.resize(*num_tiles_result);
 
   for (auto& tile: m_offsets) {
     tile.offset = TILD_OFFSET_NOT_LOADED;
@@ -325,16 +347,12 @@ Error TiledHeader::set_parameters(const heif_tiled_image_parameters& params)
 
 Error TiledHeader::read_full_offset_table(const std::shared_ptr<HeifFile>& file, heif_item_id tild_id, const heif_security_limits* limits)
 {
-  auto max_tiles = heif_get_global_security_limits()->max_number_of_tiles;
-
-  uint64_t nTiles = number_of_tiles(m_parameters);
-  if (max_tiles && nTiles > max_tiles) {
-    return {heif_error_Invalid_input,
-            heif_suberror_Security_limit_exceeded,
-            "Number of tiles exceeds security limit."};
+  Result<uint64_t> nTiles_result = number_of_tiles(m_parameters, limits);
+  if (auto err = nTiles_result.error()) {
+    return err;
   }
 
-  return read_offset_table_range(file, tild_id, 0, nTiles);
+  return read_offset_table_range(file, tild_id, 0, *nTiles_result);
 }
 
 
@@ -440,12 +458,16 @@ void writevec(uint8_t* data, size_t& idx, I value, int len)
 }
 
 
-std::vector<uint8_t> TiledHeader::write_offset_table()
+Result<std::vector<uint8_t>> TiledHeader::write_offset_table()
 {
-  uint64_t nTiles = number_of_tiles(m_parameters);
+  Result<uint64_t> nTiles_result = number_of_tiles(m_parameters, nullptr);
+  if (auto err = nTiles_result.error()) {
+    return err;
+  }
+
 
   int offset_entry_size = (m_parameters.offset_field_length + m_parameters.size_field_length) / 8;
-  uint64_t size = nTiles * offset_entry_size;
+  uint64_t size = *nTiles_result * offset_entry_size;
 
   std::vector<uint8_t> data;
   data.resize(size);
@@ -642,13 +664,10 @@ ImageItem_Tiled::add_new_tiled_item(HeifContext* ctx, const heif_tiled_image_par
                                     const heif_encoder* encoder,
                                     const heif_encoding_options* encoding_options)
 {
-  auto max_tild_tiles = ctx->get_security_limits()->max_number_of_tiles;
-  if (max_tild_tiles && number_of_tiles(*parameters) > max_tild_tiles) {
-    return Error{heif_error_Usage_error,
-                 heif_suberror_Security_limit_exceeded,
-                 "Number of tiles exceeds security limit."};
+  Result<uint64_t> num_tiles_result = number_of_tiles(*parameters, ctx->get_security_limits());
+  if (auto err = num_tiles_result.error()) {
+    return err;
   }
-
 
   // Create 'tili' Item
 
@@ -685,10 +704,13 @@ ImageItem_Tiled::add_new_tiled_item(HeifContext* ctx, const heif_tiled_image_par
   tild_header.set_parameters(*parameters);
   tild_header.set_compression_format(encoder->plugin->compression_format);
 
-  std::vector<uint8_t> header_data = tild_header.write_offset_table();
+  Result<std::vector<uint8_t>> header_data_result = tild_header.write_offset_table();
+  if (auto err = header_data_result.error()) {
+    return err;
+  }
 
   const int construction_method = 0; // 0=mdat 1=idat
-  file->append_iloc_data(tild_id, header_data, construction_method);
+  file->append_iloc_data(tild_id, *header_data_result, construction_method);
 
 
   if (parameters->image_width > 0xFFFFFFFF || parameters->image_height > 0xFFFFFFFF) {
@@ -711,7 +733,7 @@ ImageItem_Tiled::add_new_tiled_item(HeifContext* ctx, const heif_tiled_image_par
 #endif
 
   tild_image->set_tild_header(tild_header);
-  tild_image->set_next_tild_position(header_data.size());
+  tild_image->set_next_tild_position(header_data_result->size());
 
   // Set Brands
   //m_heif_file->set_brand(encoder->plugin->compression_format,
@@ -828,14 +850,19 @@ Error ImageItem_Tiled::add_image_tile(uint32_t tile_x, uint32_t tile_y,
 }
 
 
-void ImageItem_Tiled::process_before_write()
+Error ImageItem_Tiled::process_before_write()
 {
   // overwrite offsets
 
   const int construction_method = 0; // 0=mdat 1=idat
 
-  std::vector<uint8_t> header_data = m_tild_header.write_offset_table();
-  get_file()->replace_iloc_data(get_id(), 0, header_data, construction_method);
+  Result<std::vector<uint8_t>> header_data_result = m_tild_header.write_offset_table();
+  if (auto err = header_data_result.error()) {
+    return err;
+  }
+
+  get_file()->replace_iloc_data(get_id(), 0, *header_data_result, construction_method);
+  return {};
 }
 
 

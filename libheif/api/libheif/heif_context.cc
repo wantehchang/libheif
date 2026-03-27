@@ -270,7 +270,10 @@ heif_error heif_context_write(heif_context* ctx,
   }
 
   StreamWriter swriter;
-  ctx->context->write(swriter);
+  Error err = ctx->context->write(swriter);
+  if (err) {
+    return err.error_struct(ctx->context.get());
+  }
 
   const auto& data = swriter.get_data();
   heif_error writer_error = writer->write(ctx, data.data(), data.size(), userdata);

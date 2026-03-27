@@ -170,7 +170,7 @@ public:
 
   Error postprocess_coded_image_colorspace(heif_colorspace* inout_colorspace, heif_chroma* inout_chroma) const;
 
-  virtual void process_before_write() { }
+  virtual Error process_before_write() { return {}; }
 
   // -- thumbnails
 

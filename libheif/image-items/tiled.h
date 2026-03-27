@@ -33,7 +33,7 @@
 #include <set>
 
 
-uint64_t number_of_tiles(const heif_tiled_image_parameters& params);
+Result<uint64_t> number_of_tiles(const heif_tiled_image_parameters& params, const heif_security_limits* limits);
 
 uint32_t nTiles_h(const heif_tiled_image_parameters& params);
 
@@ -103,7 +103,7 @@ public:
   Error read_offset_table_range(const std::shared_ptr<HeifFile>& file, heif_item_id tild_id,
                                 uint64_t start, uint64_t end);
 
-  std::vector<uint8_t> write_offset_table();
+  Result<std::vector<uint8_t>> write_offset_table();
 
   std::string dump() const;
 
@@ -167,7 +167,7 @@ public:
 
   Error initialize_decoder() override;
 
-  void process_before_write() override;
+  Error process_before_write() override;
 
   Error get_coded_image_colorspace(heif_colorspace* out_colorspace, heif_chroma* out_chroma) const override;
 

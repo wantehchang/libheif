@@ -136,7 +136,7 @@ public:
 
   // === writing ===
 
-  void write(StreamWriter& writer);
+  [[nodiscard]] Error write(StreamWriter& writer);
 
   // Create all boxes necessary for an empty HEIF file.
   // Note that this is no valid HEIF file, since some boxes (e.g. pitm) are generated, but
