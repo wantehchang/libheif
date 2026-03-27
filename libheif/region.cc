@@ -25,6 +25,7 @@
 #include "libheif/heif_regions.h"
 #include <algorithm>
 #include <utility>
+#include <limits>
 
 
 Error RegionItem::parse(const std::vector<uint8_t>& data,
