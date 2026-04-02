@@ -352,7 +352,7 @@ heif_error readMono(TIFF *tif, uint16_t bps, int output_bit_depth, heif_image **
 
     size_t y_stride;
     uint8_t *py = heif_image_get_plane2(*image, heif_channel_Y, &y_stride);
-    int bdShift = 16 - output_bit_depth;
+    int bdShift = bps - output_bit_depth;
     tdata_t buf = _TIFFmalloc(TIFFScanlineSize(tif));
 
     if (output_bit_depth <= 8) {
@@ -366,7 +366,7 @@ heif_error readMono(TIFF *tif, uint16_t bps, int output_bit_depth, heif_image **
         uint16_t* src = static_cast<uint16_t*>(buf);
         uint8_t* dst = py + row * y_stride;
         for (uint32_t x = 0; x < width; x++) {
-          dst[x] = static_cast<uint8_t>(src[x] >> 8);
+          dst[x] = static_cast<uint8_t>(src[x] >> (bps - 8));
         }
       }
     }
@@ -499,7 +499,7 @@ heif_error readPixelInterleaveRGB(TIFF *tif, uint16_t samplesPerPixel, bool hasA
 
     size_t y_stride;
     uint8_t *py = heif_image_get_plane2(*image, channel, &y_stride);
-    int bdShift = 16 - output_bit_depth;
+    int bdShift = bps - output_bit_depth;
     tdata_t buf = _TIFFmalloc(TIFFScanlineSize(tif));
 
     if (output_bit_depth <= 8) {
@@ -514,13 +514,13 @@ heif_error readPixelInterleaveRGB(TIFF *tif, uint16_t samplesPerPixel, bool hasA
         uint8_t* dst = py + row * y_stride;
         if (outSpp == samplesPerPixel) {
           for (uint32_t x = 0; x < width * outSpp; x++) {
-            dst[x] = static_cast<uint8_t>(src[x] >> 8);
+            dst[x] = static_cast<uint8_t>(src[x] >> (bps - 8));
           }
         }
         else {
           for (uint32_t x = 0; x < width; x++) {
             for (uint16_t c = 0; c < outSpp; c++) {
-              dst[x * outSpp + c] = static_cast<uint8_t>(src[x * samplesPerPixel + c] >> 8);
+              dst[x * outSpp + c] = static_cast<uint8_t>(src[x * samplesPerPixel + c] >> (bps - 8));
             }
           }
         }
@@ -616,7 +616,7 @@ heif_error readBandInterleaveRGB(TIFF *tif, uint16_t samplesPerPixel, bool hasAl
 
     size_t y_stride;
     uint8_t *py = heif_image_get_plane2(*image, channel, &y_stride);
-    int bdShift = 16 - output_bit_depth;
+    int bdShift = bps - output_bit_depth;
     uint8_t *buf = static_cast<uint8_t *>(_TIFFmalloc(TIFFScanlineSize(tif)));
 
     if (output_bit_depth <= 8) {
@@ -631,7 +631,7 @@ heif_error readBandInterleaveRGB(TIFF *tif, uint16_t samplesPerPixel, bool hasAl
           uint16_t* src = reinterpret_cast<uint16_t*>(buf);
           uint8_t* dst = py + row * y_stride + i;
           for (uint32_t x = 0; x < width; x++) {
-            dst[x * outSpp] = static_cast<uint8_t>(src[x] >> 8);
+            dst[x * outSpp] = static_cast<uint8_t>(src[x] >> (bps - 8));
           }
         }
       }
@@ -762,7 +762,7 @@ static heif_error readMonoSignedInt(TIFF* tif, uint16_t bps, heif_image** image)
     return {heif_error_Memory_allocation_error, heif_suberror_Unspecified, "Failed to get signed int plane"};
   }
 
-  int bytesPerSample = bps / 8;
+  int bytesPerSample = bps > 8 ? 2 : 1;
   tdata_t buf = _TIFFmalloc(TIFFScanlineSize(tif));
   for (uint32_t row = 0; row < height; row++) {
     if (TIFFReadScanline(tif, buf, row, 0) < 0) {
@@ -832,9 +832,9 @@ static heif_error validateTiffFormat(TIFF* tif, uint16_t& samplesPerPixel, uint1
     }
   }
   else if (sampleFormat == SAMPLEFORMAT_INT) {
-    if (bps != 8 && bps != 16) {
+    if (bps < 8 || bps > 16) {
       return {heif_error_Invalid_input, heif_suberror_Unspecified,
-              "Only 8 and 16 bits per sample are supported for signed integer TIFF."};
+              "Only 8 to 16 bits per sample are supported for signed integer TIFF."};
     }
     if (samplesPerPixel != 1) {
       return {heif_error_Unsupported_feature, heif_suberror_Unspecified,
@@ -842,9 +842,9 @@ static heif_error validateTiffFormat(TIFF* tif, uint16_t& samplesPerPixel, uint1
     }
   }
   else if (sampleFormat == SAMPLEFORMAT_UINT) {
-    if (bps != 8 && bps != 16) {
+    if (bps < 8 || bps > 16) {
       return {heif_error_Invalid_input, heif_suberror_Unspecified,
-              "Only 8 and 16 bits per sample are supported."};
+              "Only 8 to 16 bits per sample are supported."};
     }
   }
   else {
@@ -1113,7 +1113,7 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
       return {heif_error_Memory_allocation_error, heif_suberror_Unspecified, "Failed to get signed int plane"};
     }
 
-    int bytesPerSample = bps / 8;
+    int bytesPerSample = bps > 8 ? 2 : 1;
     tmsize_t tile_buf_size = TIFFTileSize(tif);
     std::vector<uint8_t> tile_buf(tile_buf_size);
 
@@ -1203,20 +1203,20 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
           uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + (size_t)row * tile_width * samplesPerPixel * 2);
           if (outSpp == samplesPerPixel) {
             for (uint32_t x = 0; x < actual_w * outSpp; x++) {
-              dst[x] = static_cast<uint8_t>(src[x] >> 8);
+              dst[x] = static_cast<uint8_t>(src[x] >> (bps - 8));
             }
           }
           else {
             for (uint32_t x = 0; x < actual_w; x++) {
               for (uint16_t c = 0; c < outSpp; c++) {
-                dst[x * outSpp + c] = static_cast<uint8_t>(src[x * samplesPerPixel + c] >> 8);
+                dst[x * outSpp + c] = static_cast<uint8_t>(src[x * samplesPerPixel + c] >> (bps - 8));
               }
             }
           }
         }
       }
       else {
-        int bdShift = 16 - output_bit_depth;
+        int bdShift = bps - output_bit_depth;
         for (uint32_t row = 0; row < actual_h; row++) {
           uint16_t* dst = reinterpret_cast<uint16_t*>(out_plane + ((size_t)ty * tile_height + row) * out_stride
                                                       + (size_t)tx * tile_width * outSpp * 2);
@@ -1314,12 +1314,12 @@ static heif_error readTiledSeparate(TIFF* tif, uint32_t width, uint32_t height,
             uint8_t* dst = out_plane + ((size_t)ty * tile_height + row) * out_stride + (size_t)tx * tile_width * outSpp + s;
             uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + (size_t)row * tile_width * 2);
             for (uint32_t x = 0; x < actual_w; x++) {
-              dst[x * outSpp] = static_cast<uint8_t>(src[x] >> 8);
+              dst[x * outSpp] = static_cast<uint8_t>(src[x] >> (bps - 8));
             }
           }
         }
         else {
-          int bdShift = 16 - output_bit_depth;
+          int bdShift = bps - output_bit_depth;
           for (uint32_t row = 0; row < actual_h; row++) {
             uint16_t* dst = reinterpret_cast<uint16_t*>(out_plane + ((size_t)ty * tile_height + row) * out_stride) + (size_t)tx * tile_width * outSpp + s;
             uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + (size_t)row * tile_width * 2);
@@ -1362,7 +1362,7 @@ heif_error loadTIFF(const char* filename, int output_bit_depth, InputImage *inpu
 
   // For 8-bit source, always produce 8-bit output (ignore output_bit_depth).
   // For float, use 32-bit. For signed int, preserve original bit depth.
-  int effectiveOutputBitDepth = isFloat ? 32 : (isSignedInt ? bps : ((bps <= 8) ? 8 : output_bit_depth));
+  int effectiveOutputBitDepth = isFloat ? 32 : (isSignedInt ? bps : ((bps <= 8) ? 8 : ((bps < 16) ? bps : output_bit_depth)));
 
   struct heif_image* image = nullptr;
 
@@ -1706,7 +1706,7 @@ heif_error TiledTiffReader::readTile(uint32_t tx, uint32_t ty, int output_bit_de
       return {heif_error_Memory_allocation_error, heif_suberror_Unspecified, "Failed to get signed int plane"};
     }
 
-    int bytesPerSample = m_bits_per_sample / 8;
+    int bytesPerSample = m_bits_per_sample > 8 ? 2 : 1;
     tmsize_t tile_buf_size = TIFFTileSize(tif);
     std::vector<uint8_t> tile_buf(tile_buf_size);
 
@@ -1778,20 +1778,20 @@ heif_error TiledTiffReader::readTile(uint32_t tx, uint32_t ty, int output_bit_de
         uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + row * m_tile_width * m_samples_per_pixel * 2);
         if (outSpp == m_samples_per_pixel) {
           for (uint32_t x = 0; x < actual_w * outSpp; x++) {
-            dst[x] = static_cast<uint8_t>(src[x] >> 8);
+            dst[x] = static_cast<uint8_t>(src[x] >> (m_bits_per_sample - 8));
           }
         }
         else {
           for (uint32_t x = 0; x < actual_w; x++) {
             for (uint16_t c = 0; c < outSpp; c++) {
-              dst[x * outSpp + c] = static_cast<uint8_t>(src[x * m_samples_per_pixel + c] >> 8);
+              dst[x * outSpp + c] = static_cast<uint8_t>(src[x * m_samples_per_pixel + c] >> (m_bits_per_sample - 8));
             }
           }
         }
       }
     }
     else {
-      int bdShift = 16 - output_bit_depth;
+      int bdShift = m_bits_per_sample - output_bit_depth;
       for (uint32_t row = 0; row < actual_h; row++) {
         uint16_t* dst = reinterpret_cast<uint16_t*>(out_plane + row * out_stride);
         uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + row * m_tile_width * m_samples_per_pixel * 2);
@@ -1840,12 +1840,12 @@ heif_error TiledTiffReader::readTile(uint32_t tx, uint32_t ty, int output_bit_de
           uint8_t* dst = out_plane + row * out_stride + s;
           uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + row * m_tile_width * 2);
           for (uint32_t x = 0; x < actual_w; x++) {
-            dst[x * outSpp] = static_cast<uint8_t>(src[x] >> 8);
+            dst[x * outSpp] = static_cast<uint8_t>(src[x] >> (m_bits_per_sample - 8));
           }
         }
       }
       else {
-        int bdShift = 16 - output_bit_depth;
+        int bdShift = m_bits_per_sample - output_bit_depth;
         for (uint32_t row = 0; row < actual_h; row++) {
           uint16_t* dst = reinterpret_cast<uint16_t*>(out_plane + row * out_stride) + s;
           uint16_t* src = reinterpret_cast<uint16_t*>(tile_buf.data() + row * m_tile_width * 2);
