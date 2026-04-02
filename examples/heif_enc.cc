@@ -501,6 +501,9 @@ void show_help(const char* argv0)
             << "  -U, --uncompressed             encode as uncompressed image (according to ISO 23001-17) (EXPERIMENTAL)\n"
             << "      --unci-compression METHOD  choose one of these methods: none, deflate, zlib, brotli.\n"
 #endif
+#if HEIF_ENABLE_EXPERIMENTAL_FEATURES
+            << "      --component-content-ids    assign random content IDs to the components of an ISO 23001-17 image.\n"
+#endif
             << "      --list-encoders            list all available encoders for all compression formats\n"
             << "  -e, --encoder ID               select encoder to use (the IDs can be listed with --list-encoders)\n"
             << "      --plugin-directory DIR     load all codec plugins in the directory\n"
