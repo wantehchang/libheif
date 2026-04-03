@@ -76,22 +76,27 @@ unc_encoder_component_interleave::unc_encoder_component_interleave(const std::sh
   }
 
   // Build cmpd/uncC boxes
-  bool little_endian = false;
+  m_use_memcpy = true;
 
   for (const auto& comp : m_components) {
-    //uint16_t cmpd_index = m_cmpd->add_component({static_cast<uint16_t>(comp.component_type)});
-
-    uint8_t component_align_size = 0;
-
-    if (comp.byte_aligned && comp.bpp > 8) {
-      little_endian = true;
+    if (!comp.byte_aligned) {
+      m_use_memcpy = false;
+      break;
     }
+  }
 
-    m_uncC->add_component({comp.component_idx, comp.bpp, comp.component_format, component_align_size});
+  for (const auto& comp : m_components) {
+    m_uncC->add_component({comp.component_idx, comp.bpp, comp.component_format, 0});
   }
 
   m_uncC->set_interleave_type(interleave_mode_component);
-  m_uncC->set_components_little_endian(little_endian);
+  if (m_use_memcpy) {
+    m_uncC->set_components_little_endian(std::endian::native == std::endian::little);
+  }
+  else {
+    // we use dense packing
+    m_uncC->set_components_little_endian(false);
+  }
   m_uncC->set_block_size(0);
 
   if (image->get_chroma_format() == heif_chroma_420) {
@@ -153,7 +158,9 @@ std::vector<uint8_t> unc_encoder_component_interleave::encode_tile(const std::sh
     size_t src_stride;
     const uint8_t* src_data = src_image->get_component(comp.component_idx, &src_stride);
 
-    if (comp.byte_aligned) {
+    if (m_use_memcpy) {
+      assert(comp.byte_aligned);
+
       // Byte-aligned path: memcpy per row
       int bytes_per_pixel = (bpp + 7) / 8;
 

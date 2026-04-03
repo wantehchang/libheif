@@ -49,6 +49,7 @@ private:
   };
 
   std::vector<channel_component> m_components;
+  bool m_use_memcpy = false;
 };
 
 

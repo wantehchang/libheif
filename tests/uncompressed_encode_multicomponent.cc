@@ -432,3 +432,124 @@ TEST_CASE("Multi-mono complex64")
 {
   test_multi_mono<heif_complex64>(heif_channel_datatype_complex_number, 128, "multi_mono_complex64.heif");
 }
+
+
+// Test that mixing byte-aligned (16-bit) and non-byte-aligned (14-bit) components
+// in the same image roundtrips correctly. This exercises the encoder's endianness
+// handling: the 16-bit component triggers components_little_endian=true in the uncC
+// box, but the 14-bit component uses MSB-first bit packing.
+TEST_CASE("Mixed bpp: 16-bit and 14-bit components")
+{
+  constexpr int kW = 8;
+  constexpr int kH = 8;
+  constexpr int kBpp16 = 16;
+  constexpr int kBpp14 = 14;
+  constexpr uint16_t kMaxVal14 = (1 << kBpp14) - 1;
+
+  // Create image
+  heif_image* image = nullptr;
+  heif_error err = heif_image_create(kW, kH, heif_colorspace_nonvisual,
+                                     heif_chroma_undefined, &image);
+  REQUIRE(err.code == heif_error_Ok);
+
+  // Add 16-bit component (byte-aligned)
+  uint32_t idx0 = 0;
+  err = heif_image_add_component(image, kW, kH, kMonoComponentType,
+                                 heif_channel_datatype_unsigned_integer, kBpp16, &idx0);
+  REQUIRE(err.code == heif_error_Ok);
+
+  // Add 14-bit component (non-byte-aligned)
+  uint32_t idx1 = 0;
+  err = heif_image_add_component(image, kW, kH, kMonoComponentType,
+                                 heif_channel_datatype_unsigned_integer, kBpp14, &idx1);
+  REQUIRE(err.code == heif_error_Ok);
+
+  // Fill 16-bit component
+  {
+    size_t stride = 0;
+    uint16_t* data = heif_image_get_component_uint16(image, idx0, &stride);
+    REQUIRE(data != nullptr);
+    for (uint32_t y = 0; y < kH; y++) {
+      for (uint32_t x = 0; x < kW; x++) {
+        data[y * stride + x] = static_cast<uint16_t>(y * kW + x + 100);
+      }
+    }
+  }
+
+  // Fill 14-bit component (values must fit in 14 bits)
+  {
+    size_t stride = 0;
+    uint16_t* data = heif_image_get_component_uint16(image, idx1, &stride);
+    REQUIRE(data != nullptr);
+    for (uint32_t y = 0; y < kH; y++) {
+      for (uint32_t x = 0; x < kW; x++) {
+        data[y * stride + x] = static_cast<uint16_t>((y * kW + x + 200) & kMaxVal14);
+      }
+    }
+  }
+
+  // Encode
+  heif_context* ctx = heif_context_alloc();
+  heif_encoder* encoder = nullptr;
+  err = heif_context_get_encoder_for_format(ctx, heif_compression_uncompressed, &encoder);
+  REQUIRE(err.code == heif_error_Ok);
+
+  err = heif_context_encode_image(ctx, image, encoder, nullptr, nullptr);
+  REQUIRE(err.code == heif_error_Ok);
+
+  std::string output_path = get_tests_output_file_path("mixed_bpp_16_14.heif");
+  err = heif_context_write_to_file(ctx, output_path.c_str());
+  REQUIRE(err.code == heif_error_Ok);
+
+  heif_encoder_release(encoder);
+  heif_image_release(image);
+  heif_context_free(ctx);
+
+  // Decode and verify
+  heif_context* ctx2 = heif_context_alloc();
+  err = heif_context_read_from_file(ctx2, output_path.c_str(), nullptr);
+  REQUIRE(err.code == heif_error_Ok);
+
+  heif_image_handle* handle = nullptr;
+  err = heif_context_get_primary_image_handle(ctx2, &handle);
+  REQUIRE(err.code == heif_error_Ok);
+
+  heif_image* decoded = nullptr;
+  err = heif_decode_image(handle, &decoded, heif_colorspace_undefined,
+                          heif_chroma_undefined, nullptr);
+  REQUIRE(err.code == heif_error_Ok);
+
+  REQUIRE(heif_image_get_number_of_used_components(decoded) == 2);
+
+  // Verify 16-bit component
+  {
+    size_t stride = 0;
+    const uint16_t* data = heif_image_get_component_uint16_readonly(decoded, idx0, &stride);
+    REQUIRE(data != nullptr);
+    for (uint32_t y = 0; y < kH; y++) {
+      for (uint32_t x = 0; x < kW; x++) {
+        uint16_t expected = static_cast<uint16_t>(y * kW + x + 100);
+        INFO("16-bit component at (" << x << "," << y << ")");
+        REQUIRE(data[y * stride + x] == expected);
+      }
+    }
+  }
+
+  // Verify 14-bit component
+  {
+    size_t stride = 0;
+    const uint16_t* data = heif_image_get_component_uint16_readonly(decoded, idx1, &stride);
+    REQUIRE(data != nullptr);
+    for (uint32_t y = 0; y < kH; y++) {
+      for (uint32_t x = 0; x < kW; x++) {
+        uint16_t expected = static_cast<uint16_t>((y * kW + x + 200) & kMaxVal14);
+        INFO("14-bit component at (" << x << "," << y << ")");
+        REQUIRE(data[y * stride + x] == expected);
+      }
+    }
+  }
+
+  heif_image_release(decoded);
+  heif_image_handle_release(handle);
+  heif_context_free(ctx2);
+}
