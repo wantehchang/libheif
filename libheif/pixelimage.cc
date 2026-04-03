@@ -2233,7 +2233,7 @@ uint32_t HeifPixelImage::get_component_height(uint32_t component_idx) const
 }
 
 
-uint8_t HeifPixelImage::get_component_bits_per_pixel(uint32_t component_idx) const
+uint16_t HeifPixelImage::get_component_bits_per_pixel(uint32_t component_idx) const
 {
   auto* comp = find_component_by_index(component_idx);
   assert(comp);
@@ -2241,13 +2241,13 @@ uint8_t HeifPixelImage::get_component_bits_per_pixel(uint32_t component_idx) con
 }
 
 
-uint8_t HeifPixelImage::get_component_storage_bits_per_pixel(uint32_t component_idx) const
+uint16_t HeifPixelImage::get_component_storage_bits_per_pixel(uint32_t component_idx) const
 {
   auto* comp = find_component_by_index(component_idx);
   assert(comp);
   uint32_t bpp = comp->get_bytes_per_pixel() * 8;
-  assert(bpp <= 255);
-  return static_cast<uint8_t>(bpp);
+  assert(bpp <= 256);
+  return static_cast<uint16_t>(bpp);
 }
 
 

@@ -44,7 +44,7 @@ private:
     heif_channel channel;
     heif_uncompressed_component_type component_type;
     heif_uncompressed_component_format component_format;
-    uint8_t bpp;
+    uint16_t bpp;
     bool byte_aligned;
   };
 

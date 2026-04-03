@@ -433,8 +433,8 @@ public:
 
   uint32_t get_component_width(uint32_t component_idx) const;
   uint32_t get_component_height(uint32_t component_idx) const;
-  uint8_t get_component_bits_per_pixel(uint32_t component_idx) const;
-  uint8_t get_component_storage_bits_per_pixel(uint32_t component_idx) const;
+  uint16_t get_component_bits_per_pixel(uint32_t component_idx) const;
+  uint16_t get_component_storage_bits_per_pixel(uint32_t component_idx) const;
   heif_channel_datatype get_component_datatype(uint32_t component_idx) const;
 
   // Look up the component type from the cmpd table. Works for any cmpd index,
@@ -571,7 +571,7 @@ private:
     // logical bit depth per component
     // For interleaved formats, it is the number of bits for one component.
     // It is not the storage width.
-    uint8_t m_bit_depth = 0;
+    uint16_t m_bit_depth = 0; // 1-256
     uint8_t m_num_interleaved_components = 1;
 
     // the "visible" area of the plane

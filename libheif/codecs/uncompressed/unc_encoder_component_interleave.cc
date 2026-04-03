@@ -33,6 +33,43 @@ bool unc_encoder_factory_component_interleave::can_encode(const std::shared_ptr<
     return false;
   }
 
+  // If any component is not byte-aligned, we use the bit-packing path which
+  // reads samples as uint32_t, limiting all components to 32 bpp.
+  bool any_non_aligned = false;
+  uint32_t num_components = image->get_number_of_used_components();
+  for (uint32_t idx = 0; idx < num_components; idx++) {
+    uint16_t bpp = image->get_component_bits_per_pixel(idx);
+    if (bpp % 8 != 0) {
+      any_non_aligned = true;
+    }
+  }
+
+  if (any_non_aligned) {
+    for (uint32_t idx = 0; idx < num_components; idx++) {
+      if (image->get_component_bits_per_pixel(idx) > 32) {
+        return false;
+      }
+    }
+  }
+
+  if (!any_non_aligned) {
+    // All components are byte-aligned. Only accept typical integer widths.
+    for (uint32_t idx = 0; idx < num_components; idx++) {
+      uint16_t bpp = image->get_component_bits_per_pixel(idx);
+      switch (bpp) {
+        case 8:
+        case 16:
+        case 32:
+        case 64:
+        case 128:
+        case 256:
+          break;
+        default:
+          return false;
+      }
+    }
+  }
+
   return true;
 }
 
@@ -68,7 +105,7 @@ unc_encoder_component_interleave::unc_encoder_component_interleave(const std::sh
       }
     }
 
-    uint8_t bpp = image->get_component_bits_per_pixel(idx);
+    uint16_t bpp = image->get_component_bits_per_pixel(idx);
     auto comp_format = to_unc_component_format(image->get_component_datatype(idx));
     bool aligned = (bpp % 8 == 0);
 
@@ -153,7 +190,7 @@ std::vector<uint8_t> unc_encoder_component_interleave::encode_tile(const std::sh
   for (const auto& comp : m_components) {
     uint32_t plane_width = src_image->get_component_width(comp.component_idx);
     uint32_t plane_height = src_image->get_component_height(comp.component_idx);
-    uint8_t bpp = comp.bpp;
+    uint16_t bpp = comp.bpp;
 
     size_t src_stride;
     const uint8_t* src_data = src_image->get_component(comp.component_idx, &src_stride);
