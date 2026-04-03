@@ -72,7 +72,7 @@ unc_encoder_rgb_block_pixel_interleave::unc_encoder_rgb_block_pixel_interleave(c
   m_uncC->set_pixel_size(m_bytes_per_pixel);
   m_uncC->set_block_size(m_bytes_per_pixel);
   m_uncC->set_sampling_type(sampling_mode_no_subsampling);
-  m_uncC->set_block_little_endian(true);
+  m_uncC->set_block_little_endian(false);
 
   m_uncC->add_component({cmpd_idx[0], bpp, component_format_unsigned, 0});
   m_uncC->add_component({cmpd_idx[1], bpp, component_format_unsigned, 0});
@@ -109,14 +109,14 @@ std::vector<uint8_t> unc_encoder_rgb_block_pixel_interleave::encode_tile(const s
 
       uint64_t combined_pixel = (static_cast<uint64_t>(r) << (2 * bpp)) | (static_cast<uint64_t>(g) << bpp) | b;
 
-      *p++ = static_cast<uint8_t>(combined_pixel & 0xFF);
-      *p++ = static_cast<uint8_t>((combined_pixel >> 8) & 0xFF);
-      *p++ = static_cast<uint8_t>((combined_pixel >> 16) & 0xFF);
-      *p++ = static_cast<uint8_t>((combined_pixel >> 24) & 0xFF);
-
       if (m_bytes_per_pixel > 4) {
         *p++ = static_cast<uint8_t>((combined_pixel >> 32) & 0xFF);
       }
+
+      *p++ = static_cast<uint8_t>((combined_pixel >> 24) & 0xFF);
+      *p++ = static_cast<uint8_t>((combined_pixel >> 16) & 0xFF);
+      *p++ = static_cast<uint8_t>((combined_pixel >> 8) & 0xFF);
+      *p++ = static_cast<uint8_t>(combined_pixel & 0xFF);
     }
   }
 
