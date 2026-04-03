@@ -114,6 +114,10 @@ bool unc_decoder_factory_row_interleave::can_decode(const std::shared_ptr<const 
     return false;
   }
 
+  if (uncC->is_components_little_endian() && has_any_multi_byte_components(uncC)) {
+    return false;
+  }
+
   return true;
 }
 

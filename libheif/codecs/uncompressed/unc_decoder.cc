@@ -358,6 +358,14 @@ bool unc_decoder_factory::check_common_requirements(const std::shared_ptr<const 
 }
 
 
+bool unc_decoder_factory::has_any_multi_byte_components(const std::shared_ptr<const Box_uncC>& uncC)
+{
+  const auto& comps = uncC->get_components();
+  return std::any_of(comps.begin(), comps.end(),
+                     [](const Box_uncC::Component& c) { return c.component_bit_depth > 8; });
+}
+
+
 Error check_hard_limits(const std::shared_ptr<const Box_uncC>& uncC)
 {
   const auto& components = uncC->get_components();

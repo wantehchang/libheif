@@ -98,6 +98,8 @@ public:
 protected:
   static bool check_common_requirements(const std::shared_ptr<const Box_uncC>& uncC);
 
+  static bool has_any_multi_byte_components(const std::shared_ptr<const Box_uncC>& uncC);
+
   virtual bool can_decode(const std::shared_ptr<const Box_uncC>& uncC) const = 0;
 
   virtual std::unique_ptr<unc_decoder> create(
