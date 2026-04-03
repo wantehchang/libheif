@@ -380,12 +380,12 @@ public:
 
   std::set<heif_channel> get_channel_set() const;
 
-  uint8_t get_storage_bits_per_pixel(heif_channel channel) const;
+  uint16_t get_storage_bits_per_pixel(heif_channel channel) const;
 
-  uint8_t get_bits_per_pixel(heif_channel channel) const;
+  uint16_t get_bits_per_pixel(heif_channel channel) const;
 
   // Get the maximum bit depth of a visual channel (YCbCr or RGB).
-  uint8_t get_visual_image_bits_per_pixel() const;
+  uint16_t get_visual_image_bits_per_pixel() const;
 
   heif_channel_datatype get_datatype(heif_channel channel) const;
 

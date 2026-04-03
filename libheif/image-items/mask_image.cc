@@ -193,7 +193,15 @@ Result<Encoder::CodedImageData> ImageItem_mask::encode(const std::shared_ptr<Hei
   }
 
   std::shared_ptr<Box_mskC> mskC = std::make_shared<Box_mskC>();
-  mskC->set_bits_per_pixel(image->get_bits_per_pixel(heif_channel_Y));
+  uint16_t bpp = image->get_bits_per_pixel(heif_channel_Y);
+  if (bpp > 255) {
+    return Error{
+      heif_error_Invalid_input,
+      heif_suberror_Unspecified,
+      "Too many bits per pixel for mask image."
+    };
+  }
+  mskC->set_bits_per_pixel(static_cast<uint8_t>(bpp));
   codedImageData.properties.push_back(mskC);
 
   return codedImageData;

@@ -69,7 +69,7 @@ unc_encoder_rgb_bytealign_pixel_interleave::unc_encoder_rgb_bytealign_pixel_inte
   bool little_endian = (image->get_chroma_format() == heif_chroma_interleaved_RRGGBB_LE ||
                         image->get_chroma_format() == heif_chroma_interleaved_RRGGBBAA_LE);
 
-  uint8_t bpp = image->get_bits_per_pixel(heif_channel_interleaved);
+  uint16_t bpp = image->get_bits_per_pixel(heif_channel_interleaved);
 
   uint8_t component_align_size = 2;
   if (bpp == 16) {

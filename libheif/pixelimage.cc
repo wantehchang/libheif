@@ -955,7 +955,7 @@ std::set<heif_channel> HeifPixelImage::get_channel_set() const
 }
 
 
-uint8_t HeifPixelImage::get_storage_bits_per_pixel(enum heif_channel channel) const
+uint16_t HeifPixelImage::get_storage_bits_per_pixel(enum heif_channel channel) const
 {
   auto* comp = find_component_for_channel(channel);
   if (!comp) {
@@ -963,12 +963,12 @@ uint8_t HeifPixelImage::get_storage_bits_per_pixel(enum heif_channel channel) co
   }
 
   uint32_t bpp = comp->get_bytes_per_pixel() * 8;
-  assert(bpp <= 255);
+  assert(bpp <= 256);
   return static_cast<uint8_t>(bpp);
 }
 
 
-uint8_t HeifPixelImage::get_bits_per_pixel(enum heif_channel channel) const
+uint16_t HeifPixelImage::get_bits_per_pixel(enum heif_channel channel) const
 {
   auto* comp = find_component_for_channel(channel);
   if (!comp) {
@@ -979,7 +979,7 @@ uint8_t HeifPixelImage::get_bits_per_pixel(enum heif_channel channel) const
 }
 
 
-uint8_t HeifPixelImage::get_visual_image_bits_per_pixel() const
+uint16_t HeifPixelImage::get_visual_image_bits_per_pixel() const
 {
   switch (m_colorspace) {
     case heif_colorspace_monochrome:
@@ -2246,7 +2246,7 @@ uint16_t HeifPixelImage::get_component_storage_bits_per_pixel(uint32_t component
   auto* comp = find_component_by_index(component_idx);
   assert(comp);
   uint32_t bpp = comp->get_bytes_per_pixel() * 8;
-  assert(bpp <= 256);
+  assert(bpp);
   return static_cast<uint16_t>(bpp);
 }
 

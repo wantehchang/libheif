@@ -321,22 +321,24 @@ Result<Encoder::CodedImageData> ImageItem::encode_to_bitstream_and_boxes(const s
   // --- write PIXI property
 
   std::shared_ptr<Box_pixi> pixi = std::make_shared<Box_pixi>();
+  bool valid_pixi = false;
+
   if (colorspace == heif_colorspace_filter_array) {
     // Skip pixi for filter array images — bit depth info is in uncC
   }
   else if (colorspace == heif_colorspace_monochrome) {
-    pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_Y));
+    valid_pixi = pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_Y));
   }
   else if (colorspace == heif_colorspace_YCbCr) {
-    pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_Y));
-    pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_Cb));
-    pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_Cr));
+    valid_pixi = (pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_Y)) ||
+                  pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_Cb)) ||
+                  pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_Cr)));
   }
   else if (colorspace == heif_colorspace_RGB) {
     if (chroma == heif_chroma_444) {
-      pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_R));
-      pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_G));
-      pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_B));
+      valid_pixi = (pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_R)) ||
+                    pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_G)) ||
+                    pixi->add_channel_bits(image->get_bits_per_pixel(heif_channel_B)));
     }
     else if (chroma == heif_chroma_interleaved_RGB ||
              chroma == heif_chroma_interleaved_RGBA ||
@@ -344,14 +346,14 @@ Result<Encoder::CodedImageData> ImageItem::encode_to_bitstream_and_boxes(const s
              chroma == heif_chroma_interleaved_RRGGBB_BE ||
              chroma == heif_chroma_interleaved_RRGGBBAA_LE ||
              chroma == heif_chroma_interleaved_RRGGBBAA_BE) {
-      uint8_t bpp = image->get_bits_per_pixel(heif_channel_interleaved);
-      pixi->add_channel_bits(bpp);
-      pixi->add_channel_bits(bpp);
-      pixi->add_channel_bits(bpp);
+      uint16_t bpp = image->get_bits_per_pixel(heif_channel_interleaved);
+      valid_pixi = (pixi->add_channel_bits(bpp) ||
+                    pixi->add_channel_bits(bpp) ||
+                    pixi->add_channel_bits(bpp));
     }
   }
 
-  if (pixi->get_num_channels() != 0) {
+  if (valid_pixi) {
     codedImage.properties.push_back(pixi);
   }
 

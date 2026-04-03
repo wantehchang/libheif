@@ -62,9 +62,10 @@ unc_encoder_rgb_block_pixel_interleave::unc_encoder_rgb_block_pixel_interleave(c
   auto cmpd_idx = image->get_component_cmpd_indices_interleaved();
   assert(cmpd_idx.size() == 3);
 
-  uint8_t bpp = image->get_bits_per_pixel(heif_channel_interleaved);
+  uint16_t bpp = image->get_bits_per_pixel(heif_channel_interleaved);
 
-  uint8_t nBits = static_cast<uint8_t>(3 * bpp);
+  uint16_t nBits = 3 * bpp;
+  assert(nBits <= 256-8);
   m_bytes_per_pixel = static_cast<uint8_t>((nBits + 7) / 8);
 
   m_uncC->set_interleave_type(interleave_mode_pixel);
@@ -89,7 +90,7 @@ std::vector<uint8_t> unc_encoder_rgb_block_pixel_interleave::encode_tile(const s
 {
   std::vector<uint8_t> data;
 
-  uint8_t bpp = src_image->get_bits_per_pixel(heif_channel_interleaved);
+  uint16_t bpp = src_image->get_bits_per_pixel(heif_channel_interleaved);
 
   size_t src_stride;
   const auto* src_data = reinterpret_cast<const uint16_t*>(src_image->get_plane(heif_channel_interleaved, &src_stride));

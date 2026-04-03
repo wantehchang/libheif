@@ -61,7 +61,7 @@ unc_encoder_rgb_pixel_interleave::unc_encoder_rgb_pixel_interleave(const std::sh
   m_bytes_per_pixel = save_alpha ? 4 : 3;
   assert(cmpd_idx.size() == m_bytes_per_pixel);
 
-  uint8_t bpp = image->get_bits_per_pixel(heif_channel_interleaved);
+  uint16_t bpp = image->get_bits_per_pixel(heif_channel_interleaved);
 
   if (bpp == 8) {
     if (save_alpha) {

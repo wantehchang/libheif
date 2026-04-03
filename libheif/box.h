@@ -1260,9 +1260,15 @@ public:
 
   int get_bits_per_channel(int channel) const { return m_bits_per_channel[channel]; }
 
-  void add_channel_bits(uint8_t c)
+  bool add_channel_bits(uint16_t c)
   {
-    m_bits_per_channel.push_back(c);
+    if (c <= 255) {
+      m_bits_per_channel.push_back(static_cast<uint8_t>(c));
+      return true;
+    }
+    else {
+      return false;
+    }
   }
 
   std::string dump(Indent&) const override;
