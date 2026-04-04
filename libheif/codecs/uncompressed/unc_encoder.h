@@ -23,6 +23,7 @@
 
 #include <memory>
 #include <vector>
+#include <map>
 
 #include "error.h"
 #include "codecs/encoder.h"
@@ -38,9 +39,9 @@ class Box_snuc;
 class Box_cloc;
 class HeifPixelImage;
 
-heif_uncompressed_component_type heif_channel_to_component_type(heif_channel channel);
+heif_unci_component_type heif_channel_to_component_type(heif_channel channel);
 
-heif_uncompressed_component_format to_unc_component_format(heif_channel_datatype channel_datatype);
+heif_uncompressed_component_format to_unc_component_format(heif_component_datatype channel_datatype);
 
 
 class unc_encoder
@@ -58,6 +59,8 @@ public:
   std::vector<std::shared_ptr<Box_snuc>> get_snuc() const { return m_snuc; }
   std::shared_ptr<Box_cloc> get_cloc() const { return m_cloc; }
 
+  // const std::map<uint32_t, uint32_t>& map_id_to_cmpd_index() { return m_map_id_to_cmpd_index; } // do we need this ?
+
 
   virtual uint64_t compute_tile_data_size_bytes(uint32_t tile_width, uint32_t tile_height) const = 0;
 
@@ -74,6 +77,8 @@ protected:
   std::vector<std::shared_ptr<Box_sbpm>> m_sbpm;
   std::vector<std::shared_ptr<Box_snuc>> m_snuc;
   std::shared_ptr<Box_cloc> m_cloc;
+
+  std::map<uint32_t, uint32_t> m_map_id_to_cmpd_index;
 };
 
 

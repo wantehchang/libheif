@@ -29,33 +29,33 @@ extern "C" {
 
 // --- ISO 23001-17 component types (Table 1)
 
-typedef enum heif_uncompressed_component_type
+typedef enum heif_unci_component_type
 {
-  heif_uncompressed_component_type_monochrome = 0,
-  heif_uncompressed_component_type_Y = 1,
-  heif_uncompressed_component_type_Cb = 2,
-  heif_uncompressed_component_type_Cr = 3,
-  heif_uncompressed_component_type_red = 4,
-  heif_uncompressed_component_type_green = 5,
-  heif_uncompressed_component_type_blue = 6,
-  heif_uncompressed_component_type_alpha = 7,
-  heif_uncompressed_component_type_depth = 8,
-  heif_uncompressed_component_type_disparity = 9,
-  heif_uncompressed_component_type_palette = 10,
-  heif_uncompressed_component_type_filter_array = 11,
-  heif_uncompressed_component_type_padded = 12,
-  heif_uncompressed_component_type_cyan = 13,
-  heif_uncompressed_component_type_magenta = 14,
-  heif_uncompressed_component_type_yellow = 15,
-  heif_uncompressed_component_type_key_black = 16
-} heif_uncompressed_component_type;
+  heif_unci_component_type_monochrome = 0,
+  heif_unci_component_type_Y = 1,
+  heif_unci_component_type_Cb = 2,
+  heif_unci_component_type_Cr = 3,
+  heif_unci_component_type_red = 4,
+  heif_unci_component_type_green = 5,
+  heif_unci_component_type_blue = 6,
+  heif_unci_component_type_alpha = 7,
+  heif_unci_component_type_depth = 8,
+  heif_unci_component_type_disparity = 9,
+  heif_unci_component_type_palette = 10,
+  heif_unci_component_type_filter_array = 11,
+  heif_unci_component_type_padded = 12,
+  heif_unci_component_type_cyan = 13,
+  heif_unci_component_type_magenta = 14,
+  heif_unci_component_type_yellow = 15,
+  heif_unci_component_type_key_black = 16
+} heif_unci_component_type;
 
 
 // --- Bayer / filter array pattern
 
 typedef struct heif_bayer_pattern_pixel
 {
-  uint16_t component_index;  // index into the component definition (cmpd)
+  uint32_t component_id;
   float component_gain;
 } heif_bayer_pattern_pixel;
 
@@ -117,14 +117,14 @@ typedef struct heif_unci_image_parameters
 
 // --- pixel datatype support
 
-typedef enum heif_channel_datatype
+typedef enum heif_component_datatype
 {
-  heif_channel_datatype_undefined = 0,
-  heif_channel_datatype_unsigned_integer = 1,
-  heif_channel_datatype_signed_integer = 2,
-  heif_channel_datatype_floating_point = 3,
-  heif_channel_datatype_complex_number = 4
-} heif_channel_datatype;
+  heif_component_datatype_undefined = 0,
+  heif_component_datatype_unsigned_integer = 1,
+  heif_component_datatype_signed_integer = 2,
+  heif_component_datatype_floating_point = 3,
+  heif_component_datatype_complex_number = 4
+} heif_component_datatype;
 
 typedef struct heif_complex32
 {

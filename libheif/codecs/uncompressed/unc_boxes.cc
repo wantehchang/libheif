@@ -96,27 +96,27 @@ bool is_predefined_component_type(uint16_t type)
 {
   // check whether the component type can be mapped to heif_uncompressed_component_type and we have a name defined for
   // it in sNames_uncompressed_component_type.
-  return type <= heif_uncompressed_component_type_max_valid;
+  return type <= heif_unci_component_type_max_valid;
 }
 
-static std::map<heif_uncompressed_component_type, const char*> sNames_uncompressed_component_type{
-    {heif_uncompressed_component_type_monochrome,   "monochrome"},
-    {heif_uncompressed_component_type_Y,            "Y"},
-    {heif_uncompressed_component_type_Cb,           "Cb"},
-    {heif_uncompressed_component_type_Cr,           "Cr"},
-    {heif_uncompressed_component_type_red,          "red"},
-    {heif_uncompressed_component_type_green,        "green"},
-    {heif_uncompressed_component_type_blue,         "blue"},
-    {heif_uncompressed_component_type_alpha,        "alpha"},
-    {heif_uncompressed_component_type_depth,        "depth"},
-    {heif_uncompressed_component_type_disparity,    "disparity"},
-    {heif_uncompressed_component_type_palette,      "palette"},
-    {heif_uncompressed_component_type_filter_array, "filter-array"},
-    {heif_uncompressed_component_type_padded,       "padded"},
-    {heif_uncompressed_component_type_cyan,         "cyan"},
-    {heif_uncompressed_component_type_magenta,      "magenta"},
-    {heif_uncompressed_component_type_yellow,       "yellow"},
-    {heif_uncompressed_component_type_key_black,    "key (black)"}
+static std::map<heif_unci_component_type, const char*> sNames_uncompressed_component_type{
+    {heif_unci_component_type_monochrome,   "monochrome"},
+    {heif_unci_component_type_Y,            "Y"},
+    {heif_unci_component_type_Cb,           "Cb"},
+    {heif_unci_component_type_Cr,           "Cr"},
+    {heif_unci_component_type_red,          "red"},
+    {heif_unci_component_type_green,        "green"},
+    {heif_unci_component_type_blue,         "blue"},
+    {heif_unci_component_type_alpha,        "alpha"},
+    {heif_unci_component_type_depth,        "depth"},
+    {heif_unci_component_type_disparity,    "disparity"},
+    {heif_unci_component_type_palette,      "palette"},
+    {heif_unci_component_type_filter_array, "filter-array"},
+    {heif_unci_component_type_padded,       "padded"},
+    {heif_unci_component_type_cyan,         "cyan"},
+    {heif_unci_component_type_magenta,      "magenta"},
+    {heif_unci_component_type_yellow,       "yellow"},
+    {heif_unci_component_type_key_black,    "key (black)"}
 };
 
 template <typename T> const char* get_name(T val, const std::map<T, const char*>& table)
@@ -186,7 +186,7 @@ std::string Box_cmpd::Component::get_component_type_name(uint16_t component_type
   std::stringstream sstr;
 
   if (is_predefined_component_type(component_type)) {
-    sstr << get_name(heif_uncompressed_component_type(component_type), sNames_uncompressed_component_type) << "\n";
+    sstr << get_name(heif_unci_component_type(component_type), sNames_uncompressed_component_type) << "\n";
   }
   else {
     sstr << "0x" << std::hex << component_type << std::dec << "\n";
@@ -196,7 +196,7 @@ std::string Box_cmpd::Component::get_component_type_name(uint16_t component_type
 }
 
 
-bool Box_cmpd::has_component(heif_uncompressed_component_type type) const
+bool Box_cmpd::has_component(heif_unci_component_type type) const
 {
   return std::any_of(m_components.begin(), m_components.end(),
                      [type](const auto& cmp) { return cmp.component_type == type; });
@@ -457,9 +457,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({0, 8, component_format_unsigned, 0});
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_red});
-    cmpd->add_component({heif_uncompressed_component_type_green});
-    cmpd->add_component({heif_uncompressed_component_type_blue});
+    cmpd->add_component({heif_unci_component_type_red});
+    cmpd->add_component({heif_unci_component_type_green});
+    cmpd->add_component({heif_unci_component_type_blue});
     uncC->set_sampling_type(sampling_mode_no_subsampling);
     uncC->set_interleave_type(interleave_mode_pixel);
   }
@@ -469,10 +469,10 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
     uncC->add_component({3, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_red});
-    cmpd->add_component({heif_uncompressed_component_type_green});
-    cmpd->add_component({heif_uncompressed_component_type_blue});
-    cmpd->add_component({heif_uncompressed_component_type_alpha});
+    cmpd->add_component({heif_unci_component_type_red});
+    cmpd->add_component({heif_unci_component_type_green});
+    cmpd->add_component({heif_unci_component_type_blue});
+    cmpd->add_component({heif_unci_component_type_alpha});
     uncC->set_sampling_type(sampling_mode_no_subsampling);
     uncC->set_interleave_type(interleave_mode_pixel);
   }
@@ -482,10 +482,10 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
     uncC->add_component({3, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_alpha});
-    cmpd->add_component({heif_uncompressed_component_type_blue});
-    cmpd->add_component({heif_uncompressed_component_type_green});
-    cmpd->add_component({heif_uncompressed_component_type_red});
+    cmpd->add_component({heif_unci_component_type_alpha});
+    cmpd->add_component({heif_unci_component_type_blue});
+    cmpd->add_component({heif_unci_component_type_green});
+    cmpd->add_component({heif_unci_component_type_red});
     uncC->set_sampling_type(sampling_mode_no_subsampling);
     uncC->set_interleave_type(interleave_mode_pixel);
   }
@@ -496,9 +496,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
     uncC->add_component({1, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cr});
     uncC->set_sampling_type(sampling_mode_422);
     uncC->set_interleave_type(interleave_mode_multi_y);
   }
@@ -509,9 +509,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({0, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Cr});
     uncC->set_sampling_type(sampling_mode_422);
     uncC->set_interleave_type(interleave_mode_multi_y);
   }
@@ -522,9 +522,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({0, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Cb});
     uncC->set_sampling_type(sampling_mode_422);
     uncC->set_interleave_type(interleave_mode_multi_y);
   }
@@ -535,9 +535,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
     uncC->add_component({1, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cb});
     uncC->set_sampling_type(sampling_mode_422);
     uncC->set_interleave_type(interleave_mode_multi_y);
   }
@@ -550,9 +550,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({0, 8, component_format_unsigned, 0});
     uncC->add_component({0, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Cr});
     uncC->set_sampling_type(sampling_mode_411);
     uncC->set_interleave_type(interleave_mode_multi_y);
   }
@@ -562,9 +562,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({0, 8, component_format_unsigned, 0});
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cb});
     uncC->set_sampling_type(sampling_mode_no_subsampling);
     uncC->set_interleave_type(interleave_mode_pixel);
   }
@@ -575,10 +575,10 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
     uncC->add_component({3, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
-    cmpd->add_component({heif_uncompressed_component_type_alpha});
+    cmpd->add_component({heif_unci_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_alpha});
     uncC->set_sampling_type(sampling_mode_no_subsampling);
     uncC->set_interleave_type(interleave_mode_pixel);
   }
@@ -590,9 +590,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({1, 10, component_format_unsigned, 0});
     uncC->add_component({0, 10, component_format_unsigned, 0});
     uncC->add_component({2, 10, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Cr});
     uncC->set_sampling_type(sampling_mode_422);
     uncC->set_interleave_type(interleave_mode_multi_y);
     uncC->set_block_size(2);
@@ -606,9 +606,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({0, 10, component_format_unsigned, 0});
     uncC->add_component({1, 10, component_format_unsigned, 0});
     uncC->add_component({2, 10, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cr});
     uncC->set_sampling_type(sampling_mode_no_subsampling);
     uncC->set_interleave_type(interleave_mode_pixel);
     uncC->set_block_size(4);
@@ -624,9 +624,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({1, 10, component_format_unsigned, 0});
     uncC->add_component({2, 10, component_format_unsigned, 0});
     uncC->add_component({1, 10, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cr});
     uncC->set_sampling_type(sampling_mode_422);
     uncC->set_interleave_type(interleave_mode_multi_y);
     uncC->set_block_size(4);
@@ -639,9 +639,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({0, 8, component_format_unsigned, 0});
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Cr});
     uncC->set_sampling_type(sampling_mode_420);
     uncC->set_interleave_type(interleave_mode_component);
   }
@@ -651,9 +651,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({0, 8, component_format_unsigned, 0});
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Cr});
     uncC->set_sampling_type(sampling_mode_420);
     uncC->set_interleave_type(interleave_mode_mixed);
   }
@@ -663,9 +663,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({0, 8, component_format_unsigned, 0});
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Cb});
     uncC->set_sampling_type(sampling_mode_420);
     uncC->set_interleave_type(interleave_mode_mixed);
   }
@@ -675,9 +675,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({0, 8, component_format_unsigned, 0});
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Cr});
     uncC->set_sampling_type(sampling_mode_422);
     uncC->set_interleave_type(interleave_mode_component);
   }
@@ -687,9 +687,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({0, 8, component_format_unsigned, 0});
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Cb});
     uncC->set_sampling_type(sampling_mode_422);
     uncC->set_interleave_type(interleave_mode_component);
   }
@@ -699,9 +699,9 @@ void fill_uncC_and_cmpd_from_profile(const std::shared_ptr<Box_uncC>& uncC,
     uncC->add_component({0, 8, component_format_unsigned, 0});
     uncC->add_component({1, 8, component_format_unsigned, 0});
     uncC->add_component({2, 8, component_format_unsigned, 0});
-    cmpd->add_component({heif_uncompressed_component_type_Y});
-    cmpd->add_component({heif_uncompressed_component_type_Cr});
-    cmpd->add_component({heif_uncompressed_component_type_Cb});
+    cmpd->add_component({heif_unci_component_type_Y});
+    cmpd->add_component({heif_unci_component_type_Cr});
+    cmpd->add_component({heif_unci_component_type_Cb});
     uncC->set_sampling_type(sampling_mode_420);
     uncC->set_interleave_type(interleave_mode_component);
   }
@@ -989,8 +989,8 @@ Error Box_cpat::parse(BitstreamRange& range, const heif_security_limits* limits)
   m_pattern.pixels.resize(num_pixels);
 
   for (size_t i = 0; i < num_pixels; i++) {
-    heif_bayer_pattern_pixel pixel{};
-    pixel.component_index = static_cast<uint16_t>(range.read32());
+    bayer_pattern_pixel_cmpd pixel{};
+    pixel.cmpd_index = range.read32();
     pixel.component_gain = range.read_float32();
     m_pattern.pixels[i] = pixel;
   }
@@ -1008,7 +1008,7 @@ std::string Box_cpat::dump(Indent& indent) const
   sstr << indent << "pattern_height: " << get_pattern_height() << "\n";
 
   for (const auto& pixel : m_pattern.pixels) {
-    sstr << indent << "component index: " << pixel.component_index << ", gain: " << pixel.component_gain << "\n";
+    sstr << indent << "component index: " << pixel.cmpd_index << ", gain: " << pixel.component_gain << "\n";
   }
   return sstr.str();
 }
@@ -1028,7 +1028,7 @@ Error Box_cpat::write(StreamWriter& writer) const
   writer.write16(m_pattern.pattern_height);
 
   for (const auto& pixel : m_pattern.pixels) {
-    writer.write32(pixel.component_index);
+    writer.write32(pixel.cmpd_index);
     writer.write_float32(pixel.component_gain);
   }
 
@@ -1053,9 +1053,9 @@ Error Box_splz::parse(BitstreamRange& range, const heif_security_limits* limits)
             "Number of components in splz box exceeds the security limits."};
   }
 
-  m_pattern.component_indices.resize(component_count);
+  m_pattern.component_ids.resize(component_count);
   for (uint32_t i = 0; i < component_count; i++) {
-    m_pattern.component_indices[i] = range.read32();
+    m_pattern.component_ids[i] = range.read32();
   }
 
   m_pattern.pattern_width = range.read16();
@@ -1091,9 +1091,9 @@ std::string Box_splz::dump(Indent& indent) const
 
   sstr << FullBox::dump(indent);
 
-  sstr << indent << "component_count: " << m_pattern.component_indices.size() << "\n";
-  for (size_t i = 0; i < m_pattern.component_indices.size(); i++) {
-    sstr << indent << "  component_index[" << i << "]: " << m_pattern.component_indices[i] << "\n";
+  sstr << indent << "component_count: " << m_pattern.component_ids.size() << "\n";
+  for (size_t i = 0; i < m_pattern.component_ids.size(); i++) {
+    sstr << indent << "  component_index[" << i << "]: " << m_pattern.component_ids[i] << "\n";
   }
 
   sstr << indent << "pattern_width: " << m_pattern.pattern_width << "\n";
@@ -1125,8 +1125,8 @@ Error Box_splz::write(StreamWriter& writer) const
             "incorrect number of polarization pattern angles"};
   }
 
-  writer.write32(static_cast<uint32_t>(m_pattern.component_indices.size()));
-  for (uint32_t idx : m_pattern.component_indices) {
+  writer.write32(static_cast<uint32_t>(m_pattern.component_ids.size()));
+  for (uint32_t idx : m_pattern.component_ids) {
     writer.write32(idx);
   }
 
@@ -1159,9 +1159,9 @@ Error Box_sbpm::parse(BitstreamRange& range, const heif_security_limits* limits)
             "sbpm component_count exceeds security limit."};
   }
 
-  m_map.component_indices.resize(component_count);
+  m_map.component_ids.resize(component_count);
   for (uint32_t i = 0; i < component_count; i++) {
-    m_map.component_indices[i] = range.read32();
+    m_map.component_ids[i] = range.read32();
   }
 
   uint8_t flags = range.read8();
@@ -1205,9 +1205,9 @@ std::string Box_sbpm::dump(Indent& indent) const
 
   sstr << FullBox::dump(indent);
 
-  sstr << indent << "component_count: " << m_map.component_indices.size() << "\n";
-  for (size_t i = 0; i < m_map.component_indices.size(); i++) {
-    sstr << indent << "  component_index[" << i << "]: " << m_map.component_indices[i] << "\n";
+  sstr << indent << "component_count: " << m_map.component_ids.size() << "\n";
+  for (size_t i = 0; i < m_map.component_ids.size(); i++) {
+    sstr << indent << "  component_index[" << i << "]: " << m_map.component_ids[i] << "\n";
   }
 
   sstr << indent << "correction_applied: " << m_map.correction_applied << "\n";
@@ -1236,8 +1236,8 @@ Error Box_sbpm::write(StreamWriter& writer) const
 {
   size_t box_start = reserve_box_header_space(writer);
 
-  writer.write32(static_cast<uint32_t>(m_map.component_indices.size()));
-  for (uint32_t idx : m_map.component_indices) {
+  writer.write32(static_cast<uint32_t>(m_map.component_ids.size()));
+  for (uint32_t idx : m_map.component_ids) {
     writer.write32(idx);
   }
 
@@ -1283,9 +1283,9 @@ Error Box_snuc::parse(BitstreamRange& range, const heif_security_limits* limits)
             "snuc component_count exceeds security limit."};
   }
 
-  m_nuc.component_indices.resize(component_count);
+  m_nuc.component_ids.resize(component_count);
   for (uint32_t i = 0; i < component_count; i++) {
-    m_nuc.component_indices[i] = range.read32();
+    m_nuc.component_ids[i] = range.read32();
   }
 
   uint8_t flags = range.read8();
@@ -1340,9 +1340,9 @@ std::string Box_snuc::dump(Indent& indent) const
 
   sstr << FullBox::dump(indent);
 
-  sstr << indent << "component_count: " << m_nuc.component_indices.size() << "\n";
-  for (size_t i = 0; i < m_nuc.component_indices.size(); i++) {
-    sstr << indent << "  component_index[" << i << "]: " << m_nuc.component_indices[i] << "\n";
+  sstr << indent << "component_count: " << m_nuc.component_ids.size() << "\n";
+  for (size_t i = 0; i < m_nuc.component_ids.size(); i++) {
+    sstr << indent << "  component_index[" << i << "]: " << m_nuc.component_ids[i] << "\n";
   }
 
   sstr << indent << "nuc_is_applied: " << m_nuc.nuc_is_applied << "\n";
@@ -1361,8 +1361,8 @@ Error Box_snuc::write(StreamWriter& writer) const
 {
   size_t box_start = reserve_box_header_space(writer);
 
-  writer.write32(static_cast<uint32_t>(m_nuc.component_indices.size()));
-  for (uint32_t idx : m_nuc.component_indices) {
+  writer.write32(static_cast<uint32_t>(m_nuc.component_ids.size()));
+  for (uint32_t idx : m_nuc.component_ids) {
     writer.write32(idx);
   }
 

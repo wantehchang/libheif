@@ -90,16 +90,16 @@ unc_encoder_component_interleave::unc_encoder_component_interleave(const std::sh
   uint32_t num_components = image->get_number_of_used_components();
 
   for (uint32_t idx = 0; idx < num_components; idx++) {
-    heif_uncompressed_component_type comp_type;
+    heif_unci_component_type comp_type;
     heif_channel ch = heif_channel_Y; // default for nonvisual
 
     if (is_nonvisual) {
-      comp_type = static_cast<heif_uncompressed_component_type>(image->get_component_type(idx));
+      comp_type = static_cast<heif_unci_component_type>(image->get_component_type(idx));
     }
     else {
       ch = image->get_component_channel(idx);
       if (ch == heif_channel_Y && !image->has_channel(heif_channel_Cb)) {
-        comp_type = heif_uncompressed_component_type_monochrome;
+        comp_type = heif_unci_component_type_monochrome;
       }
       else {
         comp_type = heif_channel_to_component_type(ch);

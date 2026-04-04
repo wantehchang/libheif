@@ -46,24 +46,32 @@ extern "C" {
 // On the decoder path, they come directly from the cpat box.
 LIBHEIF_API
 heif_error heif_image_set_bayer_pattern(heif_image*,
+                                        uint32_t bayer_component_id,
                                         uint16_t pattern_width,
                                         uint16_t pattern_height,
                                         const heif_bayer_pattern_pixel* patternPixels);
+
+LIBHEIF_API
+heif_error heif_image_add_bayer_component(heif_image*,
+                                          uint16_t component_type,
+                                          uint32_t* out_component_id);
 
 // Returns whether the image has a Bayer / filter array pattern.
 // If the image has a pattern, out_pattern_width and out_pattern_height are set.
 // Either output pointer may be NULL if the caller does not need that value.
 LIBHEIF_API
-int heif_image_has_bayer_pattern(const heif_image*,
-                                 uint16_t* out_pattern_width,
-                                 uint16_t* out_pattern_height);
+int heif_image_get_bayer_pattern_size(const heif_image*,
+                                      uint32_t bayer_component_id,
+                                      uint16_t* out_pattern_width,
+                                      uint16_t* out_pattern_height);
 
 // Get the Bayer / filter array pattern pixels.
 // The caller must provide an array large enough for pattern_width * pattern_height entries
-// (use heif_image_has_bayer_pattern() to query the dimensions first).
+// (use heif_image_get_bayer_pattern_size() to query the dimensions first).
 // Returns heif_error_Ok on success, or an error if no pattern is set.
 LIBHEIF_API
 heif_error heif_image_get_bayer_pattern(const heif_image*,
+                                        uint32_t bayer_component_id,
                                         heif_bayer_pattern_pixel* out_patternPixels);
 
 // --- Polarization pattern (ISO 23001-17, Section 6.1.5)
@@ -283,14 +291,10 @@ heif_error heif_context_add_empty_unci_image(heif_context* ctx,
 LIBHEIF_API
 uint32_t heif_image_get_number_of_used_components(const heif_image*);
 
-// Returns the total number of components declared in the cmpd box.
-LIBHEIF_API
-uint32_t heif_image_get_total_number_of_cmpd_components(const heif_image*);
-
 // Fills `out_component_indices` with the valid component indices.
 // The caller must allocate an array of at least heif_image_get_number_of_used_components() elements.
 LIBHEIF_API
-void heif_image_get_used_component_indices(const heif_image*, uint32_t* out_component_indices);
+void heif_image_get_used_component_ids(const heif_image*, uint32_t* out_component_ids);
 
 LIBHEIF_API
 enum heif_channel heif_image_get_component_channel(const heif_image*, uint32_t component_idx);
@@ -315,7 +319,7 @@ LIBHEIF_API
 heif_error heif_image_add_component(heif_image* image,
                                     int width, int height,
                                     uint16_t component_type,
-                                    heif_channel_datatype datatype,
+                                    heif_component_datatype datatype,
                                     int bit_depth,
                                     uint32_t* out_component_idx);
 

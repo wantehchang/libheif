@@ -36,42 +36,42 @@
 #include <utility>
 
 
-heif_uncompressed_component_type heif_channel_to_component_type(heif_channel channel)
+heif_unci_component_type heif_channel_to_component_type(heif_channel channel)
 {
   switch (channel) {
-    case heif_channel_Y: return heif_uncompressed_component_type_Y;
-    case heif_channel_Cb: return heif_uncompressed_component_type_Cb;
-    case heif_channel_Cr: return heif_uncompressed_component_type_Cr;
-    case heif_channel_R: return heif_uncompressed_component_type_red;
-    case heif_channel_G: return heif_uncompressed_component_type_green;
-    case heif_channel_B: return heif_uncompressed_component_type_blue;
-    case heif_channel_Alpha: return heif_uncompressed_component_type_alpha;
+    case heif_channel_Y: return heif_unci_component_type_Y;
+    case heif_channel_Cb: return heif_unci_component_type_Cb;
+    case heif_channel_Cr: return heif_unci_component_type_Cr;
+    case heif_channel_R: return heif_unci_component_type_red;
+    case heif_channel_G: return heif_unci_component_type_green;
+    case heif_channel_B: return heif_unci_component_type_blue;
+    case heif_channel_Alpha: return heif_unci_component_type_alpha;
     case heif_channel_interleaved: assert(false);
       break;
-    case heif_channel_filter_array: return heif_uncompressed_component_type_filter_array;
-    case heif_channel_depth: return heif_uncompressed_component_type_depth;
-    case heif_channel_disparity: return heif_uncompressed_component_type_disparity;
-    case heif_channel_unknown: return heif_uncompressed_component_type_padded;
+    case heif_channel_filter_array: return heif_unci_component_type_filter_array;
+    case heif_channel_depth: return heif_unci_component_type_depth;
+    case heif_channel_disparity: return heif_unci_component_type_disparity;
+    case heif_channel_unknown: return heif_unci_component_type_padded;
   }
 
-  return heif_uncompressed_component_type_padded;
+  return heif_unci_component_type_padded;
 }
 
 
-heif_uncompressed_component_format to_unc_component_format(heif_channel_datatype channel_datatype)
+heif_uncompressed_component_format to_unc_component_format(heif_component_datatype channel_datatype)
 {
   switch (channel_datatype) {
-    case heif_channel_datatype_signed_integer:
+    case heif_component_datatype_signed_integer:
       return component_format_signed;
 
-    case heif_channel_datatype_floating_point:
+    case heif_component_datatype_floating_point:
       return component_format_float;
 
-    case heif_channel_datatype_complex_number:
+    case heif_component_datatype_complex_number:
       return component_format_complex;
 
-    case heif_channel_datatype_unsigned_integer:
-    case heif_channel_datatype_undefined:
+    case heif_component_datatype_unsigned_integer:
+    case heif_component_datatype_undefined:
     default:
       return component_format_unsigned;
   }
@@ -83,68 +83,69 @@ unc_encoder::unc_encoder(const std::shared_ptr<const HeifPixelImage>& image)
   m_cmpd = std::make_shared<Box_cmpd>();
   m_uncC = std::make_shared<Box_uncC>();
 
-  m_cmpd->set_components(image->get_cmpd_component_types());
+  // --- fill component-id to cmpd-index map
+
+  std::vector<uint32_t> ids = image->get_used_component_ids();
+
+  for (size_t i = 0; i < ids.size(); i++) {
+    m_map_id_to_cmpd_index[ids[i]] = static_cast<uint32_t>(i);
+  }
+
+  // TODO: we could combine component_ids with similar types if they are also used in the same way in the metadata boxes
+
+  // --- create cmpd component types
+
+  uint32_t max_cmpd_index=0;
+  for (auto iter : m_map_id_to_cmpd_index) {
+    max_cmpd_index = std::max(max_cmpd_index, iter.second);
+  }
+
+  std::vector<uint16_t> cmpd_types(static_cast<size_t>(max_cmpd_index) + 1);
+
+  for (auto iter : m_map_id_to_cmpd_index) {
+    uint16_t comp_type = image->get_component_type(iter.first);
+    cmpd_types[iter.second] = comp_type;
+  }
+
+  m_cmpd->set_components(cmpd_types);
 
   // --- Bayer pattern: add reference components to cmpd and generate cpat box
 
-  if (image->has_bayer_pattern()) {
-    const BayerPattern& bayer = image->get_bayer_pattern();
-
-    // The bayer pattern stores component_index values. When the image has a cmpd
-    // table (add_component path), we look up the component type from it. When it
-    // doesn't (legacy add_plane path), the component_index IS the component type.
-
-    // Collect unique component types from the pattern (in order of first appearance)
-    std::vector<uint16_t> unique_types;
-    std::set<uint16_t> seen;
-    for (const auto& pixel : bayer.pixels) {
-      uint16_t comp_type = pixel.component_index;  // legacy: index IS the type
-      if (seen.insert(comp_type).second) {
-        unique_types.push_back(comp_type);
-      }
-    }
-
-    // Add reference components to cmpd (these have no uncC entries).
-    std::map<uint16_t, uint16_t> type_to_cmpd_index;
-    for (uint16_t type : unique_types) {
-      type_to_cmpd_index[type] = m_cmpd->add_component({type});
-    }
+  if (image->has_any_bayer_pattern()) {
+    const BayerPattern& bayer = image->get_any_bayer_pattern();
 
     // Build cpat box with resolved cmpd indices
-    BayerPattern cpat_pattern;
-    cpat_pattern.pattern_width = bayer.pattern_width;
-    cpat_pattern.pattern_height = bayer.pattern_height;
-    cpat_pattern.pixels.resize(bayer.pixels.size());
-    for (size_t i = 0; i < bayer.pixels.size(); i++) {
-      uint16_t comp_type = bayer.pixels[i].component_index;  // legacy: index IS the type
-      cpat_pattern.pixels[i].component_index = type_to_cmpd_index[comp_type];
-      cpat_pattern.pixels[i].component_gain = bayer.pixels[i].component_gain;
-    }
 
     m_cpat = std::make_shared<Box_cpat>();
-    m_cpat->set_pattern(cpat_pattern);
+    m_cpat->set_pattern(bayer.resolve_to_cmpd(m_map_id_to_cmpd_index));
   }
 
   if (image->has_polarization_patterns()) {
     for (const auto& pol : image->get_polarization_patterns()) {
+      PolarizationPattern polCmpd = pol;
+      polCmpd.component_ids = map_component_ids_to_cmpd(pol.component_ids, m_map_id_to_cmpd_index);
       auto splz = std::make_shared<Box_splz>();
-      splz->set_pattern(pol);
+      splz->set_pattern(polCmpd);
       m_splz.push_back(splz);
     }
   }
 
   if (image->has_sensor_bad_pixels_maps()) {
     for (const auto& bpm : image->get_sensor_bad_pixels_maps()) {
+      SensorBadPixelsMap bpmCmpd = bpm;
+      bpmCmpd.component_ids = map_component_ids_to_cmpd(bpm.component_ids, m_map_id_to_cmpd_index);
       auto sbpm = std::make_shared<Box_sbpm>();
-      sbpm->set_bad_pixels_map(bpm);
+      sbpm->set_bad_pixels_map(bpmCmpd);
       m_sbpm.push_back(sbpm);
     }
   }
 
   if (image->has_sensor_nuc()) {
     for (const auto& nuc : image->get_sensor_nuc()) {
+      SensorNonUniformityCorrection nucCmpd = nuc;
+      nucCmpd.component_ids = map_component_ids_to_cmpd(nuc.component_ids, m_map_id_to_cmpd_index);
       auto snuc = std::make_shared<Box_snuc>();
-      snuc->set_nuc(nuc);
+      snuc->set_nuc(nucCmpd);
       m_snuc.push_back(snuc);
     }
   }
@@ -187,7 +188,7 @@ Result<std::unique_ptr<const unc_encoder> > unc_encoder_factory::get_unc_encoder
 
 heif_uncompressed_component_format to_unc_component_format(const std::shared_ptr<const HeifPixelImage>& image, heif_channel channel)
 {
-  heif_channel_datatype datatype = image->get_datatype(channel);
+  heif_component_datatype datatype = image->get_datatype(channel);
   heif_uncompressed_component_format component_format = to_unc_component_format(datatype);
   return component_format;
 }

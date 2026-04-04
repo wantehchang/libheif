@@ -49,18 +49,18 @@ bool unc_encoder_factory_rgb_block_pixel_interleave::can_encode(const std::share
 
 
 std::unique_ptr<const unc_encoder> unc_encoder_factory_rgb_block_pixel_interleave::create(const std::shared_ptr<const HeifPixelImage>& image,
-                                                                                         const heif_encoding_options& options) const
+                                                                                          const heif_encoding_options& options) const
 {
   return std::make_unique<unc_encoder_rgb_block_pixel_interleave>(image, options);
 }
 
 
 unc_encoder_rgb_block_pixel_interleave::unc_encoder_rgb_block_pixel_interleave(const std::shared_ptr<const HeifPixelImage>& image,
-                                                                             const heif_encoding_options& options)
+                                                                               const heif_encoding_options& options)
     : unc_encoder(image)
 {
-  auto cmpd_idx = image->get_component_cmpd_indices_interleaved();
-  assert(cmpd_idx.size() == 3);
+  auto ids = image->get_component_ids_interleaved();
+  assert(ids.size() == 3);
 
   uint16_t bpp = image->get_bits_per_pixel(heif_channel_interleaved);
 
@@ -74,9 +74,9 @@ unc_encoder_rgb_block_pixel_interleave::unc_encoder_rgb_block_pixel_interleave(c
   m_uncC->set_sampling_type(sampling_mode_no_subsampling);
   m_uncC->set_block_little_endian(false);
 
-  m_uncC->add_component({cmpd_idx[0], bpp, component_format_unsigned, 0});
-  m_uncC->add_component({cmpd_idx[1], bpp, component_format_unsigned, 0});
-  m_uncC->add_component({cmpd_idx[2], bpp, component_format_unsigned, 0});
+  m_uncC->add_component({m_map_id_to_cmpd_index.find(ids[0])->second, bpp, component_format_unsigned, 0});
+  m_uncC->add_component({m_map_id_to_cmpd_index.find(ids[1])->second, bpp, component_format_unsigned, 0});
+  m_uncC->add_component({m_map_id_to_cmpd_index.find(ids[2])->second, bpp, component_format_unsigned, 0});
 }
 
 

@@ -64,7 +64,7 @@ public:
 
   const std::vector<Component>& get_components() const { return m_components; }
 
-  bool has_component(heif_uncompressed_component_type) const;
+  bool has_component(heif_unci_component_type) const;
 
   uint16_t add_component(const Component& component)
   {
@@ -363,9 +363,9 @@ public:
 
   uint16_t get_pattern_height() const { return m_pattern.pattern_height; }
 
-  const BayerPattern& get_pattern() const { return m_pattern; }
+  const BayerPatternCmpd& get_pattern() const { return m_pattern; }
 
-  void set_pattern(const BayerPattern& pattern) { m_pattern = pattern; }
+  void set_pattern(const BayerPatternCmpd& pattern) { m_pattern = pattern; }
 
   std::string dump(Indent&) const override;
 
@@ -374,7 +374,7 @@ public:
 protected:
   Error parse(BitstreamRange& range, const heif_security_limits* limits) override;
 
-  BayerPattern m_pattern;
+  BayerPatternCmpd m_pattern;
 };
 
 

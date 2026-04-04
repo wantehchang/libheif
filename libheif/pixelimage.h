@@ -41,16 +41,37 @@
 #include <cassert>
 #include <string>
 
+constexpr uint16_t heif_unci_component_type_UNDEFINED = 0xFFFF;
+
+
+struct bayer_pattern_pixel_cmpd
+{
+  uint32_t cmpd_index;
+  float component_gain;
+};
+
+struct BayerPatternCmpd
+{
+  uint16_t pattern_width = 0;
+  uint16_t pattern_height = 0;
+  std::vector<bayer_pattern_pixel_cmpd> pixels;
+};
+
 struct BayerPattern
 {
   uint16_t pattern_width = 0;
   uint16_t pattern_height = 0;
   std::vector<heif_bayer_pattern_pixel> pixels;
+
+  BayerPatternCmpd resolve_to_cmpd(std::map<uint32_t, uint32_t> comp_id_to_cmap) const;
 };
+
+std::vector<uint32_t> map_component_ids_to_cmpd(const std::vector<uint32_t>& component_ids, const std::map<uint32_t, uint32_t>& comp_id_to_cmpd);
+std::vector<uint32_t> map_cmpd_to_component_ids(const std::vector<uint32_t>& cmpd_indices, const std::vector<std::vector<uint32_t>>& cmpd_to_comp_ids);
 
 struct PolarizationPattern
 {
-  std::vector<uint32_t> component_indices;  // empty = applies to all components
+  std::vector<uint32_t> component_ids;  // empty = applies to all components. Either cmpd-index or component-id, depending on context.
   uint16_t pattern_width = 0;
   uint16_t pattern_height = 0;
   std::vector<float> polarization_angles;   // pattern_width * pattern_height entries
@@ -59,17 +80,21 @@ struct PolarizationPattern
 
 struct SensorBadPixelsMap
 {
-  std::vector<uint32_t> component_indices;  // empty = applies to all components
+  struct BadPixelCoordinate
+  {
+    uint32_t row, column;
+  };
+
+  std::vector<uint32_t> component_ids;  // empty = applies to all components. Either cmpd-index or component-id, depending on context.
   bool correction_applied = false;
   std::vector<uint32_t> bad_rows;
   std::vector<uint32_t> bad_columns;
-  struct BadPixel { uint32_t row; uint32_t column; };
-  std::vector<BadPixel> bad_pixels;
+  std::vector<BadPixelCoordinate> bad_pixels;
 };
 
 struct SensorNonUniformityCorrection
 {
-  std::vector<uint32_t> component_indices;  // empty = applies to all components
+  std::vector<uint32_t> component_ids;  // empty = applies to all components. Either cmpd-index or component-id, depending on context.
   bool nuc_is_applied = false;
   uint32_t image_width = 0;
   uint32_t image_height = 0;
@@ -213,11 +238,18 @@ public:
 
   // --- bayer pattern
 
-  bool has_bayer_pattern() const { return m_bayer_pattern.has_value(); }
+  bool has_bayer_pattern(uint32_t component_id) const { return m_bayer_pattern.has_value(); }
 
-  const BayerPattern& get_bayer_pattern() const { assert(has_bayer_pattern()); return *m_bayer_pattern; }
+  bool has_any_bayer_pattern() const { return m_bayer_pattern.has_value(); }
+
+  const BayerPattern& get_bayer_pattern(uint32_t component_id) const { assert(has_bayer_pattern(component_id)); return *m_bayer_pattern; }
+
+  const BayerPattern& get_any_bayer_pattern() const { assert(has_any_bayer_pattern()); return *m_bayer_pattern; }
 
   virtual void set_bayer_pattern(const BayerPattern& pattern) { m_bayer_pattern = pattern; }
+
+  // TODO: replace uint16_t component_type with class that also handled the std::string type
+  uint32_t add_component_without_data(uint16_t component_type) { assert(false); /*TODO*/ }
 
 
   // --- polarization pattern
@@ -342,7 +374,7 @@ public:
 
   Error add_plane(heif_channel channel, uint32_t width, uint32_t height, int bit_depth, const heif_security_limits* limits);
 
-  Error add_channel(heif_channel channel, uint32_t width, uint32_t height, heif_channel_datatype datatype, int bit_depth,
+  Error add_channel(heif_channel channel, uint32_t width, uint32_t height, heif_component_datatype datatype, int bit_depth,
                     const heif_security_limits* limits);
 
   bool has_channel(heif_channel channel) const;
@@ -387,7 +419,7 @@ public:
   // Get the maximum bit depth of a visual channel (YCbCr or RGB).
   uint16_t get_visual_image_bits_per_pixel() const;
 
-  heif_channel_datatype get_datatype(heif_channel channel) const;
+  heif_component_datatype get_datatype(heif_channel channel) const;
 
   int get_number_of_interleaved_components(heif_channel channel) const;
 
@@ -423,11 +455,11 @@ public:
   }
 
 
-  // --- index-based component access (for ISO 23001-17 multi-component images)
+  // --- id-based component access (for ISO 23001-17 multi-component images)
 
-  uint32_t get_number_of_used_components() const { return static_cast<uint32_t>(m_planes.size()); }
+  uint32_t get_number_of_used_components() const { return static_cast<uint32_t>(m_component_types.size()); }
 
-  uint32_t get_total_number_of_cmpd_components() const { return static_cast<uint32_t>(m_cmpd_component_types.size()); }
+  //uint32_t get_total_number_of_cmpd_components() const { return static_cast<uint32_t>(m_cmpd_component_types.size()); }
 
   heif_channel get_component_channel(uint32_t component_idx) const;
 
@@ -435,37 +467,39 @@ public:
   uint32_t get_component_height(uint32_t component_idx) const;
   uint16_t get_component_bits_per_pixel(uint32_t component_idx) const;
   uint16_t get_component_storage_bits_per_pixel(uint32_t component_idx) const;
-  heif_channel_datatype get_component_datatype(uint32_t component_idx) const;
+  heif_component_datatype get_component_datatype(uint32_t component_idx) const;
 
   // Look up the component type from the cmpd table. Works for any cmpd index,
   // even those that have no image plane (e.g. bayer reference components).
   uint16_t get_component_type(uint32_t component_idx) const;
 
-  std::vector<uint16_t> get_cmpd_component_types() const { return m_cmpd_component_types; }
+  //std::vector<uint16_t> get_cmpd_component_types() const { return m_cmpd_component_types; }
 
-  std::vector<uint32_t> get_component_cmpd_indices_interleaved() const;
+  std::vector<uint32_t> get_component_ids_interleaved() const;
 
-  uint32_t get_component_cmpd_index() const { assert(m_cmpd_component_types.size()==1); return m_cmpd_component_types[0]; }
+  //uint32_t get_component_cmpd_index() const { assert(m_cmpd_component_types.size()==1); return m_cmpd_component_types[0]; }
 
   // Encoder path: auto-generates component_index by appending to cmpd table.
   Result<uint32_t> add_component(uint32_t width, uint32_t height,
                                  uint16_t component_type,
-                                 heif_channel_datatype datatype, int bit_depth,
+                                 heif_component_datatype datatype, int bit_depth,
                                  const heif_security_limits* limits);
 
   // Decoder path: uses a pre-populated cmpd table to look up the component type.
+#if 0
   Result<uint32_t> add_component_for_index(uint32_t component_index,
                                             uint32_t width, uint32_t height,
-                                            heif_channel_datatype datatype, int bit_depth,
+                                            heif_component_datatype datatype, int bit_depth,
                                             const heif_security_limits* limits);
+#endif
 
   // Populate the cmpd component types table (decoder path).
-  void set_cmpd_component_types(std::vector<uint16_t> types) { m_cmpd_component_types = std::move(types); }
+  //void set_cmpd_component_types(std::vector<uint16_t> types) { m_cmpd_component_types = std::move(types); }
 
-  const std::vector<uint16_t>& get_cmpd_component_types() { return m_cmpd_component_types; }
+  //const std::vector<uint16_t>& get_cmpd_component_types() { return m_cmpd_component_types; }
 
   // Returns the sorted list of component_indices of all planes that have pixel data.
-  std::vector<uint32_t> get_used_component_indices() const;
+  std::vector<uint32_t> get_used_component_ids() const;
 
   uint8_t* get_component(uint32_t component_idx, size_t* out_stride);
   const uint8_t* get_component(uint32_t component_idx, size_t* out_stride) const;
@@ -473,7 +507,7 @@ public:
   template <typename T>
   T* get_component_data(uint32_t component_idx, size_t* out_stride)
   {
-    auto* comp = find_component_by_index(component_idx);
+    auto* comp = find_component_by_id(component_idx);
     if (!comp) {
       if (out_stride) *out_stride = 0;
       return nullptr;
@@ -558,15 +592,15 @@ private:
 
     // index into the cmpd component definition table
     // Interleaved channels will have a list of indices in the order R,G,B,A
-    std::vector<uint32_t> m_component_index;
+    std::vector<uint32_t> m_component_ids;
 
     // limits=nullptr disables the limits
-    Error alloc(uint32_t width, uint32_t height, heif_channel_datatype datatype, int bit_depth,
+    Error alloc(uint32_t width, uint32_t height, heif_component_datatype datatype, int bit_depth,
                 int num_interleaved_components,
                 const heif_security_limits* limits,
                 MemoryHandle& memory_handle);
 
-    heif_channel_datatype m_datatype = heif_channel_datatype_unsigned_integer;
+    heif_component_datatype m_datatype = heif_component_datatype_unsigned_integer;
 
     // logical bit depth per component
     // For interleaved formats, it is the number of bits for one component.
@@ -600,8 +634,8 @@ private:
   ImageComponent* find_component_for_channel(heif_channel channel);
   const ImageComponent* find_component_for_channel(heif_channel channel) const;
 
-  ImageComponent* find_component_by_index(uint32_t component_index);
-  const ImageComponent* find_component_by_index(uint32_t component_index) const;
+  ImageComponent* find_component_by_id(uint32_t component_index);
+  const ImageComponent* find_component_by_id(uint32_t component_index) const;
 
   ImageComponent new_image_plane_for_channel(heif_channel channel);
 
@@ -611,10 +645,15 @@ private:
   heif_chroma m_chroma = heif_chroma_undefined;
 
   std::vector<ImageComponent> m_planes;
-  std::vector<uint16_t> m_cmpd_component_types;  // indexed by cmpd index
+  //std::vector<uint16_t> m_cmpd_component_types;  // indexed by cmpd index
   MemoryHandle m_memory_handle;
 
+  // maps component_id to component_type (for all components, including cpat and all components in an interleaved plane)
+  std::map<uint32_t, uint16_t> m_component_types;
+
   uint32_t m_sample_duration = 0; // duration of a sequence frame
+
+  uint32_t m_next_component_id = 1;
 
   std::vector<Error> m_warnings;
 };

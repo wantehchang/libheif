@@ -88,27 +88,27 @@ Error UncompressedImageCodec::get_heif_chroma_uncompressed(const std::shared_ptr
     uint32_t component_index = component.component_index;
     uint16_t component_type = cmpd->get_components()[component_index].component_type;
 
-    if (component_type > heif_uncompressed_component_type_max_valid) {
+    if (component_type > heif_unci_component_type_max_valid) {
       std::stringstream sstr;
-      sstr << "a component_type > " << heif_uncompressed_component_type_max_valid << " is not supported";
+      sstr << "a component_type > " << heif_unci_component_type_max_valid << " is not supported";
       return {heif_error_Unsupported_feature, heif_suberror_Invalid_parameter_value, sstr.str()};
     }
-    if (component_type == heif_uncompressed_component_type_padded) {
+    if (component_type == heif_unci_component_type_padded) {
       // not relevant for determining chroma
       continue;
     }
     componentSet |= (1 << component_type);
   }
 
-  *out_has_alpha = (componentSet & (1 << heif_uncompressed_component_type_alpha)) != 0;
+  *out_has_alpha = (componentSet & (1 << heif_unci_component_type_alpha)) != 0;
 
-  if (componentSet == ((1 << heif_uncompressed_component_type_red) | (1 << heif_uncompressed_component_type_green) | (1 << heif_uncompressed_component_type_blue)) ||
-      componentSet == ((1 << heif_uncompressed_component_type_red) | (1 << heif_uncompressed_component_type_green) | (1 << heif_uncompressed_component_type_blue) | (1 << heif_uncompressed_component_type_alpha))) {
+  if (componentSet == ((1 << heif_unci_component_type_red) | (1 << heif_unci_component_type_green) | (1 << heif_unci_component_type_blue)) ||
+      componentSet == ((1 << heif_unci_component_type_red) | (1 << heif_unci_component_type_green) | (1 << heif_unci_component_type_blue) | (1 << heif_unci_component_type_alpha))) {
     *out_chroma = heif_chroma_444;
     *out_colourspace = heif_colorspace_RGB;
   }
 
-  if (componentSet == ((1 << heif_uncompressed_component_type_Y) | (1 << heif_uncompressed_component_type_Cb) | (1 << heif_uncompressed_component_type_Cr))) {
+  if (componentSet == ((1 << heif_unci_component_type_Y) | (1 << heif_unci_component_type_Cb) | (1 << heif_unci_component_type_Cr))) {
     switch (uncC->get_sampling_type()) {
       case sampling_mode_no_subsampling:
         *out_chroma = heif_chroma_444;
@@ -123,14 +123,14 @@ Error UncompressedImageCodec::get_heif_chroma_uncompressed(const std::shared_ptr
     *out_colourspace = heif_colorspace_YCbCr;
   }
 
-  if (componentSet == (1 << heif_uncompressed_component_type_monochrome) || componentSet == ((1 << heif_uncompressed_component_type_monochrome) | (1 << heif_uncompressed_component_type_alpha)) ||
-      componentSet == (1 << heif_uncompressed_component_type_Y) || componentSet == ((1 << heif_uncompressed_component_type_Y) | (1 << heif_uncompressed_component_type_alpha))) {
+  if (componentSet == (1 << heif_unci_component_type_monochrome) || componentSet == ((1 << heif_unci_component_type_monochrome) | (1 << heif_unci_component_type_alpha)) ||
+      componentSet == (1 << heif_unci_component_type_Y) || componentSet == ((1 << heif_unci_component_type_Y) | (1 << heif_unci_component_type_alpha))) {
     // mono or mono + alpha input, mono output.
     *out_chroma = heif_chroma_monochrome;
     *out_colourspace = heif_colorspace_monochrome;
   }
 
-  if (componentSet == (1 << heif_uncompressed_component_type_filter_array)) {
+  if (componentSet == (1 << heif_unci_component_type_filter_array)) {
     // TODO - we should look up the components
     *out_chroma = heif_chroma_monochrome;
     *out_colourspace = heif_colorspace_filter_array;
@@ -165,33 +165,50 @@ bool map_uncompressed_component_to_channel(const std::shared_ptr<const Box_cmpd>
 }
 
 
-heif_channel_datatype unc_component_format_to_datatype(uint8_t format)
+heif_component_datatype unc_component_format_to_datatype(uint8_t format)
 {
   switch (format) {
     case component_format_unsigned:
-      return heif_channel_datatype_unsigned_integer;
+      return heif_component_datatype_unsigned_integer;
 
     case component_format_signed:
-      return heif_channel_datatype_signed_integer;
+      return heif_component_datatype_signed_integer;
 
     case component_format_float:
-      return heif_channel_datatype_floating_point;
+      return heif_component_datatype_floating_point;
 
     case component_format_complex:
-      return heif_channel_datatype_complex_number;
+      return heif_component_datatype_complex_number;
 
     default:
-      return heif_channel_datatype_undefined;
+      return heif_component_datatype_undefined;
   }
 }
 
 
-Result<std::shared_ptr<HeifPixelImage>> UncompressedImageCodec::create_image(const std::shared_ptr<const Box_cmpd> cmpd,
-                                                                             const std::shared_ptr<const Box_uncC> uncC,
+static Error validate_component_indices(const std::vector<uint32_t>& indices,
+                                        size_t cmpd_size,
+                                        const char* box_name)
+{
+  for (uint32_t idx : indices) {
+    if (idx >= cmpd_size) {
+      return {heif_error_Invalid_input,
+              heif_suberror_Invalid_parameter_value,
+              std::string(box_name) + " component index out of range of cmpd table"};
+    }
+  }
+  return Error::Ok;
+}
+
+
+Result<std::shared_ptr<HeifPixelImage>> UncompressedImageCodec::create_image(const unci_properties& properties,
                                                                              uint32_t width,
                                                                              uint32_t height,
                                                                              const heif_security_limits* limits)
 {
+  auto cmpd = properties.cmpd;
+  auto uncC = properties.uncC;
+
   const auto& components = cmpd->get_components();
 
   auto img = std::make_shared<HeifPixelImage>();
@@ -206,15 +223,10 @@ Result<std::shared_ptr<HeifPixelImage>> UncompressedImageCodec::create_image(con
               colourspace,
               chroma);
 
-  // Populate the cmpd table on the image so add_component_for_index() can look up types.
-  {
-    std::vector<uint16_t> cmpd_types;
-    cmpd_types.reserve(components.size());
-    for (const auto& c : components) {
-      cmpd_types.push_back(c.component_type);
-    }
-    img->set_cmpd_component_types(std::move(cmpd_types));
-  }
+
+  // Remember which components reference which cmpd indices.
+  // There can be several component ids referencing the same cmpd index.
+  std::vector<std::vector<uint32_t>> cmpd_index_to_comp_ids(components.size());
 
   for (Box_uncC::Component component : uncC->get_components()) {
     if (component.component_index >= components.size()) {
@@ -227,29 +239,101 @@ Result<std::shared_ptr<HeifPixelImage>> UncompressedImageCodec::create_image(con
 
     auto component_type = components[component.component_index].component_type;
 
-    if ((component_type == heif_uncompressed_component_type_Cb) ||
-        (component_type == heif_uncompressed_component_type_Cr)) {
-      Result<uint32_t> result = img->add_component_for_index(component.component_index,
-                                                              (width / chroma_h_subsampling(chroma)),
-                                                              (height / chroma_v_subsampling(chroma)),
-                                                              unc_component_format_to_datatype(component.component_format),
-                                                              component.component_bit_depth,
-                                                              limits);
+    if ((component_type == heif_unci_component_type_Cb) ||
+        (component_type == heif_unci_component_type_Cr)) {
+      Result<uint32_t> result = img->add_component((width / chroma_h_subsampling(chroma)),
+                                                   (height / chroma_v_subsampling(chroma)),
+                                                   cmpd->get_components()[component.component_index].component_type,
+                                                   unc_component_format_to_datatype(component.component_format),
+                                                   component.component_bit_depth,
+                                                   limits);
       if (result.is_error()) {
         return result.error();
       }
+
+      cmpd_index_to_comp_ids[component.component_index].push_back(*result);
     }
     else {
-      Result<uint32_t> result = img->add_component_for_index(component.component_index,
-                                                              width,
-                                                              height,
-                                                              unc_component_format_to_datatype(component.component_format),
-                                                              component.component_bit_depth,
-                                                              limits);
+      Result<uint32_t> result = img->add_component(width,
+                                                   height,
+                                                   cmpd->get_components()[component.component_index].component_type,
+                                                   unc_component_format_to_datatype(component.component_format),
+                                                   component.component_bit_depth,
+                                                   limits);
       if (result.is_error()) {
         return result.error();
       }
+
+      cmpd_index_to_comp_ids[component.component_index].push_back(*result);
     }
+  }
+
+
+  // --- assign the metadata boxes
+
+  size_t cmpd_size = cmpd ? cmpd->get_components().size() : 0;
+
+  if (properties.cpat) {
+    const auto& pattern_cmpd = properties.cpat->get_pattern();
+    std::vector<uint32_t> cpat_indices;
+    for (const auto& pixel : pattern_cmpd.pixels) {
+      cpat_indices.push_back(pixel.cmpd_index);
+    }
+    Error err = validate_component_indices(cpat_indices, cmpd_size, "cpat");
+    if (err) {
+      return err;
+    }
+
+    // translate BayerPattern, adding new components to the HeifPixelImage
+
+    BayerPattern pattern;
+    pattern.pattern_width = pattern_cmpd.pattern_width;
+    pattern.pattern_height = pattern_cmpd.pattern_height;
+    for (auto p : pattern_cmpd.pixels) {
+      uint32_t comp_id = img->add_component_without_data(components[p.cmpd_index].component_type);
+      pattern.pixels.push_back({comp_id, p.component_gain});
+
+      cmpd_index_to_comp_ids[p.cmpd_index].push_back(comp_id);
+    }
+
+    img->set_bayer_pattern(pattern);
+  }
+
+  for (const auto& splz_box : properties.splz) {
+    const auto& pattern_cmpd = splz_box->get_pattern();
+    Error err = validate_component_indices(pattern_cmpd.component_ids, cmpd_size, "splz");
+    if (err) {
+      return err;
+    }
+    PolarizationPattern pattern = pattern_cmpd;
+    pattern.component_ids = map_cmpd_to_component_ids(pattern_cmpd.component_ids, cmpd_index_to_comp_ids);
+    img->add_polarization_pattern(pattern);
+  }
+
+  for (const auto& sbpm_box : properties.sbpm) {
+    const auto& bad_pixels_map_cmpd = sbpm_box->get_bad_pixels_map();
+    Error err = validate_component_indices(bad_pixels_map_cmpd.component_ids, cmpd_size, "sbpm");
+    if (err) {
+      return err;
+    }
+    SensorBadPixelsMap bad_pixels_map = bad_pixels_map_cmpd;
+    bad_pixels_map.component_ids = map_cmpd_to_component_ids(bad_pixels_map_cmpd.component_ids, cmpd_index_to_comp_ids);
+    img->add_sensor_bad_pixels_map(bad_pixels_map);
+  }
+
+  for (const auto& snuc_box : properties.snuc) {
+    const auto& nuc_cmpd = snuc_box->get_nuc();
+    Error err = validate_component_indices(nuc_cmpd.component_ids, cmpd_size, "snuc");
+    if (err) {
+      return err;
+    }
+    SensorNonUniformityCorrection nuc = nuc_cmpd;
+    nuc.component_ids = map_cmpd_to_component_ids(nuc_cmpd.component_ids, cmpd_index_to_comp_ids);
+    img->add_sensor_nuc(nuc);
+  }
+
+  if (properties.cloc) {
+    img->set_chroma_location(properties.cloc->get_chroma_location());
   }
 
   return img;
@@ -283,7 +367,12 @@ Error UncompressedImageCodec::decode_uncompressed_image_tile(const HeifContext* 
   uint32_t tile_width = ispe->get_width() / uncC->get_number_of_tile_columns();
   uint32_t tile_height = ispe->get_height() / uncC->get_number_of_tile_rows();
 
-  Result<std::shared_ptr<HeifPixelImage>> createImgResult = create_image(cmpd, uncC, tile_width, tile_height, context->get_security_limits());
+
+  // Remember which components reference which cmpd indices.
+  // There can be several component ids referencing the same cmpd index.
+  std::vector<std::vector<uint32_t>> cmpd_index_to_comp_ids;
+
+  Result<std::shared_ptr<HeifPixelImage>> createImgResult = create_image(properties, tile_width, tile_height, context->get_security_limits());
   if (!createImgResult) {
     return createImgResult.error();
   }
@@ -339,7 +428,7 @@ Error UncompressedImageCodec::check_header_validity(std::optional<const std::sha
       }
 
       uint16_t component_type = cmpd->get_components()[comp.component_index].component_type;
-      if (component_type > 7 && component_type != heif_uncompressed_component_type_padded && component_type != heif_uncompressed_component_type_filter_array) {
+      if (component_type > 7 && component_type != heif_unci_component_type_padded && component_type != heif_unci_component_type_filter_array) {
         std::stringstream sstr;
         sstr << "Uncompressed image with component_type " << ((int) component_type) << " is not implemented yet";
         return {heif_error_Unsupported_feature,

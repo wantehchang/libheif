@@ -34,7 +34,7 @@
 struct RawImageParameters {
   int width = 0;
   int height = 0;
-  heif_channel_datatype datatype = heif_channel_datatype_undefined;
+  heif_component_datatype datatype = heif_component_datatype_undefined;
   int bit_depth = 0;
   bool big_endian = false;
 };
@@ -42,7 +42,7 @@ struct RawImageParameters {
 // Maps a CLI string like "uint16" or "float32" to datatype + bit_depth.
 // Returns false if the string is not recognized.
 bool parse_raw_pixel_type(const std::string& type_string,
-                          heif_channel_datatype* out_datatype,
+                          heif_component_datatype* out_datatype,
                           int* out_bit_depth);
 
 LIBHEIF_API
