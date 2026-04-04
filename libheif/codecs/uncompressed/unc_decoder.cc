@@ -43,11 +43,13 @@
 
 unc_decoder::unc_decoder(uint32_t width, uint32_t height,
                          const std::shared_ptr<const Box_cmpd>& cmpd,
-                         const std::shared_ptr<const Box_uncC>& uncC)
+                         const std::shared_ptr<const Box_uncC>& uncC,
+                         const std::vector<uint32_t>& uncC_index_to_comp_ids)
   : m_width(width),
     m_height(height),
     m_cmpd(cmpd),
-    m_uncC(uncC)
+    m_uncC(uncC),
+    m_uncC_index_to_comp_ids(uncC_index_to_comp_ids)
 {
   m_tile_height = m_height / m_uncC->get_number_of_tile_rows();
   m_tile_width = m_width / m_uncC->get_number_of_tile_columns();
@@ -410,7 +412,9 @@ Error check_hard_limits(const std::shared_ptr<const Box_uncC>& uncC)
 Result<std::unique_ptr<unc_decoder> > unc_decoder_factory::get_unc_decoder(
   uint32_t width, uint32_t height,
   const std::shared_ptr<const Box_cmpd>& cmpd,
-  const std::shared_ptr<const Box_uncC>& uncC)
+  const std::shared_ptr<const Box_uncC>& uncC,
+  const std::vector<uint32_t>& uncC_index_to_comp_ids
+)
 {
   static unc_decoder_factory_component_interleave dec_component;
   static unc_decoder_factory_bytealign_component_interleave dec_bytealign_component;
@@ -426,7 +430,7 @@ Result<std::unique_ptr<unc_decoder> > unc_decoder_factory::get_unc_decoder(
 
   for (const unc_decoder_factory* dec : decoders) {
     if (dec->can_decode(uncC)) {
-      return {dec->create(width, height, cmpd, uncC)};
+      return {dec->create(width, height, cmpd, uncC, uncC_index_to_comp_ids)};
     }
   }
 
@@ -456,7 +460,9 @@ Result<std::shared_ptr<HeifPixelImage> > unc_decoder::decode_full_image(
     return {global_limit_error};
   }
 
-  Result<std::shared_ptr<HeifPixelImage> > createImgResult = UncompressedImageCodec::create_image(properties, width, height, limits);
+  std::vector<uint32_t> uncC_index_to_comp_ids;
+
+  Result<std::shared_ptr<HeifPixelImage> > createImgResult = UncompressedImageCodec::create_image(properties, width, height, uncC_index_to_comp_ids, limits);
   if (!createImgResult) {
     return createImgResult.error();
   }
@@ -464,7 +470,7 @@ Result<std::shared_ptr<HeifPixelImage> > unc_decoder::decode_full_image(
   auto img = *createImgResult;
 
 
-  auto decoderResult = unc_decoder_factory::get_unc_decoder(width, height, cmpd, uncC);
+  auto decoderResult = unc_decoder_factory::get_unc_decoder(width, height, cmpd, uncC, uncC_index_to_comp_ids);
   if (!decoderResult) {
     return decoderResult.error();
   }

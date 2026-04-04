@@ -2383,6 +2383,20 @@ std::vector<uint32_t> HeifPixelImage::get_used_component_ids() const
 }
 
 
+std::vector<uint32_t> HeifPixelImage::get_used_planar_component_ids() const
+{
+  std::vector<uint32_t> indices;
+
+  for (const auto& plane : m_planes) {
+    if (plane.m_component_ids.size() == 1) {
+      indices.push_back(plane.m_component_ids[0]);
+    }
+  }
+
+  return indices;
+}
+
+
 uint8_t* HeifPixelImage::get_component(uint32_t component_idx, size_t* out_stride)
 {
   return get_component_data<uint8_t>(component_idx, out_stride);

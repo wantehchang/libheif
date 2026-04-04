@@ -154,7 +154,8 @@ bool unc_decoder_factory_mixed_interleave::can_decode(const std::shared_ptr<cons
 std::unique_ptr<unc_decoder> unc_decoder_factory_mixed_interleave::create(
     uint32_t width, uint32_t height,
     const std::shared_ptr<const Box_cmpd>& cmpd,
-    const std::shared_ptr<const Box_uncC>& uncC) const
+    const std::shared_ptr<const Box_uncC>& uncC,
+    const std::vector<uint32_t>& uncC_index_to_comp_ids) const
 {
-  return std::make_unique<unc_decoder_mixed_interleave>(width, height, cmpd, uncC);
+  return std::make_unique<unc_decoder_mixed_interleave>(width, height, cmpd, uncC, uncC_index_to_comp_ids);
 }

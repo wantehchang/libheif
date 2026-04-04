@@ -142,7 +142,8 @@ public:
 protected:
   unc_decoder_legacybase(uint32_t width, uint32_t height,
                          const std::shared_ptr<const Box_cmpd>& cmpd,
-                         const std::shared_ptr<const Box_uncC>& uncC);
+                         const std::shared_ptr<const Box_uncC>& uncC,
+                         const std::vector<uint32_t>& uncC_index_to_comp_ids);
 
   class ChannelListEntry
   {

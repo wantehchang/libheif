@@ -44,8 +44,9 @@
 
 unc_decoder_legacybase::unc_decoder_legacybase(uint32_t width, uint32_t height,
                                                const std::shared_ptr<const Box_cmpd>& cmpd,
-                                               const std::shared_ptr<const Box_uncC>& uncC)
-    : unc_decoder(width, height, cmpd, uncC)
+                                               const std::shared_ptr<const Box_uncC>& uncC,
+                                               const std::vector<uint32_t>& uncC_index_to_comp_ids)
+    : unc_decoder(width, height, cmpd, uncC, uncC_index_to_comp_ids)
 {
 }
 
@@ -58,9 +59,11 @@ void unc_decoder_legacybase::ensureChannelList(std::shared_ptr<HeifPixelImage>& 
 
 void unc_decoder_legacybase::buildChannelList(std::shared_ptr<HeifPixelImage>& img)
 {
+  uint32_t uncC_index = 0;
   for (Box_uncC::Component component : m_uncC->get_components()) {
-    ChannelListEntry entry = buildChannelListEntry(component.component_index, component, img);
+    ChannelListEntry entry = buildChannelListEntry(uncC_index, component, img);
     channelList.push_back(entry);
+    uncC_index++;
   }
 }
 
@@ -134,13 +137,13 @@ void unc_decoder_legacybase::processComponentTileRow(ChannelListEntry& entry, Un
 }
 
 
-unc_decoder_legacybase::ChannelListEntry unc_decoder_legacybase::buildChannelListEntry(uint32_t component_idx,
+unc_decoder_legacybase::ChannelListEntry unc_decoder_legacybase::buildChannelListEntry(uint32_t component_id,
                                                                                         Box_uncC::Component component,
                                                                                         std::shared_ptr<HeifPixelImage>& img)
 {
   ChannelListEntry entry;
   entry.use_channel = map_uncompressed_component_to_channel(m_cmpd, component, &(entry.channel));
-  entry.dst_plane = img->get_component(component_idx, &(entry.dst_plane_stride));
+  entry.dst_plane = img->get_component(m_uncC_index_to_comp_ids[component_id], &(entry.dst_plane_stride));
   entry.tile_width = m_tile_width;
   entry.tile_height = m_tile_height;
   entry.other_chroma_dst_plane_stride = 0; // will be overwritten below if used

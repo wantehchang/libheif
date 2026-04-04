@@ -37,17 +37,17 @@ bool unc_encoder_factory_component_interleave::can_encode(const std::shared_ptr<
   // If any component is not byte-aligned, we use the bit-packing path which
   // reads samples as uint32_t, limiting all components to 32 bpp.
   bool any_non_aligned = false;
-  uint32_t num_components = image->get_number_of_used_components();
-  for (uint32_t idx = 0; idx < num_components; idx++) {
-    uint16_t bpp = image->get_component_bits_per_pixel(idx);
+  auto component_ids = image->get_used_component_ids();
+  for (uint32_t id : component_ids) {
+    uint16_t bpp = image->get_component_bits_per_pixel(id);
     if (bpp % 8 != 0) {
       any_non_aligned = true;
     }
   }
 
   if (any_non_aligned) {
-    for (uint32_t idx = 0; idx < num_components; idx++) {
-      if (image->get_component_bits_per_pixel(idx) > 32) {
+    for (uint32_t id : component_ids) {
+      if (image->get_component_bits_per_pixel(id) > 32) {
         return false;
       }
     }
@@ -55,8 +55,8 @@ bool unc_encoder_factory_component_interleave::can_encode(const std::shared_ptr<
 
   if (!any_non_aligned) {
     // All components are byte-aligned. Only accept typical integer widths.
-    for (uint32_t idx = 0; idx < num_components; idx++) {
-      uint16_t bpp = image->get_component_bits_per_pixel(idx);
+    for (uint32_t id : component_ids) {
+      uint16_t bpp = image->get_component_bits_per_pixel(id);
       switch (bpp) {
         case 8:
         case 16:
@@ -87,17 +87,19 @@ unc_encoder_component_interleave::unc_encoder_component_interleave(const std::sh
     : unc_encoder(image)
 {
   bool is_nonvisual = (image->get_colorspace() == heif_colorspace_nonvisual);
-  uint32_t num_components = image->get_number_of_used_components();
+  //uint32_t num_components = image->get_number_of_used_components();
 
-  for (uint32_t idx = 0; idx < num_components; idx++) {
+  auto componentIds = image->get_used_planar_component_ids();
+
+  for (uint32_t id : componentIds) {
     heif_unci_component_type comp_type;
     heif_channel ch = heif_channel_Y; // default for nonvisual
 
     if (is_nonvisual) {
-      comp_type = static_cast<heif_unci_component_type>(image->get_component_type(idx));
+      comp_type = static_cast<heif_unci_component_type>(image->get_component_type(id));
     }
     else {
-      ch = image->get_component_channel(idx);
+      ch = image->get_component_channel(id);
       if (ch == heif_channel_Y && !image->has_channel(heif_channel_Cb)) {
         comp_type = heif_unci_component_type_monochrome;
       }
@@ -106,11 +108,11 @@ unc_encoder_component_interleave::unc_encoder_component_interleave(const std::sh
       }
     }
 
-    uint16_t bpp = image->get_component_bits_per_pixel(idx);
-    auto comp_format = to_unc_component_format(image->get_component_datatype(idx));
+    uint16_t bpp = image->get_component_bits_per_pixel(id);
+    auto comp_format = to_unc_component_format(image->get_component_datatype(id));
     bool aligned = (bpp % 8 == 0);
 
-    m_components.push_back({idx, ch, comp_type, comp_format, bpp, aligned});
+    m_components.push_back({id, ch, comp_type, comp_format, bpp, aligned});
   }
 
   // Build cmpd/uncC boxes

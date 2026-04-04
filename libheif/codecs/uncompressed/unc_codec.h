@@ -86,6 +86,7 @@ public:
   static Result<std::shared_ptr<HeifPixelImage>> create_image(const unci_properties& properties,
                                                               uint32_t width,
                                                               uint32_t height,
+                                                              std::vector<uint32_t>& uncC_index_to_comp_ids,
                                                               const heif_security_limits* limits);
 
   static Error check_header_validity(std::optional<const std::shared_ptr<const Box_ispe>>,

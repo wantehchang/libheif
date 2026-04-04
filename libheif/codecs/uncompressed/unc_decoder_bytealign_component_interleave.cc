@@ -33,8 +33,9 @@
 unc_decoder_bytealign_component_interleave::unc_decoder_bytealign_component_interleave(
     uint32_t width, uint32_t height,
     std::shared_ptr<const Box_cmpd> cmpd,
-    std::shared_ptr<const Box_uncC> uncC)
-    : unc_decoder(width, height, cmpd, uncC)
+    std::shared_ptr<const Box_uncC> uncC,
+    const std::vector<uint32_t>& uncC_index_to_comp_ids)
+    : unc_decoder(width, height, cmpd, uncC, uncC_index_to_comp_ids)
 {
 }
 
@@ -85,6 +86,7 @@ Error unc_decoder_bytealign_component_interleave::decode_tile(const std::vector<
     comp[i].bytes_per_sample = (c.component_bit_depth + 7) / 8;
 
     comp[i].use = true; // map_uncompressed_component_to_channel(m_cmpd, c, &channel);
+#if 0
     if (comp[i].use) {
       comp[i].dst_plane = img->get_component(c.component_index, &comp[i].dst_plane_stride);
       assert(comp[i].dst_plane != nullptr);
@@ -93,6 +95,9 @@ Error unc_decoder_bytealign_component_interleave::decode_tile(const std::vector<
       comp[i].dst_plane = nullptr;
       comp[i].dst_plane_stride = 0;
     }
+#endif
+
+    comp[i].dst_plane = img->get_component(m_uncC_index_to_comp_ids[i], &comp[i].dst_plane_stride);
   }
 
   const uint8_t* src = tile_data.data();
@@ -273,7 +278,8 @@ bool unc_decoder_factory_bytealign_component_interleave::can_decode(const std::s
 std::unique_ptr<unc_decoder> unc_decoder_factory_bytealign_component_interleave::create(
     uint32_t width, uint32_t height,
     const std::shared_ptr<const Box_cmpd>& cmpd,
-    const std::shared_ptr<const Box_uncC>& uncC) const
+    const std::shared_ptr<const Box_uncC>& uncC,
+    const std::vector<uint32_t>& uncC_index_to_comp_ids) const
 {
-  return std::make_unique<unc_decoder_bytealign_component_interleave>(width, height, cmpd, uncC);
+  return std::make_unique<unc_decoder_bytealign_component_interleave>(width, height, cmpd, uncC, uncC_index_to_comp_ids);
 }

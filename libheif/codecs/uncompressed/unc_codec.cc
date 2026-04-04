@@ -204,6 +204,7 @@ static Error validate_component_indices(const std::vector<uint32_t>& indices,
 Result<std::shared_ptr<HeifPixelImage>> UncompressedImageCodec::create_image(const unci_properties& properties,
                                                                              uint32_t width,
                                                                              uint32_t height,
+                                                                             std::vector<uint32_t>& uncC_index_to_comp_ids,
                                                                              const heif_security_limits* limits)
 {
   auto cmpd = properties.cmpd;
@@ -252,6 +253,7 @@ Result<std::shared_ptr<HeifPixelImage>> UncompressedImageCodec::create_image(con
       }
 
       cmpd_index_to_comp_ids[component.component_index].push_back(*result);
+      uncC_index_to_comp_ids.push_back(*result);
     }
     else {
       Result<uint32_t> result = img->add_component(width,
@@ -265,6 +267,7 @@ Result<std::shared_ptr<HeifPixelImage>> UncompressedImageCodec::create_image(con
       }
 
       cmpd_index_to_comp_ids[component.component_index].push_back(*result);
+      uncC_index_to_comp_ids.push_back(*result);
     }
   }
 
@@ -371,15 +374,16 @@ Error UncompressedImageCodec::decode_uncompressed_image_tile(const HeifContext* 
   // Remember which components reference which cmpd indices.
   // There can be several component ids referencing the same cmpd index.
   std::vector<std::vector<uint32_t>> cmpd_index_to_comp_ids;
+  std::vector<uint32_t> uncC_index_to_comp_ids;
 
-  Result<std::shared_ptr<HeifPixelImage>> createImgResult = create_image(properties, tile_width, tile_height, context->get_security_limits());
+  Result<std::shared_ptr<HeifPixelImage>> createImgResult = create_image(properties, tile_width, tile_height, uncC_index_to_comp_ids, context->get_security_limits());
   if (!createImgResult) {
     return createImgResult.error();
   }
 
   img = *createImgResult;
 
-  auto decoderResult = unc_decoder_factory::get_unc_decoder(ispe->get_width(), ispe->get_height(), cmpd, uncC);
+  auto decoderResult = unc_decoder_factory::get_unc_decoder(ispe->get_width(), ispe->get_height(), cmpd, uncC, uncC_index_to_comp_ids);
   if (!decoderResult) {
     return decoderResult.error();
   }

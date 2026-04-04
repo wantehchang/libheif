@@ -501,6 +501,8 @@ public:
   // Returns the sorted list of component_indices of all planes that have pixel data.
   std::vector<uint32_t> get_used_component_ids() const;
 
+  std::vector<uint32_t> get_used_planar_component_ids() const;
+
   uint8_t* get_component(uint32_t component_idx, size_t* out_stride);
   const uint8_t* get_component(uint32_t component_idx, size_t* out_stride) const;
 

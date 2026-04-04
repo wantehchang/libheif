@@ -62,7 +62,8 @@ public:
 protected:
   unc_decoder(uint32_t width, uint32_t height,
               const std::shared_ptr<const Box_cmpd>& cmpd,
-              const std::shared_ptr<const Box_uncC>& uncC);
+              const std::shared_ptr<const Box_uncC>& uncC,
+              const std::vector<uint32_t>& uncC_index_to_comp_ids);
 
   virtual std::vector<uint64_t> get_tile_data_sizes() const = 0;
 
@@ -80,6 +81,7 @@ protected:
   const uint32_t m_height;
   const std::shared_ptr<const Box_cmpd> m_cmpd;
   const std::shared_ptr<const Box_uncC> m_uncC;
+  const std::vector<uint32_t> m_uncC_index_to_comp_ids;
   uint32_t m_tile_height;
   uint32_t m_tile_width;
 };
@@ -93,7 +95,8 @@ public:
   static Result<std::unique_ptr<unc_decoder>> get_unc_decoder(
       uint32_t width, uint32_t height,
       const std::shared_ptr<const Box_cmpd>& cmpd,
-      const std::shared_ptr<const Box_uncC>& uncC);
+      const std::shared_ptr<const Box_uncC>& uncC,
+      const std::vector<uint32_t>& uncC_index_to_comp_ids);
 
 protected:
   static bool check_common_requirements(const std::shared_ptr<const Box_uncC>& uncC);
@@ -105,7 +108,8 @@ protected:
   virtual std::unique_ptr<unc_decoder> create(
       uint32_t width, uint32_t height,
       const std::shared_ptr<const Box_cmpd>& cmpd,
-      const std::shared_ptr<const Box_uncC>& uncC) const = 0;
+      const std::shared_ptr<const Box_uncC>& uncC,
+      const std::vector<uint32_t>& uncC_index_to_comp_ids) const = 0;
 };
 
 #endif
