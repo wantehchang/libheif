@@ -93,6 +93,12 @@ git clone \
 		https://github.com/fraunhoferhhi/vvenc.git \
 		"$WORK/vvenc"
 
+git clone \
+		--depth 1 \
+		--branch master \
+		https://code.videolan.org/videolan/x264.git \
+		"$WORK/x264"
+
 export DEPS_PATH="$SRC/deps"
 mkdir -p "$DEPS_PATH"
 
@@ -190,6 +196,15 @@ cmake -B build/release-static \
 cmake --build build/release-static -j"$(nproc)"
 cmake --build build/release-static --target install
 
+cd "$WORK/x264"
+./configure \
+	--prefix="$DEPS_PATH" \
+	--enable-static \
+	--disable-shared \
+	--disable-cli
+make -j"$(nproc)"
+make install
+
 # Remove shared libraries to avoid accidental linking against them.
 rm -f "$DEPS_PATH/lib"/*.so
 rm -f "$DEPS_PATH/lib/"*.so.*
@@ -211,6 +226,7 @@ PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig:$DEPS
 	-DWITH_LIBSHARPYUV=ON \
 	-DWITH_VVDEC=ON \
 	-DWITH_VVENC=ON \
+	-DWITH_X264=ON \
 	..
 
 make -j"$(nproc)"
