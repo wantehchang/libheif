@@ -119,11 +119,12 @@ rm -f "$DEPS_PATH/lib/"*.so.*
 cd "$SRC/libheif"
 mkdir build
 cd build
-PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig" cmake .. --preset=fuzzing \
+PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig" cmake --preset=fuzzing \
 	-DFUZZING_COMPILE_OPTIONS="" \
 	-DFUZZING_LINKER_OPTIONS="$LIB_FUZZING_ENGINE" \
 	-DFUZZING_C_COMPILER="$CC" -DFUZZING_CXX_COMPILER="$CXX" \
-	-DWITH_DEFLATE_HEADER_COMPRESSION=OFF
+	-DWITH_UNCOMPRESSED_CODEC=ON \
+	..
 
 make -j"$(nproc)"
 
