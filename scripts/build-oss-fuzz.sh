@@ -75,6 +75,12 @@ git clone \
 		https://code.videolan.org/videolan/dav1d.git \
 		"$WORK/dav1d"
 
+git clone \
+		--depth 1 \
+		--single-branch \
+		https://chromium.googlesource.com/webm/libwebp \
+		"$WORK/libwebp"
+
 export DEPS_PATH="$SRC/deps"
 mkdir -p "$DEPS_PATH"
 
@@ -132,6 +138,18 @@ meson build \
 ninja -C build
 ninja -C build install
 
+mkdir -p "$WORK/libwebp/build"
+cd "$WORK/libwebp/build"
+cmake -G Ninja \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+	-DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DBUILD_SHARED_LIBS=OFF \
+	-DCMAKE_BUILD_TYPE=Release \
+	..
+ninja sharpyuv
+ninja install
+
 # Remove shared libraries to avoid accidental linking against them.
 rm -f "$DEPS_PATH/lib"/*.so
 rm -f "$DEPS_PATH/lib/"*.so.*
@@ -149,6 +167,7 @@ PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig:$DEPS
 	-DWITH_JPEG_DECODER=ON \
 	-DWITH_JPEG_ENCODER=ON \
 	-DWITH_DAV1D=ON \
+	-DWITH_LIBSHARPYUV=ON \
 	..
 
 make -j"$(nproc)"
