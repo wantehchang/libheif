@@ -81,6 +81,18 @@ git clone \
 		https://chromium.googlesource.com/webm/libwebp \
 		"$WORK/libwebp"
 
+git clone \
+		--depth 1 \
+		--branch master \
+		https://github.com/fraunhoferhhi/vvdec.git \
+		"$WORK/vvdec"
+
+git clone \
+		--depth 1 \
+		--branch master \
+		https://github.com/fraunhoferhhi/vvenc.git \
+		"$WORK/vvenc"
+
 export DEPS_PATH="$SRC/deps"
 mkdir -p "$DEPS_PATH"
 
@@ -150,6 +162,34 @@ cmake -G Ninja \
 ninja sharpyuv
 ninja install
 
+cd "$WORK/vvdec"
+cmake -B build/release-static \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+	-DCMAKE_C_FLAGS="$CFLAGS -fPIC" -DCMAKE_CXX_FLAGS="$CXXFLAGS -fPIC" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DBUILD_SHARED_LIBS=FALSE \
+	-DCMAKE_BUILD_TYPE=Debug \
+	-DCMAKE_VERBOSE_MAKEFILE:BOOL=TRUE \
+	-DVVDEC_ENABLE_WERROR=OFF \
+	-DVVDEC_LIBRARY_ONLY=ON \
+	.
+cmake --build build/release-static -j"$(nproc)"
+cmake --build build/release-static --target install
+
+cd "$WORK/vvenc"
+cmake -B build/release-static \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+	-DCMAKE_C_FLAGS="$CFLAGS -fPIC" -DCMAKE_CXX_FLAGS="$CXXFLAGS -fPIC" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DBUILD_SHARED_LIBS=FALSE \
+	-DCMAKE_BUILD_TYPE=Debug \
+	-DCMAKE_VERBOSE_MAKEFILE:BOOL=TRUE \
+	-DVVENC_ENABLE_WERROR=OFF \
+	-DVVENC_LIBRARY_ONLY=ON \
+	.
+cmake --build build/release-static -j"$(nproc)"
+cmake --build build/release-static --target install
+
 # Remove shared libraries to avoid accidental linking against them.
 rm -f "$DEPS_PATH/lib"/*.so
 rm -f "$DEPS_PATH/lib/"*.so.*
@@ -163,11 +203,14 @@ PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig:$DEPS
 	-DFUZZING_COMPILE_OPTIONS="" \
 	-DFUZZING_LINKER_OPTIONS="$LIB_FUZZING_ENGINE" \
 	-DFUZZING_C_COMPILER="$CC" -DFUZZING_CXX_COMPILER="$CXX" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
 	-DWITH_UNCOMPRESSED_CODEC=ON \
 	-DWITH_JPEG_DECODER=ON \
 	-DWITH_JPEG_ENCODER=ON \
 	-DWITH_DAV1D=ON \
 	-DWITH_LIBSHARPYUV=ON \
+	-DWITH_VVDEC=ON \
+	-DWITH_VVENC=ON \
 	..
 
 make -j"$(nproc)"
