@@ -80,16 +80,16 @@ make -j"$(nproc)" x265-static
 make install
 
 cd "$WORK/libde265"
-./autogen.sh
-./configure \
-	--prefix="$DEPS_PATH" \
-	--disable-shared \
-	--enable-static \
-	--disable-dec265 \
-	--disable-sherlock265 \
-	--disable-hdrcopy \
-	--disable-enc265 \
-	--disable-acceleration_speed
+cmake -G "Unix Makefiles" \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+	-DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DBUILD_SHARED_LIBS:bool=off \
+	-DENABLE_DECODER:bool=off \
+	-DENABLE_ENCODER:bool=off \
+	-DENABLE_SDL:bool=off \
+	-DENABLE_SHERLOCK265:bool=off \
+	.
 make clean
 make -j"$(nproc)"
 make install
