@@ -126,7 +126,7 @@ unc_encoder_component_interleave::unc_encoder_component_interleave(const std::sh
   }
 
   for (const auto& comp : m_components) {
-    m_uncC->add_component({comp.component_idx, comp.bpp, comp.component_format, 0});
+    m_uncC->add_component({m_map_id_to_cmpd_index[comp.component_id], comp.bpp, comp.component_format, 0});
   }
 
   m_uncC->set_interleave_type(interleave_mode_component);
@@ -191,12 +191,12 @@ std::vector<uint8_t> unc_encoder_component_interleave::encode_tile(const std::sh
   uint64_t out_pos = 0;
 
   for (const auto& comp : m_components) {
-    uint32_t plane_width = src_image->get_component_width(comp.component_idx);
-    uint32_t plane_height = src_image->get_component_height(comp.component_idx);
+    uint32_t plane_width = src_image->get_component_width(comp.component_id);
+    uint32_t plane_height = src_image->get_component_height(comp.component_id);
     uint16_t bpp = comp.bpp;
 
     size_t src_stride;
-    const uint8_t* src_data = src_image->get_component(comp.component_idx, &src_stride);
+    const uint8_t* src_data = src_image->get_component(comp.component_id, &src_stride);
 
     if (m_use_memcpy) {
       assert(comp.byte_aligned);
