@@ -248,9 +248,6 @@ public:
 
   virtual void set_bayer_pattern(const BayerPattern& pattern) { m_bayer_pattern = pattern; }
 
-  // TODO: replace uint16_t component_type with class that also handled the std::string type
-  uint32_t add_component_without_data(uint16_t component_type) { assert(false); /*TODO*/ }
-
 
   // --- polarization pattern
 
@@ -484,6 +481,9 @@ public:
                                  uint16_t component_type,
                                  heif_component_datatype datatype, int bit_depth,
                                  const heif_security_limits* limits);
+
+  // TODO: replace uint16_t component_type with class that also handled the std::string type
+  uint32_t add_component_without_data(uint16_t component_type);
 
   // Decoder path: uses a pre-populated cmpd table to look up the component type.
 #if 0

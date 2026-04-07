@@ -2344,6 +2344,14 @@ Result<uint32_t> HeifPixelImage::add_component(uint32_t width, uint32_t height,
 }
 
 
+uint32_t HeifPixelImage::add_component_without_data(uint16_t component_type)
+{
+  uint32_t new_component_id = m_next_component_id++;
+  m_component_types[new_component_id] = component_type;
+  return new_component_id;
+}
+
+
 #if 0
 Result<uint32_t> HeifPixelImage::add_component_for_index(uint32_t component_index,
                                                           uint32_t width, uint32_t height,
