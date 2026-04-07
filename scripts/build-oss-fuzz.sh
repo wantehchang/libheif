@@ -40,6 +40,7 @@ apt-get install -y \
 		build-essential \
 		cmake \
 		libbrotli-dev \
+		libjpeg-dev \
 		libtool \
 		make \
 		mercurial \
@@ -115,6 +116,8 @@ make install
 # Remove shared libraries to avoid accidental linking against them.
 rm -f "$DEPS_PATH/lib"/*.so
 rm -f "$DEPS_PATH/lib/"*.so.*
+rm -f /usr/lib/*/libjpeg.so
+rm -f /usr/lib/*/libjpeg.so.*
 
 cd "$SRC/libheif"
 mkdir build
@@ -124,6 +127,8 @@ PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig" cmak
 	-DFUZZING_LINKER_OPTIONS="$LIB_FUZZING_ENGINE" \
 	-DFUZZING_C_COMPILER="$CC" -DFUZZING_CXX_COMPILER="$CXX" \
 	-DWITH_UNCOMPRESSED_CODEC=ON \
+	-DWITH_JPEG_DECODER=ON \
+	-DWITH_JPEG_ENCODER=ON \
 	..
 
 make -j"$(nproc)"
