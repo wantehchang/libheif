@@ -461,13 +461,13 @@ public:
 
   //uint32_t get_total_number_of_cmpd_components() const { return static_cast<uint32_t>(m_cmpd_component_types.size()); }
 
-  heif_channel get_component_channel(uint32_t component_idx) const;
+  heif_channel get_component_channel(uint32_t component_id) const;
 
-  uint32_t get_component_width(uint32_t component_idx) const;
-  uint32_t get_component_height(uint32_t component_idx) const;
-  uint16_t get_component_bits_per_pixel(uint32_t component_idx) const;
-  uint16_t get_component_storage_bits_per_pixel(uint32_t component_idx) const;
-  heif_component_datatype get_component_datatype(uint32_t component_idx) const;
+  uint32_t get_component_width(uint32_t component_id) const;
+  uint32_t get_component_height(uint32_t component_id) const;
+  uint16_t get_component_bits_per_pixel(uint32_t component_id) const;
+  uint16_t get_component_storage_bits_per_pixel(uint32_t component_id) const;
+  heif_component_datatype get_component_datatype(uint32_t component_id) const;
 
   // Look up the component type from the cmpd table. Works for any cmpd index,
   // even those that have no image plane (e.g. bayer reference components).
@@ -636,8 +636,8 @@ private:
   ImageComponent* find_component_for_channel(heif_channel channel);
   const ImageComponent* find_component_for_channel(heif_channel channel) const;
 
-  ImageComponent* find_component_by_id(uint32_t component_index);
-  const ImageComponent* find_component_by_id(uint32_t component_index) const;
+  ImageComponent* find_component_by_id(uint32_t component_id);
+  const ImageComponent* find_component_by_id(uint32_t component_id) const;
 
   ImageComponent new_image_plane_for_channel(heif_channel channel);
 

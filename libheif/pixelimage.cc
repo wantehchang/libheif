@@ -2234,13 +2234,13 @@ HeifPixelImage::extract_image_area(uint32_t x0, uint32_t y0, uint32_t w, uint32_
 
 // --- index-based component access methods
 
-HeifPixelImage::ImageComponent* HeifPixelImage::find_component_by_id(uint32_t component_index)
+HeifPixelImage::ImageComponent* HeifPixelImage::find_component_by_id(uint32_t component_id)
 {
   for (auto& plane : m_planes) {
     // we search through all indices in case we have an interleaved plane
     if (std::find(plane.m_component_ids.begin(),
                   plane.m_component_ids.end(),
-                  component_index) != plane.m_component_ids.end()) {
+                  component_id) != plane.m_component_ids.end()) {
       return &plane;
     }
   }
@@ -2248,47 +2248,47 @@ HeifPixelImage::ImageComponent* HeifPixelImage::find_component_by_id(uint32_t co
 }
 
 
-const HeifPixelImage::ImageComponent* HeifPixelImage::find_component_by_id(uint32_t component_index) const
+const HeifPixelImage::ImageComponent* HeifPixelImage::find_component_by_id(uint32_t component_id) const
 {
-  return const_cast<HeifPixelImage*>(this)->find_component_by_id(component_index);
+  return const_cast<HeifPixelImage*>(this)->find_component_by_id(component_id);
 }
 
 
-heif_channel HeifPixelImage::get_component_channel(uint32_t component_idx) const
+heif_channel HeifPixelImage::get_component_channel(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_idx);
+  auto* comp = find_component_by_id(component_id);
   assert(comp);
   return comp->m_channel;
 }
 
 
-uint32_t HeifPixelImage::get_component_width(uint32_t component_idx) const
+uint32_t HeifPixelImage::get_component_width(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_idx);
+  auto* comp = find_component_by_id(component_id);
   assert(comp);
   return comp->m_width;
 }
 
 
-uint32_t HeifPixelImage::get_component_height(uint32_t component_idx) const
+uint32_t HeifPixelImage::get_component_height(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_idx);
+  auto* comp = find_component_by_id(component_id);
   assert(comp);
   return comp->m_height;
 }
 
 
-uint16_t HeifPixelImage::get_component_bits_per_pixel(uint32_t component_idx) const
+uint16_t HeifPixelImage::get_component_bits_per_pixel(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_idx);
+  auto* comp = find_component_by_id(component_id);
   assert(comp);
   return comp->m_bit_depth;
 }
 
 
-uint16_t HeifPixelImage::get_component_storage_bits_per_pixel(uint32_t component_idx) const
+uint16_t HeifPixelImage::get_component_storage_bits_per_pixel(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_idx);
+  auto* comp = find_component_by_id(component_id);
   assert(comp);
   uint32_t bpp = comp->get_bytes_per_pixel() * 8;
   assert(bpp);
@@ -2296,9 +2296,9 @@ uint16_t HeifPixelImage::get_component_storage_bits_per_pixel(uint32_t component
 }
 
 
-heif_component_datatype HeifPixelImage::get_component_datatype(uint32_t component_idx) const
+heif_component_datatype HeifPixelImage::get_component_datatype(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_idx);
+  auto* comp = find_component_by_id(component_id);
   assert(comp);
   return comp->m_datatype;
 }

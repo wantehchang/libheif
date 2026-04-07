@@ -252,20 +252,20 @@ static heif_image* create_and_fill_image(heif_component_datatype datatype, int b
   REQUIRE(image != nullptr);
 
   for (uint32_t c = 0; c < kNumComponents; c++) {
-    uint32_t idx = 0;
+    uint32_t id = 0;
     err = heif_image_add_component(image, kWidth, kHeight,
-                                   kMonoComponentType, datatype, bit_depth, &idx);
+                                   kMonoComponentType, datatype, bit_depth, &id);
     REQUIRE(err.code == heif_error_Ok);
-    REQUIRE(idx == c);
+    //REQUIRE(idx == c);
 
     size_t stride = 0;
-    T* data = get_component_ptr<T>(image, idx, &stride);
+    T* data = get_component_ptr<T>(image, id, &stride);
     REQUIRE(data != nullptr);
     REQUIRE(stride >= kWidth);
 
     for (uint32_t y = 0; y < kHeight; y++) {
       for (uint32_t x = 0; x < kWidth; x++) {
-        data[y * stride + x] = compute_fill_value<T>(c, y, x);
+        data[y * stride + x] = compute_fill_value<T>(id, y, x);
       }
     }
   }
@@ -311,7 +311,10 @@ static void verify_image_data(const heif_image* image)
   uint32_t num_components = heif_image_get_number_of_used_components(image);
   REQUIRE(num_components == kNumComponents);
 
-  for (uint32_t c = 0; c < kNumComponents; c++) {
+  std::vector<uint32_t> components(num_components);
+  heif_image_get_used_component_ids(image, components.data());
+
+  for (uint32_t c : components) {
     REQUIRE(heif_image_get_component_width(image, c) == kWidth);
     REQUIRE(heif_image_get_component_height(image, c) == kHeight);
     REQUIRE(heif_image_get_component_type(image, c) == kMonoComponentType);
