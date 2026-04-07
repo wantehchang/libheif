@@ -44,6 +44,9 @@ apt-get install -y \
 		libtool \
 		make \
 		mercurial \
+		meson \
+		nasm \
+		ninja-build \
 		pkg-config \
 		yasm \
 		zlib1g-dev
@@ -65,6 +68,12 @@ git clone \
 		--branch master \
 		https://aomedia.googlesource.com/aom \
 		"$WORK/aom"
+
+git clone \
+		--depth 1 \
+		--branch master \
+		https://code.videolan.org/videolan/dav1d.git \
+		"$WORK/dav1d"
 
 export DEPS_PATH="$SRC/deps"
 mkdir -p "$DEPS_PATH"
@@ -113,6 +122,16 @@ make clean
 make -j"$(nproc)"
 make install
 
+cd "$WORK/dav1d"
+meson build \
+	--default-library=static \
+	--buildtype release \
+	--prefix "$DEPS_PATH" \
+	-D enable_tools=false \
+	-D enable_tests=false
+ninja -C build
+ninja -C build install
+
 # Remove shared libraries to avoid accidental linking against them.
 rm -f "$DEPS_PATH/lib"/*.so
 rm -f "$DEPS_PATH/lib/"*.so.*
@@ -122,13 +141,14 @@ rm -f /usr/lib/*/libjpeg.so.*
 cd "$SRC/libheif"
 mkdir build
 cd build
-PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig" cmake --preset=fuzzing \
+PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig:$DEPS_PATH/lib/x86_64-linux-gnu/pkgconfig" cmake --preset=fuzzing \
 	-DFUZZING_COMPILE_OPTIONS="" \
 	-DFUZZING_LINKER_OPTIONS="$LIB_FUZZING_ENGINE" \
 	-DFUZZING_C_COMPILER="$CC" -DFUZZING_CXX_COMPILER="$CXX" \
 	-DWITH_UNCOMPRESSED_CODEC=ON \
 	-DWITH_JPEG_DECODER=ON \
 	-DWITH_JPEG_ENCODER=ON \
+	-DWITH_DAV1D=ON \
 	..
 
 make -j"$(nproc)"
