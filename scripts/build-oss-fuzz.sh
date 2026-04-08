@@ -118,6 +118,12 @@ git clone \
 		https://github.com/uclouvain/openjpeg.git \
 		"$WORK/openjpeg"
 
+git clone \
+		--depth 1 \
+		--branch master \
+		https://github.com/aous72/OpenJPH.git \
+		"$WORK/openjph"
+
 export DEPS_PATH="$SRC/deps"
 mkdir -p "$DEPS_PATH"
 
@@ -258,6 +264,19 @@ cmake -G "Unix Makefiles" \
 make -j"$(nproc)"
 make install
 
+cd "$WORK/openjph"
+cmake -G "Unix Makefiles" \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+	-DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DBUILD_SHARED_LIBS=OFF \
+	-DBUILD_STATIC_LIBS=ON \
+	-DOJPH_ENABLE_TIFF_SUPPORT=OFF \
+	-DOJPH_BUILD_EXECUTABLES=OFF \
+	.
+make -j"$(nproc)"
+make install
+
 # Remove shared libraries to avoid accidental linking against them.
 rm -f "$DEPS_PATH/lib"/*.so
 rm -f "$DEPS_PATH/lib/"*.so.*
@@ -284,6 +303,7 @@ PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig:$DEPS
 	-DWITH_OpenH264_DECODER=ON \
 	-DWITH_OpenJPEG_ENCODER=ON \
 	-DWITH_OpenJPEG_DECODER=ON \
+	-DWITH_OPENJPH_ENCODER=ON \
 	..
 
 make -j"$(nproc)"
