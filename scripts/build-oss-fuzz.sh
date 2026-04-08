@@ -100,6 +100,12 @@ git clone \
 		https://code.videolan.org/videolan/x264.git \
 		"$WORK/x264"
 
+git clone \
+		--depth 1 \
+		--branch master \
+		https://gitlab.com/AOMediaCodec/SVT-AV1.git \
+		"$WORK/svt-av1"
+
 export DEPS_PATH="$SRC/deps"
 mkdir -p "$DEPS_PATH"
 
@@ -215,6 +221,15 @@ cd "$WORK/x264"
 make -j"$(nproc)"
 make install
 
+cd "$WORK/svt-av1/Build/linux"
+./build.sh \
+	release \
+	static \
+	no-apps \
+	disable-lto \
+	prefix="$DEPS_PATH" \
+	install
+
 # Remove shared libraries to avoid accidental linking against them.
 rm -f "$DEPS_PATH/lib"/*.so
 rm -f "$DEPS_PATH/lib/"*.so.*
@@ -237,6 +252,7 @@ PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig:$DEPS
 	-DWITH_VVDEC=ON \
 	-DWITH_VVENC=ON \
 	-DWITH_X264=ON \
+	-DWITH_SvtEnc=ON \
 	..
 
 make -j"$(nproc)"
