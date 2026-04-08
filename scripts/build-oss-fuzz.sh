@@ -106,6 +106,12 @@ git clone \
 		https://gitlab.com/AOMediaCodec/SVT-AV1.git \
 		"$WORK/svt-av1"
 
+git clone \
+		--depth 1 \
+		--branch master \
+		https://github.com/cisco/openh264.git \
+		"$WORK/openh264"
+
 export DEPS_PATH="$SRC/deps"
 mkdir -p "$DEPS_PATH"
 
@@ -230,6 +236,10 @@ cd "$WORK/svt-av1/Build/linux"
 	prefix="$DEPS_PATH" \
 	install
 
+cd "$WORK/openh264"
+make -j"$(nproc)" BUILDTYPE=Debug libopenh264.a
+make -j"$(nproc)" BUILDTYPE=Debug PREFIX="$DEPS_PATH" install-static
+
 # Remove shared libraries to avoid accidental linking against them.
 rm -f "$DEPS_PATH/lib"/*.so
 rm -f "$DEPS_PATH/lib/"*.so.*
@@ -253,6 +263,7 @@ PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig:$DEPS
 	-DWITH_VVENC=ON \
 	-DWITH_X264=ON \
 	-DWITH_SvtEnc=ON \
+	-DWITH_OpenH264_DECODER=ON \
 	..
 
 make -j"$(nproc)"
