@@ -40,9 +40,13 @@ apt-get install -y \
 		build-essential \
 		cmake \
 		libbrotli-dev \
+		libjpeg-dev \
 		libtool \
 		make \
 		mercurial \
+		meson \
+		nasm \
+		ninja-build \
 		pkg-config \
 		yasm \
 		zlib1g-dev
@@ -56,6 +60,7 @@ git clone \
 		"$WORK/libde265"
 
 git clone \
+		--depth 1 \
 		https://bitbucket.org/multicoreware/x265_git/src/stable/ \
 		"$WORK/x265"
 
@@ -65,31 +70,93 @@ git clone \
 		https://aomedia.googlesource.com/aom \
 		"$WORK/aom"
 
+git clone \
+		--depth 1 \
+		--branch master \
+		https://code.videolan.org/videolan/dav1d.git \
+		"$WORK/dav1d"
+
+git clone \
+		--depth 1 \
+		--single-branch \
+		https://chromium.googlesource.com/webm/libwebp \
+		"$WORK/libwebp"
+
+git clone \
+		--depth 1 \
+		--branch master \
+		https://github.com/fraunhoferhhi/vvdec.git \
+		"$WORK/vvdec"
+
+git clone \
+		--depth 1 \
+		--branch master \
+		https://github.com/fraunhoferhhi/vvenc.git \
+		"$WORK/vvenc"
+
+git clone \
+		--depth 1 \
+		--branch master \
+		https://code.videolan.org/videolan/x264.git \
+		"$WORK/x264"
+
+git clone \
+		--depth 1 \
+		--branch master \
+		https://gitlab.com/AOMediaCodec/SVT-AV1.git \
+		"$WORK/svt-av1"
+
+git clone \
+		--depth 1 \
+		--branch master \
+		https://github.com/cisco/openh264.git \
+		"$WORK/openh264"
+
+git clone \
+		--depth 1 \
+		--branch master \
+		https://github.com/uclouvain/openjpeg.git \
+		"$WORK/openjpeg"
+
+git clone \
+		--depth 1 \
+		--branch master \
+		https://github.com/aous72/OpenJPH.git \
+		"$WORK/openjph"
+
 export DEPS_PATH="$SRC/deps"
 mkdir -p "$DEPS_PATH"
 
+if [ -d "$WORK/x265/.git" ]; then
+	mv "$WORK/x265/.git" "$WORK/x265/.git-unused"
+fi
 cd "$WORK/x265/build/linux"
 cmake -G "Unix Makefiles" \
 	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
 	-DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
 	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
 	-DENABLE_SHARED:bool=off \
+	-DENABLE_CLI:bool=off \
+	-DX265_LATEST_TAG=TRUE \
 	../../source
 make clean
 make -j"$(nproc)" x265-static
 make install
+if [ -d "$WORK/x265/.git-unused" ]; then
+	mv "$WORK/x265/.git-unused" "$WORK/x265/.git"
+fi
 
 cd "$WORK/libde265"
-./autogen.sh
-./configure \
-	--prefix="$DEPS_PATH" \
-	--disable-shared \
-	--enable-static \
-	--disable-dec265 \
-	--disable-sherlock265 \
-	--disable-hdrcopy \
-	--disable-enc265 \
-	--disable-acceleration_speed
+cmake -G "Unix Makefiles" \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+	-DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DBUILD_SHARED_LIBS:bool=off \
+	-DENABLE_DECODER:bool=off \
+	-DENABLE_ENCODER:bool=off \
+	-DENABLE_SDL:bool=off \
+	-DENABLE_SHERLOCK265:bool=off \
+	.
 make clean
 make -j"$(nproc)"
 make install
@@ -101,7 +168,8 @@ cmake -G "Unix Makefiles" \
 	-DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
 	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
 	-DENABLE_SHARED:bool=off -DCONFIG_PIC=1 \
-	-DENABLE_EXAMPLES=0 -DENABLE_DOCS=0 -DENABLE_TESTS=0 \
+	-DENABLE_EXAMPLES:bool=off -DENABLE_DOCS:bool=off -DENABLE_TESTS:bool=off \
+	-DENABLE_TESTDATA:bool=off -DENABLE_TOOLS:bool=off \
 	-DCONFIG_SIZE_LIMIT=1 \
 	-DDECODE_HEIGHT_LIMIT=12288 -DDECODE_WIDTH_LIMIT=12288 \
 	-DDO_RANGE_CHECK_CLAMP=1 \
@@ -112,18 +180,131 @@ make clean
 make -j"$(nproc)"
 make install
 
+cd "$WORK/dav1d"
+meson build \
+	--default-library=static \
+	--buildtype release \
+	--prefix "$DEPS_PATH" \
+	-D enable_tools=false \
+	-D enable_tests=false
+ninja -C build
+ninja -C build install
+
+mkdir -p "$WORK/libwebp/build"
+cd "$WORK/libwebp/build"
+cmake -G Ninja \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+	-DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DBUILD_SHARED_LIBS=OFF \
+	-DCMAKE_BUILD_TYPE=Release \
+	..
+ninja sharpyuv
+ninja install
+
+cd "$WORK/vvdec"
+cmake -B build/release-static \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+	-DCMAKE_C_FLAGS="$CFLAGS -fPIC" -DCMAKE_CXX_FLAGS="$CXXFLAGS -fPIC" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DBUILD_SHARED_LIBS=FALSE \
+	-DCMAKE_BUILD_TYPE=Debug \
+	-DCMAKE_VERBOSE_MAKEFILE:BOOL=TRUE \
+	-DVVDEC_ENABLE_WERROR=OFF \
+	-DVVDEC_LIBRARY_ONLY=ON \
+	.
+cmake --build build/release-static -j"$(nproc)"
+cmake --build build/release-static --target install
+
+cd "$WORK/vvenc"
+cmake -B build/release-static \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+	-DCMAKE_C_FLAGS="$CFLAGS -fPIC" -DCMAKE_CXX_FLAGS="$CXXFLAGS -fPIC" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DBUILD_SHARED_LIBS=FALSE \
+	-DCMAKE_BUILD_TYPE=Debug \
+	-DCMAKE_VERBOSE_MAKEFILE:BOOL=TRUE \
+	-DVVENC_ENABLE_WERROR=OFF \
+	-DVVENC_LIBRARY_ONLY=ON \
+	.
+cmake --build build/release-static -j"$(nproc)"
+cmake --build build/release-static --target install
+
+cd "$WORK/x264"
+./configure \
+	--prefix="$DEPS_PATH" \
+	--enable-static \
+	--disable-shared \
+	--disable-cli
+make -j"$(nproc)"
+make install
+
+cd "$WORK/svt-av1/Build/linux"
+./build.sh \
+	release \
+	static \
+	no-apps \
+	disable-lto \
+	prefix="$DEPS_PATH" \
+	install
+
+cd "$WORK/openh264"
+make -j"$(nproc)" BUILDTYPE=Debug libopenh264.a
+make -j"$(nproc)" BUILDTYPE=Debug PREFIX="$DEPS_PATH" install-static
+
+cd "$WORK/openjpeg"
+cmake -G "Unix Makefiles" \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+	-DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DBUILD_CODEC=OFF \
+	-DBUILD_SHARED_LIBS=OFF \
+	-DBUILD_STATIC_LIBS=ON \
+	.
+make -j"$(nproc)"
+make install
+
+cd "$WORK/openjph"
+cmake -G "Unix Makefiles" \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+	-DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DBUILD_SHARED_LIBS=OFF \
+	-DBUILD_STATIC_LIBS=ON \
+	-DOJPH_ENABLE_TIFF_SUPPORT=OFF \
+	-DOJPH_BUILD_EXECUTABLES=OFF \
+	.
+make -j"$(nproc)"
+make install
+
 # Remove shared libraries to avoid accidental linking against them.
 rm -f "$DEPS_PATH/lib"/*.so
 rm -f "$DEPS_PATH/lib/"*.so.*
+rm -f /usr/lib/*/libjpeg.so
+rm -f /usr/lib/*/libjpeg.so.*
 
 cd "$SRC/libheif"
 mkdir build
 cd build
-PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig" cmake .. --preset=fuzzing \
+PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig:$DEPS_PATH/lib/x86_64-linux-gnu/pkgconfig" cmake --preset=fuzzing \
 	-DFUZZING_COMPILE_OPTIONS="" \
 	-DFUZZING_LINKER_OPTIONS="$LIB_FUZZING_ENGINE" \
 	-DFUZZING_C_COMPILER="$CC" -DFUZZING_CXX_COMPILER="$CXX" \
-	-DWITH_DEFLATE_HEADER_COMPRESSION=OFF
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DWITH_UNCOMPRESSED_CODEC=ON \
+	-DWITH_JPEG_DECODER=ON \
+	-DWITH_JPEG_ENCODER=ON \
+	-DWITH_DAV1D=ON \
+	-DWITH_LIBSHARPYUV=ON \
+	-DWITH_VVDEC=ON \
+	-DWITH_VVENC=ON \
+	-DWITH_X264=ON \
+	-DWITH_SvtEnc=ON \
+	-DWITH_OpenH264_DECODER=ON \
+	-DWITH_OpenJPEG_ENCODER=ON \
+	-DWITH_OpenJPEG_DECODER=ON \
+	-DWITH_OPENJPH_ENCODER=ON \
+	..
 
 make -j"$(nproc)"
 
