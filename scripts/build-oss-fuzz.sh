@@ -103,6 +103,9 @@ git clone \
 export DEPS_PATH="$SRC/deps"
 mkdir -p "$DEPS_PATH"
 
+if [ -d "$WORK/x265/.git" ]; then
+	mv "$WORK/x265/.git" "$WORK/x265/.git-unused"
+fi
 cd "$WORK/x265/build/linux"
 cmake -G "Unix Makefiles" \
 	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
@@ -110,10 +113,14 @@ cmake -G "Unix Makefiles" \
 	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
 	-DENABLE_SHARED:bool=off \
 	-DENABLE_CLI:bool=off \
+	-DX265_LATEST_TAG=TRUE \
 	../../source
 make clean
 make -j"$(nproc)" x265-static
 make install
+if [ -d "$WORK/x265/.git-unused" ]; then
+	mv "$WORK/x265/.git-unused" "$WORK/x265/.git"
+fi
 
 cd "$WORK/libde265"
 cmake -G "Unix Makefiles" \
