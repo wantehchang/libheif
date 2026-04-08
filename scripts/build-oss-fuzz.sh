@@ -60,6 +60,7 @@ git clone \
 		"$WORK/libde265"
 
 git clone \
+		--depth 1 \
 		https://bitbucket.org/multicoreware/x265_git/src/stable/ \
 		"$WORK/x265"
 
@@ -108,6 +109,7 @@ cmake -G "Unix Makefiles" \
 	-DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
 	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
 	-DENABLE_SHARED:bool=off \
+	-DENABLE_CLI:bool=off \
 	../../source
 make clean
 make -j"$(nproc)" x265-static
