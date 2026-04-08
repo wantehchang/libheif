@@ -179,17 +179,19 @@ static heif_error push_pending_data_into_decoder(dav1d_decoder* decoder)
       break;
     }
 
-    // Decoder has accepted data. Remove packet and check for error.
-
-    decoder->queued_data.pop_front();
-
-    if ((res < 0) && (res != DAV1D_ERR(EAGAIN))) {
+    if (res < 0) {
+      // dav1d_send_data failed. Data was not consumed, unref before removing from queue.
+      dav1d_data_unref(&decoder->queued_data.front());
+      decoder->queued_data.pop_front();
       return {
         heif_error_Decoder_plugin_error,
         heif_suberror_Unspecified,
         kEmptyString
       };
     }
+
+    // Decoder has accepted data (Dav1dData is consumed). Remove from queue.
+    decoder->queued_data.pop_front();
   }
 
   return heif_error_ok;
