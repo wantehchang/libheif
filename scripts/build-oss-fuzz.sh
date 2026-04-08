@@ -112,6 +112,12 @@ git clone \
 		https://github.com/cisco/openh264.git \
 		"$WORK/openh264"
 
+git clone \
+		--depth 1 \
+		--branch master \
+		https://github.com/uclouvain/openjpeg.git \
+		"$WORK/openjpeg"
+
 export DEPS_PATH="$SRC/deps"
 mkdir -p "$DEPS_PATH"
 
@@ -240,6 +246,18 @@ cd "$WORK/openh264"
 make -j"$(nproc)" BUILDTYPE=Debug libopenh264.a
 make -j"$(nproc)" BUILDTYPE=Debug PREFIX="$DEPS_PATH" install-static
 
+cd "$WORK/openjpeg"
+cmake -G "Unix Makefiles" \
+	-DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+	-DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
+	-DBUILD_CODEC=OFF \
+	-DBUILD_SHARED_LIBS=OFF \
+	-DBUILD_STATIC_LIBS=ON \
+	.
+make -j"$(nproc)"
+make install
+
 # Remove shared libraries to avoid accidental linking against them.
 rm -f "$DEPS_PATH/lib"/*.so
 rm -f "$DEPS_PATH/lib/"*.so.*
@@ -264,6 +282,8 @@ PKG_CONFIG="pkg-config --static" PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig:$DEPS
 	-DWITH_X264=ON \
 	-DWITH_SvtEnc=ON \
 	-DWITH_OpenH264_DECODER=ON \
+	-DWITH_OpenJPEG_ENCODER=ON \
+	-DWITH_OpenJPEG_DECODER=ON \
 	..
 
 make -j"$(nproc)"
