@@ -86,6 +86,7 @@ struct encoder_struct_svt
   EbBufferHeaderType input_buffer;
 
   bool still_image_mode = false;
+  bool low_delay_mode = false;
 
   // --- output
 
@@ -835,16 +836,17 @@ static heif_error svt_start_sequence_encoding_intern(void* encoder_raw, const he
   svt_config.enc_mode = (int8_t) encoder->speed;
 
   if (image_sequence) {
-    // svt_config.force_key_frames = true; TODO: this does not seem to work (see all [1])
+    // svt_config.force_key_frames = true; TODO: this does not seem to work (see all [1]), tested with SVT 3.0.1
 
 #if 1
 #if SVT_AV1_CHECK_VERSION(4, 1, 0)
     switch (options->gop_structure) {
       case heif_sequence_gop_structure_intra_only:
-        //svt_config.pred_structure = 1; // LOW_DELAY
+        svt_config.pred_structure = PredStructure::ALL_INTRA;
         break;
       case heif_sequence_gop_structure_lowdelay:
-        //svt_config.pred_structure = 1; // LOW_DELAY
+        svt_config.pred_structure = PredStructure::LOW_DELAY;
+        encoder->low_delay_mode = true;
         break;
       case heif_sequence_gop_structure_unrestricted:
         svt_config.pred_structure = PredStructure::RANDOM_ACCESS;
@@ -853,10 +855,9 @@ static heif_error svt_start_sequence_encoding_intern(void* encoder_raw, const he
 #elif SVT_AV1_CHECK_VERSION(4, 0, 0)
     switch (options->gop_structure) {
       case heif_sequence_gop_structure_intra_only:
-        //svt_config.pred_structure = 1; // LOW_DELAY
-        break;
       case heif_sequence_gop_structure_lowdelay:
-        //svt_config.pred_structure = 1; // LOW_DELAY
+        svt_config.pred_structure = 1; // LOW_DELAY
+        encoder->low_delay_mode = true;
         break;
       case heif_sequence_gop_structure_unrestricted:
         svt_config.pred_structure = 2; // RANDOM_ACCESS
@@ -866,10 +867,9 @@ static heif_error svt_start_sequence_encoding_intern(void* encoder_raw, const he
     // TODO: setting pref_structure to SVT_AV1_PRED_LOW_DELAY_B hangs the encoder
     switch (options->gop_structure) {
       case heif_sequence_gop_structure_intra_only:
-        //svt_config.pred_structure = SvtAv1PredStructure::SVT_AV1_PRED_LOW_DELAY_B;
-        break;
       case heif_sequence_gop_structure_lowdelay:
-        //svt_config.pred_structure = SvtAv1PredStructure::SVT_AV1_PRED_LOW_DELAY_B;
+        svt_config.pred_structure = SvtAv1PredStructure::SVT_AV1_PRED_LOW_DELAY_B;
+        encoder->low_delay_mode = true;
         break;
       case heif_sequence_gop_structure_unrestricted:
         svt_config.pred_structure = SvtAv1PredStructure::SVT_AV1_PRED_RANDOM_ACCESS;
@@ -878,7 +878,7 @@ static heif_error svt_start_sequence_encoding_intern(void* encoder_raw, const he
 #endif
 
     if (options->keyframe_distance_max) {
-      svt_config.intra_period_length = options->keyframe_distance_max; // TODO -1 ?
+      svt_config.intra_period_length = options->keyframe_distance_max - 1;
     }
 #endif
   }
@@ -943,17 +943,15 @@ static heif_error read_encoder_output_packets(void* encoder_raw, bool done_sendi
 
         memcpy(encoder->output_packets.back().compressedData.data(),
                data, n);
-
-        /* TODO: this is a hack
-         * When using
-         *           svt_config.pred_structure = 1; // LOW_DELAY
-         * svt_av1_enc_get_packet() hangs on the second call. As a workaround, we can leave the
-         * loop when we got the image:
-         */
-        if (output_packet.is_keyframe)
-          break;
       }
       svt_av1_enc_release_out_buffer(&output_buf);
+
+      // In LOW_DELAY mode, svt_av1_enc_get_packet() is always a blocking call
+      // (enforcing a "picture in, picture out" model). We must exit after
+      // retrieving one packet per frame, otherwise the next call blocks forever.
+      if (encoder->low_delay_mode && !done_sending_pics) {
+        break;
+      }
     }
   } while (res == EB_ErrorNone && !encode_at_eos);
 
@@ -1109,9 +1107,8 @@ static heif_error svt_encode_sequence_frame(void* encoder_raw, const heif_image*
   input_buffer.flags = 0;
   // input_buffer.pts = 0;
 
-  EbAv1PictureType frame_type = EB_AV1_KEY_PICTURE;
-
-  input_buffer.pic_type = frame_type;
+  //EbAv1PictureType frame_type = EB_AV1_KEY_PICTURE;
+  //input_buffer.pic_type = frame_type;
 
   res = svt_av1_enc_send_picture(svt_encoder, &input_buffer);
   if (res != EB_ErrorNone) {
@@ -1127,8 +1124,15 @@ static heif_error svt_end_sequence_encoding(void* encoder_raw)
 {
   auto* encoder = (encoder_struct_svt*) encoder_raw;
 
+  // In LOW_DELAY mode, all packets have already been retrieved during per-frame
+  // encoding (picture-in, picture-out model). No flush is needed, and sending an
+  // EOS buffer would deadlock because SVT-AV1's LOW_DELAY path does not release
+  // the internal resources allocated for the EOS picture.
+  if (encoder->low_delay_mode) {
+    return heif_error_ok;
+  }
+
   EbComponentType*& svt_encoder = encoder->svt_encoder;
-  //EbBufferHeaderType& input_buffer = encoder->input_buffer;
 
   // --- flush encoder
 
