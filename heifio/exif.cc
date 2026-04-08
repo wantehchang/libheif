@@ -171,7 +171,7 @@ static uint32_t find_exif_tag(const uint8_t* exif, uint32_t size, uint16_t query
 {
   // read TIFF header
 
-  if (size < 4) {
+  if (size < 8) {
     return 0;
   }
 
