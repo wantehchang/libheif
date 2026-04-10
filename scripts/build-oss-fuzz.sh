@@ -236,6 +236,7 @@ cd "$WORK/x264"
 	--prefix="$DEPS_PATH" \
 	--enable-static \
 	--disable-shared \
+	--disable-asm \
 	--disable-cli
 make -j"$(nproc)"
 make install
