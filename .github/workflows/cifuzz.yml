@@ -11,6 +11,10 @@ on:
 jobs:
   Fuzzing:
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [x86_64, i386]
     steps:
     - name: Build Fuzzers
       id: build
@@ -18,6 +22,7 @@ jobs:
       with:
         oss-fuzz-project-name: 'libheif'
         dry-run: false
+        architecture: ${{ matrix.architecture }}
     - name: Run Fuzzers
       uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
       with:
