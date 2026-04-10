@@ -136,6 +136,7 @@ cmake -G "Unix Makefiles" \
 	-DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
 	-DCMAKE_INSTALL_PREFIX="$DEPS_PATH" \
 	-DENABLE_SHARED:bool=off \
+	-DENABLE_ASSEMBLY:bool=off \
 	-DENABLE_CLI:bool=off \
 	-DX265_LATEST_TAG=TRUE \
 	../../source
