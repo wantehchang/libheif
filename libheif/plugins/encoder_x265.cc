@@ -348,6 +348,10 @@ static void x265_free_encoder(void* encoder_raw)
     api->encoder_close(encoder->encoder);
   }
 
+  if (encoder->param && encoder->api) {
+    encoder->api->param_free(encoder->param);
+  }
+
   delete encoder;
 }
 
@@ -1163,16 +1167,14 @@ static heif_error x265_end_sequence_encoding(void* encoder_raw)
                                    NULL,
                                    &out_pic);
 #endif
-  if (result <= 0 || num_nals == 0) {
-    return heif_error_ok;
-  }
-
+  if (result > 0 && num_nals > 0) {
 #if X265_BUILD == 212
-  uintptr_t frameNr = out_pic ? reinterpret_cast<uintptr_t>(out_pic->userData) : 0;
+    uintptr_t frameNr = out_pic ? reinterpret_cast<uintptr_t>(out_pic->userData) : 0;
 #else
-  uintptr_t frameNr = reinterpret_cast<uintptr_t>(out_pic.userData);
+    uintptr_t frameNr = reinterpret_cast<uintptr_t>(out_pic.userData);
 #endif
-  encoder->append_nal_packets(nals, num_nals, frameNr);
+    encoder->append_nal_packets(nals, num_nals, frameNr);
+  }
 
   encoder->api->param_free(encoder->param);
   encoder->param = nullptr;
