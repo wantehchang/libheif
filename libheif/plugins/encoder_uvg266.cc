@@ -831,20 +831,14 @@ static heif_error uvg266_end_sequence_encoding(void* encoder_raw)
     }
 
     if (data == nullptr || data->len == 0) {
+      encoder->api->chunk_free(data);
+      encoder->api->picture_free(src_out);
       break;
     }
 
     encoder->append_chunk_data(data, (int)src_out->pts);
 
-    encoder->api->picture_free(src_out);
-    src_out = nullptr;
-  }
-
-  (void) success;
-
-  if (src_out) {
-    encoder->append_chunk_data(data, (int)src_out->pts);
-
+    encoder->api->chunk_free(data);
     encoder->api->picture_free(src_out);
     src_out = nullptr;
   }
