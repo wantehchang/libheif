@@ -305,7 +305,7 @@ void heif_context_debug_dump_boxes_to_file(heif_context* ctx, int fd);
 // Requires ENABLE_EXPERIMENTAL_MINI_FORMAT to be enabled at compile time.
 // Default: disabled.
 LIBHEIF_API
-heif_error heif_context_set_write_mini_format(heif_context*, int enable);
+void heif_context_set_write_mini_format(heif_context*, int enable);
 
 
 // ====================================================================================================

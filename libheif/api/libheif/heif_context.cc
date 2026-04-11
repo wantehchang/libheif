@@ -245,15 +245,10 @@ static heif_error heif_file_writer_write(heif_context* ctx,
 }
 
 
-heif_error heif_context_set_write_mini_format(heif_context* ctx, int enable)
+void heif_context_set_write_mini_format(heif_context* ctx, int enable)
 {
 #if ENABLE_EXPERIMENTAL_MINI_FORMAT
   ctx->context->set_write_mini_format(enable != 0);
-  return Error::Ok.error_struct(ctx->context.get());
-#else
-  return Error(heif_error_Unsupported_feature,
-               heif_suberror_Unspecified,
-               "Mini format support not compiled in (ENABLE_EXPERIMENTAL_MINI_FORMAT=OFF)").error_struct(ctx->context.get());
 #endif
 }
 
