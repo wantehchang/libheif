@@ -761,6 +761,57 @@ void BitReader::refill()
 }
 
 
+// --- BitWriter ---
+
+void BitWriter::write_bits(uint32_t value, int n)
+{
+  assert(n >= 0 && n <= 32);
+
+  for (int i = n - 1; i >= 0; i--) {
+    uint8_t bit = (value >> i) & 1;
+    m_current_byte |= (bit << (7 - m_bits_in_current_byte));
+    m_bits_in_current_byte++;
+
+    if (m_bits_in_current_byte == 8) {
+      m_data.push_back(m_current_byte);
+      m_current_byte = 0;
+      m_bits_in_current_byte = 0;
+    }
+  }
+}
+
+void BitWriter::write_bytes(const std::vector<uint8_t>& data)
+{
+  write_bytes(data.data(), data.size());
+}
+
+void BitWriter::write_bytes(const uint8_t* data, size_t len)
+{
+  assert(m_bits_in_current_byte == 0);
+  m_data.insert(m_data.end(), data, data + len);
+}
+
+void BitWriter::skip_to_byte_boundary()
+{
+  if (m_bits_in_current_byte > 0) {
+    m_data.push_back(m_current_byte);
+    m_current_byte = 0;
+    m_bits_in_current_byte = 0;
+  }
+}
+
+std::vector<uint8_t> BitWriter::get_data() const
+{
+  std::vector<uint8_t> result = m_data;
+  if (m_bits_in_current_byte > 0) {
+    result.push_back(m_current_byte);
+  }
+  return result;
+}
+
+
+// --- StreamWriter ---
+
 void StreamWriter::write8(uint8_t v)
 {
   if (m_position == m_data.size()) {

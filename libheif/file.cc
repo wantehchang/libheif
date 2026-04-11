@@ -29,6 +29,9 @@
 #include "codecs/avif_boxes.h"
 #include "codecs/hevc_boxes.h"
 #include "sequences/seq_boxes.h"
+#if ENABLE_EXPERIMENTAL_MINI_FORMAT
+#include "mini.h"
+#endif
 
 #include <cstdint>
 #include <fstream>
@@ -253,6 +256,39 @@ void HeifFile::derive_box_versions()
 
 void HeifFile::write(StreamWriter& writer)
 {
+#if ENABLE_EXPERIMENTAL_MINI_FORMAT
+  if (m_write_mini_format) {
+    std::string reason;
+    if (Box_mini::can_convert_to_mini(this, reason)) {
+      auto mini = Box_mini::create_from_heif_file(this);
+      if (mini) {
+        // Adjust ftyp for mini format
+        auto ftyp = get_ftyp_box();
+
+        // Determine codec brand from primary item type
+        uint32_t item_type = get_item_type_4cc(get_primary_image_ID());
+        heif_brand2 codec_brand = 0;
+        if (item_type == fourcc("av01")) {
+          codec_brand = heif_brand2_avif;
+        }
+        else if (item_type == fourcc("hvc1")) {
+          codec_brand = heif_brand2_heic;
+        }
+
+        ftyp->set_major_brand(fourcc("mif3"));
+        ftyp->set_minor_version(codec_brand);
+        ftyp->clear_compatible_brands();
+
+        // Write ftyp + mini (no mdat needed)
+        ftyp->write(writer);
+        mini->write(writer);
+        return;
+      }
+    }
+    // Fall through to normal write if conversion fails
+  }
+#endif
+
   for (auto& box : m_top_level_boxes) {
 #if ENABLE_EXPERIMENTAL_MINI_FORMAT
     if (box == nullptr) {

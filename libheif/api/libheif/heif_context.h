@@ -296,6 +296,19 @@ LIBHEIF_API
 void heif_context_debug_dump_boxes_to_file(heif_context* ctx, int fd);
 
 // ====================================================================================================
+//   Mini format (experimental)
+
+// Enable writing in the compact 'mini' box format (ISO/IEC 23008-12 DAmd2).
+// When enabled, the output file will use a single 'mini' box instead of the standard
+// meta+mdat box structure, if the file content is compatible with the mini format.
+// If the content cannot be represented as a mini box, the standard format is used as fallback.
+// Requires ENABLE_EXPERIMENTAL_MINI_FORMAT to be enabled at compile time.
+// Default: disabled.
+LIBHEIF_API
+heif_error heif_context_set_write_mini_format(heif_context*, int enable);
+
+
+// ====================================================================================================
 //   Write the heif_context to a HEIF file
 
 LIBHEIF_API

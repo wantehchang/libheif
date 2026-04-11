@@ -122,6 +122,265 @@ TEST_CASE("mini")
                         "main_item_data offset: 37, size: 53\n");
 }
 
+TEST_CASE("mini write round-trip from scratch")
+{
+  // Construct a Box_mini from scratch using setters
+  auto mini = std::make_shared<Box_mini>();
+  mini->set_version(0);
+  mini->set_explicit_codec_types_flag(false);
+  mini->set_float_flag(false);
+  mini->set_full_range_flag(true);
+  mini->set_alpha_flag(false);
+  mini->set_explicit_cicp_flag(false);
+  mini->set_hdr_flag(false);
+  mini->set_icc_flag(false);
+  mini->set_exif_flag(false);
+  mini->set_xmp_flag(false);
+  mini->set_chroma_subsampling(3);  // 4:4:4
+  mini->set_orientation(1);
+  mini->set_width(256);
+  mini->set_height(256);
+  mini->set_bit_depth(8);
+  mini->set_colour_primaries(1);
+  mini->set_transfer_characteristics(13);
+  mini->set_matrix_coefficients(6);
+
+  // Codec config (4 bytes)
+  mini->set_main_item_codec_config({0x81, 0x20, 0x00, 0x00});
+
+  // Fake main item data (10 bytes)
+  std::vector<uint8_t> fake_data(10, 0xAB);
+  mini->set_main_item_data(fake_data);
+
+  // Write
+  StreamWriter writer;
+  Error error = mini->write(writer);
+  REQUIRE(error == Error::Ok);
+
+  // Parse back
+  auto written_data = writer.get_data();
+  auto reader = std::make_shared<StreamReader_memory>(written_data.data(), written_data.size(), false);
+  BitstreamRange range(reader, written_data.size());
+
+  std::shared_ptr<Box> box;
+  error = Box::read(range, &box, heif_get_global_security_limits());
+  REQUIRE(error == Error::Ok);
+  auto mini2 = std::dynamic_pointer_cast<Box_mini>(box);
+  REQUIRE(mini2 != nullptr);
+
+  // Compare
+  REQUIRE(mini2->get_width() == 256);
+  REQUIRE(mini2->get_height() == 256);
+  REQUIRE(mini2->get_bit_depth() == 8);
+  REQUIRE(mini2->get_icc_flag() == false);
+  REQUIRE(mini2->get_exif_flag() == false);
+  REQUIRE(mini2->get_xmp_flag() == false);
+  REQUIRE(mini2->get_full_range_flag() == true);
+  REQUIRE(mini2->get_colour_primaries() == 1);
+  REQUIRE(mini2->get_transfer_characteristics() == 13);
+  REQUIRE(mini2->get_matrix_coefficients() == 6);
+  REQUIRE(mini2->get_orientation() == 1);
+  REQUIRE(mini2->get_main_item_codec_config().size() == 4);
+  REQUIRE(mini2->get_main_item_codec_config() == std::vector<uint8_t>({0x81, 0x20, 0x00, 0x00}));
+  REQUIRE(mini2->get_main_item_data_size() == 10);
+}
+
+
+TEST_CASE("mini write round-trip with alpha and ICC from scratch")
+{
+  auto mini = std::make_shared<Box_mini>();
+  mini->set_version(0);
+  mini->set_explicit_codec_types_flag(false);
+  mini->set_float_flag(false);
+  mini->set_full_range_flag(true);
+  mini->set_alpha_flag(true);
+  mini->set_explicit_cicp_flag(false);
+  mini->set_hdr_flag(false);
+  mini->set_icc_flag(true);
+  mini->set_exif_flag(false);
+  mini->set_xmp_flag(false);
+  mini->set_chroma_subsampling(3);
+  mini->set_orientation(1);
+  mini->set_width(256);
+  mini->set_height(256);
+  mini->set_bit_depth(8);
+  mini->set_alpha_is_premultiplied(false);
+
+  // CICP defaults for ICC: primaries=2, transfer=2, matrix=6
+  mini->set_colour_primaries(2);
+  mini->set_transfer_characteristics(2);
+  mini->set_matrix_coefficients(6);
+
+  mini->set_main_item_codec_config({0x81, 0x20, 0x00, 0x00});
+  // Alpha uses same codec config (will be zero-size in bitstream = reuse main)
+  mini->set_alpha_item_codec_config({0x81, 0x20, 0x00, 0x00});
+
+  // Fake ICC data
+  std::vector<uint8_t> icc_data(100, 0xCC);
+  mini->set_icc_data(icc_data);
+
+  // Fake image data
+  std::vector<uint8_t> main_data(50, 0xAA);
+  mini->set_main_item_data(main_data);
+  std::vector<uint8_t> alpha_data(30, 0xBB);
+  mini->set_alpha_item_data(alpha_data);
+
+  // Write
+  StreamWriter writer;
+  Error error = mini->write(writer);
+  REQUIRE(error == Error::Ok);
+
+  // Parse back
+  auto written_data = writer.get_data();
+  auto reader = std::make_shared<StreamReader_memory>(written_data.data(), written_data.size(), false);
+  BitstreamRange range(reader, written_data.size());
+
+  std::shared_ptr<Box> box;
+  error = Box::read(range, &box, heif_get_global_security_limits());
+  REQUIRE(error == Error::Ok);
+  auto mini2 = std::dynamic_pointer_cast<Box_mini>(box);
+  REQUIRE(mini2 != nullptr);
+
+  REQUIRE(mini2->get_width() == 256);
+  REQUIRE(mini2->get_height() == 256);
+  REQUIRE(mini2->get_bit_depth() == 8);
+  REQUIRE(mini2->get_icc_flag() == true);
+  REQUIRE(mini2->get_full_range_flag() == true);
+  REQUIRE(mini2->get_colour_primaries() == 2);
+  REQUIRE(mini2->get_transfer_characteristics() == 2);
+  REQUIRE(mini2->get_matrix_coefficients() == 6);
+  REQUIRE(mini2->get_icc_data().size() == 100);
+  REQUIRE(mini2->get_icc_data() == icc_data);
+  REQUIRE(mini2->get_main_item_codec_config() == std::vector<uint8_t>({0x81, 0x20, 0x00, 0x00}));
+  REQUIRE(mini2->get_alpha_item_codec_config() == std::vector<uint8_t>({0x81, 0x20, 0x00, 0x00}));
+  REQUIRE(mini2->get_main_item_data_size() == 50);
+  REQUIRE(mini2->get_alpha_item_data_size() == 30);
+}
+
+
+TEST_CASE("mini write round-trip with exif and xmp from scratch")
+{
+  auto mini = std::make_shared<Box_mini>();
+  mini->set_version(0);
+  mini->set_explicit_codec_types_flag(false);
+  mini->set_float_flag(false);
+  mini->set_full_range_flag(true);
+  mini->set_alpha_flag(false);
+  mini->set_explicit_cicp_flag(true);
+  mini->set_hdr_flag(false);
+  mini->set_icc_flag(true);
+  mini->set_exif_flag(true);
+  mini->set_xmp_flag(true);
+  mini->set_chroma_subsampling(1);  // 4:2:0
+  mini->set_orientation(1);
+  mini->set_width(320);
+  mini->set_height(240);
+  mini->set_bit_depth(10);
+  mini->set_chroma_is_horizontally_centered(true);
+  mini->set_chroma_is_vertically_centered(false);
+  mini->set_colour_primaries(9);
+  mini->set_transfer_characteristics(16);
+  mini->set_matrix_coefficients(9);
+  mini->set_exif_xmp_compressed_flag(false);
+
+  mini->set_main_item_codec_config({0x81, 0x20, 0x00, 0x00});
+
+  std::vector<uint8_t> icc_data(200, 0xDD);
+  mini->set_icc_data(icc_data);
+
+  std::vector<uint8_t> main_data(100, 0xAA);
+  mini->set_main_item_data(main_data);
+
+  std::vector<uint8_t> exif_data(80, 0xEE);
+  mini->set_exif_data(exif_data);
+
+  std::vector<uint8_t> xmp_data(150, 0xFF);
+  mini->set_xmp_data(xmp_data);
+
+  // Write
+  StreamWriter writer;
+  Error error = mini->write(writer);
+  REQUIRE(error == Error::Ok);
+
+  // Parse back
+  auto written_data = writer.get_data();
+  auto reader = std::make_shared<StreamReader_memory>(written_data.data(), written_data.size(), false);
+  BitstreamRange range(reader, written_data.size());
+
+  std::shared_ptr<Box> box;
+  error = Box::read(range, &box, heif_get_global_security_limits());
+  REQUIRE(error == Error::Ok);
+  auto mini2 = std::dynamic_pointer_cast<Box_mini>(box);
+  REQUIRE(mini2 != nullptr);
+
+  REQUIRE(mini2->get_width() == 320);
+  REQUIRE(mini2->get_height() == 240);
+  REQUIRE(mini2->get_bit_depth() == 10);
+  REQUIRE(mini2->get_icc_flag() == true);
+  REQUIRE(mini2->get_exif_flag() == true);
+  REQUIRE(mini2->get_xmp_flag() == true);
+  REQUIRE(mini2->get_colour_primaries() == 9);
+  REQUIRE(mini2->get_transfer_characteristics() == 16);
+  REQUIRE(mini2->get_matrix_coefficients() == 9);
+  REQUIRE(mini2->get_orientation() == 1);
+  REQUIRE(mini2->get_icc_data().size() == 200);
+  REQUIRE(mini2->get_icc_data() == icc_data);
+  REQUIRE(mini2->get_main_item_data_size() == 100);
+  REQUIRE(mini2->get_exif_item_data_size() == 80);
+  REQUIRE(mini2->get_xmp_item_data_size() == 150);
+}
+
+
+TEST_CASE("mini write round-trip small dimensions")
+{
+  // Test with small dimensions (7-bit, no large_dimensions_flag)
+  auto mini = std::make_shared<Box_mini>();
+  mini->set_version(0);
+  mini->set_explicit_codec_types_flag(false);
+  mini->set_float_flag(false);
+  mini->set_full_range_flag(true);
+  mini->set_alpha_flag(false);
+  mini->set_explicit_cicp_flag(false);
+  mini->set_hdr_flag(false);
+  mini->set_icc_flag(false);
+  mini->set_exif_flag(false);
+  mini->set_xmp_flag(false);
+  mini->set_chroma_subsampling(1);
+  mini->set_orientation(3);
+  mini->set_width(64);
+  mini->set_height(48);
+  mini->set_bit_depth(8);
+  mini->set_chroma_is_horizontally_centered(true);
+  mini->set_chroma_is_vertically_centered(true);
+  mini->set_colour_primaries(1);
+  mini->set_transfer_characteristics(13);
+  mini->set_matrix_coefficients(6);
+
+  mini->set_main_item_codec_config({0x81, 0x20, 0x00, 0x00});
+  mini->set_main_item_data(std::vector<uint8_t>(20, 0x42));
+
+  StreamWriter writer;
+  Error error = mini->write(writer);
+  REQUIRE(error == Error::Ok);
+
+  auto written_data = writer.get_data();
+  auto reader = std::make_shared<StreamReader_memory>(written_data.data(), written_data.size(), false);
+  BitstreamRange range(reader, written_data.size());
+
+  std::shared_ptr<Box> box;
+  error = Box::read(range, &box, heif_get_global_security_limits());
+  REQUIRE(error == Error::Ok);
+  auto mini2 = std::dynamic_pointer_cast<Box_mini>(box);
+  REQUIRE(mini2 != nullptr);
+
+  REQUIRE(mini2->get_width() == 64);
+  REQUIRE(mini2->get_height() == 48);
+  REQUIRE(mini2->get_orientation() == 3);
+  REQUIRE(mini2->get_bit_depth() == 8);
+  REQUIRE(mini2->get_main_item_data_size() == 20);
+}
+
+
 TEST_CASE("check mini+alpha version")
 {
   auto istr = std::unique_ptr<std::istream>(new std::ifstream(tests_data_directory + "/simple_osm_tile_alpha.avif", std::ios::binary));

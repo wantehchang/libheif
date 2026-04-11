@@ -38,6 +38,8 @@ public:
 
   Error create_expanded_boxes(class HeifFile* file);
 
+  // --- Getters ---
+
   bool get_icc_flag() const { return m_icc_flag; }
   bool get_exif_flag() const { return m_exif_flag; }
   bool get_xmp_flag() const { return m_xmp_flag; }
@@ -69,7 +71,84 @@ public:
   uint16_t get_matrix_coefficients() const { return m_matrix_coefficients; }
   bool get_full_range_flag() const { return m_full_range_flag; }
 
+  // --- Setters (for write path) ---
+
+  void set_version(uint8_t v) { m_version = v; }
+  void set_explicit_codec_types_flag(bool f) { m_explicit_codec_types_flag = f; }
+  void set_float_flag(bool f) { m_float_flag = f; }
+  void set_full_range_flag(bool f) { m_full_range_flag = f; }
+  void set_alpha_flag(bool f) { m_alpha_flag = f; }
+  void set_explicit_cicp_flag(bool f) { m_explicit_cicp_flag = f; }
+  void set_hdr_flag(bool f) { m_hdr_flag = f; }
+  void set_icc_flag(bool f) { m_icc_flag = f; }
+  void set_exif_flag(bool f) { m_exif_flag = f; }
+  void set_xmp_flag(bool f) { m_xmp_flag = f; }
+  void set_chroma_subsampling(uint8_t cs) { m_chroma_subsampling = cs; }
+  void set_orientation(uint8_t o) { m_orientation = o; }
+  void set_width(uint32_t w) { m_width = w; }
+  void set_height(uint32_t h) { m_height = h; }
+  void set_bit_depth(uint8_t bd) { m_bit_depth = bd; }
+  void set_chroma_is_horizontally_centered(bool f) { m_chroma_is_horizontally_centered = f; }
+  void set_chroma_is_vertically_centered(bool f) { m_chroma_is_vertically_centered = f; }
+  void set_alpha_is_premultiplied(bool f) { m_alpha_is_premultiplied = f; }
+  void set_colour_primaries(uint16_t cp) { m_colour_primaries = cp; }
+  void set_transfer_characteristics(uint16_t tc) { m_transfer_characteristics = tc; }
+  void set_matrix_coefficients(uint16_t mc) { m_matrix_coefficients = mc; }
+  void set_infe_type(uint32_t t) { m_infe_type = t; }
+  void set_codec_config_type(uint32_t t) { m_codec_config_type = t; }
+  void set_exif_xmp_compressed_flag(bool f) { m_exif_xmp_compressed_flag = f; }
+
+  void set_main_item_codec_config(std::vector<uint8_t> data) { m_main_item_codec_config = std::move(data); }
+  void set_alpha_item_codec_config(std::vector<uint8_t> data) { m_alpha_item_codec_config = std::move(data); }
+  void set_gainmap_item_codec_config(std::vector<uint8_t> data) { m_gainmap_item_codec_config = std::move(data); }
+  void set_icc_data(std::vector<uint8_t> data) { m_icc_data = std::move(data); }
+
+  void set_main_item_data(std::vector<uint8_t> data) { m_main_item_data = std::move(data); }
+  void set_alpha_item_data(std::vector<uint8_t> data) { m_alpha_item_data = std::move(data); }
+  void set_gainmap_item_data(std::vector<uint8_t> data) { m_gainmap_item_data = std::move(data); }
+  void set_exif_data(std::vector<uint8_t> data) { m_exif_data_bytes = std::move(data); }
+  void set_xmp_data(std::vector<uint8_t> data) { m_xmp_data_bytes = std::move(data); }
+
+  // Gainmap setters
+  void set_gainmap_flag(bool f) { m_gainmap_flag = f; }
+  void set_gainmap_width(uint32_t w) { m_gainmap_width = w; }
+  void set_gainmap_height(uint32_t h) { m_gainmap_height = h; }
+  void set_gainmap_matrix_coefficients(uint8_t mc) { m_gainmap_matrix_coefficients = mc; }
+  void set_gainmap_full_range_flag(bool f) { m_gainmap_full_range_flag = f; }
+  void set_gainmap_chroma_subsampling(uint8_t cs) { m_gainmap_chroma_subsampling = cs; }
+  void set_gainmap_float_flag(bool f) { m_gainmap_float_flag = f; }
+  void set_gainmap_bit_depth(uint8_t bd) { m_gainmap_bit_depth = bd; }
+  void set_tmap_icc_flag(bool f) { m_tmap_icc_flag = f; }
+  void set_tmap_explicit_cicp_flag(bool f) { m_tmap_explicit_cicp_flag = f; }
+  void set_tmap_colour_primaries(uint16_t cp) { m_tmap_colour_primaries = cp; }
+  void set_tmap_transfer_characteristics(uint16_t tc) { m_tmap_transfer_characteristics = tc; }
+  void set_tmap_matrix_coefficients(uint16_t mc) { m_tmap_matrix_coefficients = mc; }
+  void set_tmap_full_range_flag(bool f) { m_tmap_full_range_flag = f; }
+  void set_tmap_icc_data(std::vector<uint8_t> data) { m_tmap_icc_data = std::move(data); }
+  void set_gainmap_metadata(std::vector<uint8_t> data) { m_gainmap_metadata = std::move(data); }
+
+  // HDR metadata setters
+  void set_clli(std::shared_ptr<Box_clli> box) { m_clli = std::move(box); }
+  void set_mdcv(std::shared_ptr<Box_mdcv> box) { m_mdcv = std::move(box); }
+  void set_cclv(std::shared_ptr<Box_cclv> box) { m_cclv = std::move(box); }
+  void set_amve(std::shared_ptr<Box_amve> box) { m_amve = std::move(box); }
+  void set_tmap_clli(std::shared_ptr<Box_clli> box) { m_tmap_clli = std::move(box); }
+  void set_tmap_mdcv(std::shared_ptr<Box_mdcv> box) { m_tmap_mdcv = std::move(box); }
+  void set_tmap_cclv(std::shared_ptr<Box_cclv> box) { m_tmap_cclv = std::move(box); }
+  void set_tmap_amve(std::shared_ptr<Box_amve> box) { m_tmap_amve = std::move(box); }
+
   std::string dump(Indent &) const override;
+
+  Error write(StreamWriter& writer) const override;
+
+  // Check if a HeifFile can be represented as a mini box.
+  // Returns true if conversion is possible. If false, out_reason explains why not.
+  static bool can_convert_to_mini(const class HeifFile* file, std::string& out_reason);
+
+  // Create a Box_mini from a HeifFile's meta box structure.
+  // This is the inverse of create_expanded_boxes().
+  // Returns nullptr if conversion is not possible.
+  static std::shared_ptr<Box_mini> create_from_heif_file(class HeifFile* file);
 
 protected:
   Error parse(BitstreamRange &range, const heif_security_limits *limits) override;
@@ -155,6 +234,13 @@ private:
   uint32_t m_exif_data_size = 0;
   uint64_t m_xmp_item_data_offset = 0;
   uint32_t m_xmp_data_size = 0;
+
+  // Image data for write path (not populated during parse)
+  std::vector<uint8_t> m_main_item_data;
+  std::vector<uint8_t> m_alpha_item_data;
+  std::vector<uint8_t> m_gainmap_item_data;
+  std::vector<uint8_t> m_exif_data_bytes;
+  std::vector<uint8_t> m_xmp_data_bytes;
 };
 
 #endif
