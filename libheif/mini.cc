@@ -1,6 +1,7 @@
 /*
  * HEIF codec.
  * Copyright (c) 2024 Brad Hards <bradh@frogmouth.net>
+ * Copyright (c) 2026 Dirk Farin <dirk.farin@gmail.com>
  *
  * This file is part of libheif.
  *
@@ -20,12 +21,15 @@
 
 #include "mini.h"
 #include "file.h"
+#include "nclx.h"
 #include "codecs/avif_boxes.h"
 #include "codecs/hevc_boxes.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <utility>
@@ -35,9 +39,12 @@ Error Box_mini::parse(BitstreamRange &range, const heif_security_limits *limits)
 {
   uint64_t start_offset = range.get_istream()->get_position();
   std::size_t length = range.get_remaining_bytes();
+
   std::vector<uint8_t> mini_data(length);
   range.read(mini_data.data(), mini_data.size());
+
   BitReader bits(mini_data.data(), (int)(mini_data.size()));
+
   m_version = bits.get_bits8(2);
   m_explicit_codec_types_flag = bits.get_flag();
   m_float_flag = bits.get_flag();
@@ -50,38 +57,33 @@ Error Box_mini::parse(BitstreamRange &range, const heif_security_limits *limits)
   m_xmp_flag = bits.get_flag();
   m_chroma_subsampling = bits.get_bits8(2);
   m_orientation = bits.get_bits8(3) + 1;
-  bool small_dimensions_flag = bits.get_flag();
-  if (small_dimensions_flag)
-  {
-    m_width = 1 + bits.get_bits32(7);
-    m_height = 1 + bits.get_bits32(7);
-  }
-  else
-  {
-    m_width = 1 + bits.get_bits32(15);
-    m_height = 1 + bits.get_bits32(15);
-  }
+
+  bool large_dimensions_flag = bits.get_flag();
+  // large_dimensions_flag = !large_dimensions_flag;  // HACK to get old behavior
+  m_width = 1 + bits.get_bits32(large_dimensions_flag ? 15 : 7);
+  m_height = 1 + bits.get_bits32(large_dimensions_flag ? 15 : 7);
+
   if ((m_chroma_subsampling == 1) || (m_chroma_subsampling == 2))
   {
-    m_chroma_is_horizontally_centred = bits.get_flag();
+    m_chroma_is_horizontally_centered = bits.get_flag();
   }
   if (m_chroma_subsampling == 1)
   {
-    m_chroma_is_vertically_centred = bits.get_flag();
+    m_chroma_is_vertically_centered = bits.get_flag();
   }
 
   bool high_bit_depth_flag = false;
   if (m_float_flag)
   {
-    uint8_t bit_depth_log2_minus4 = bits.get_bits8(2);
-    m_bit_depth = (uint8_t)powl(2, (bit_depth_log2_minus4 + 4));
+    uint8_t bit_depth_log2 = bits.get_bits8(2) + 4; // [4;7]
+    m_bit_depth = (uint8_t)powl(2, (bit_depth_log2)); // [16,32,64,128]
   }
   else
   {
     high_bit_depth_flag = bits.get_flag();
     if (high_bit_depth_flag)
     {
-      m_bit_depth = 9 + bits.get_bits8(3);
+      m_bit_depth = bits.get_bits8(3) + 9; // [9;16]
     }
   }
 
@@ -115,15 +117,15 @@ Error Box_mini::parse(BitstreamRange &range, const heif_security_limits *limits)
     m_infe_type = bits.get_bits32(32);
     m_codec_config_type = bits.get_bits32(32);
   }
+
   if (m_hdr_flag)
   {
     m_gainmap_flag = bits.get_flag();
     if (m_gainmap_flag)
     {
-      uint32_t gainmap_width_minus1 = bits.get_bits32(small_dimensions_flag ? 7 : 15);
-      m_gainmap_width = gainmap_width_minus1 + 1;
-      uint32_t gainmap_height_minus1 = bits.get_bits32(small_dimensions_flag ? 7 : 15);
-      m_gainmap_height = gainmap_height_minus1 + 1;
+      m_gainmap_width = bits.get_bits32(large_dimensions_flag ? 15 : 7) + 1;
+      m_gainmap_height = bits.get_bits32(large_dimensions_flag ? 15 : 7) + 1;
+
       m_gainmap_matrix_coefficients = bits.get_bits8(8);
       m_gainmap_full_range_flag = bits.get_flag();
       m_gainmap_chroma_subsampling = bits.get_bits8(2);
@@ -135,13 +137,14 @@ Error Box_mini::parse(BitstreamRange &range, const heif_security_limits *limits)
       {
         m_gainmap_chroma_is_vertically_centred = bits.get_flag();
       }
+
       m_gainmap_float_flag = bits.get_flag();
 
       bool gainmap_high_bit_depth_flag = false;
       if (m_gainmap_float_flag)
       {
-        uint8_t bit_depth_log2_minus4 = bits.get_bits8(2);
-        m_gainmap_bit_depth = (uint8_t)powl(2, (bit_depth_log2_minus4 + 4));
+        uint8_t bit_depth_log2 = bits.get_bits8(2) + 4;
+        m_gainmap_bit_depth = (uint8_t)powl(2, (bit_depth_log2));
       }
       else
       {
@@ -151,6 +154,7 @@ Error Box_mini::parse(BitstreamRange &range, const heif_security_limits *limits)
           m_gainmap_bit_depth = 9 + bits.get_bits8(3);
         }
       }
+
       m_tmap_icc_flag = bits.get_flag();
       m_tmap_explicit_cicp_flag = bits.get_flag();
       if (m_tmap_explicit_cicp_flag)
@@ -348,99 +352,125 @@ Error Box_mini::parse(BitstreamRange &range, const heif_security_limits *limits)
   }
 
   // Chunk sizes
-  bool few_metadata_bytes_flag = false;
+  bool large_metadata_flag = false;
   if (m_icc_flag || m_exif_flag || m_xmp_flag || (m_hdr_flag && m_gainmap_flag))
   {
-    few_metadata_bytes_flag = bits.get_flag();
+    large_metadata_flag = bits.get_flag();
   }
-  bool few_codec_config_bytes_flag = bits.get_flag();
-  bool few_item_data_bytes_flag = bits.get_flag();
+
+  bool large_codec_config_flag = bits.get_flag();
+  bool large_item_data_flag = bits.get_flag();
 
   uint32_t icc_data_size = 0;
   if (m_icc_flag)
   {
-    icc_data_size = bits.get_bits32(few_metadata_bytes_flag ? 10 : 20) + 1;
+    icc_data_size = bits.get_bits32(large_metadata_flag ? 20 : 10) + 1;
   }
+
   uint32_t tmap_icc_data_size = 0;
   if (m_hdr_flag && m_gainmap_flag && m_tmap_icc_flag)
   {
-    tmap_icc_data_size = bits.get_bits32(few_metadata_bytes_flag ? 10 : 20) + 1;
+    tmap_icc_data_size = bits.get_bits32(large_metadata_flag ? 20 : 10) + 1;
   }
+
   uint32_t gainmap_metadata_size = 0;
   if (m_hdr_flag && m_gainmap_flag)
   {
-    gainmap_metadata_size = bits.get_bits32(few_metadata_bytes_flag ? 10 : 20);
-  }
-  if (m_hdr_flag && m_gainmap_flag)
-  {
-    m_gainmap_item_data_size = bits.get_bits32(few_item_data_bytes_flag ? 15 : 28);
-  }
-  uint32_t gainmap_item_codec_config_size = 0;
-  if (m_hdr_flag && m_gainmap_flag && (m_gainmap_item_data_size > 0))
-  {
-    gainmap_item_codec_config_size = bits.get_bits32(few_codec_config_bytes_flag ? 3 : 12);
+    gainmap_metadata_size = bits.get_bits32(large_metadata_flag ? 20 : 10);
   }
 
-  uint32_t main_item_codec_config_size = bits.get_bits32(few_codec_config_bytes_flag ? 3 : 12);
-  m_main_item_data_size = bits.get_bits32(few_item_data_bytes_flag ? 15 : 28) + 1;
+  if (m_hdr_flag && m_gainmap_flag)
+  {
+    m_gainmap_item_data_size = bits.get_bits32(large_item_data_flag ? 28 : 15);
+  }
+
+  uint32_t gainmap_item_codec_config_size = 0;
+  if (m_hdr_flag && m_gainmap_flag && m_gainmap_item_data_size > 0)
+  {
+    gainmap_item_codec_config_size = bits.get_bits32(large_codec_config_flag ? 12 : 3);
+  }
+
+  uint32_t main_item_codec_config_size = bits.get_bits32(large_codec_config_flag ? 12 : 3);
+  m_main_item_data_size = bits.get_bits32(large_item_data_flag ? 28 : 15) + 1;
 
   if (m_alpha_flag)
   {
-    m_alpha_item_data_size = bits.get_bits32(few_item_data_bytes_flag ? 15 : 28);
+    m_alpha_item_data_size = bits.get_bits32(large_item_data_flag ? 28 : 15);
   }
+
   uint32_t alpha_item_codec_config_size = 0;
-  if (m_alpha_flag && (m_alpha_item_data_size > 0))
+  if (m_alpha_flag && m_alpha_item_data_size > 0)
   {
-    alpha_item_codec_config_size = bits.get_bits32(few_codec_config_bytes_flag ? 3 : 12);
+    alpha_item_codec_config_size = bits.get_bits32(large_codec_config_flag ? 12 : 3);
+  }
+
+  if (m_exif_flag || m_xmp_flag)
+  {
+    m_exif_xmp_compressed_flag = bits.get_flag();
   }
 
   if (m_exif_flag)
   {
-    m_exif_item_data_size = bits.get_bits32(few_metadata_bytes_flag ? 10 : 20) + 1;
+    m_exif_data_size = bits.get_bits32(large_metadata_flag ? 20 : 10) + 1;
   }
   if (m_xmp_flag)
   {
-    m_xmp_item_data_size = bits.get_bits32(few_metadata_bytes_flag ? 10 : 20) + 1;
+    m_xmp_data_size = bits.get_bits32(large_metadata_flag ? 20 : 10) + 1;
   }
 
   bits.skip_to_byte_boundary();
 
-  // Chunks
-  if (m_alpha_flag && (m_alpha_item_data_size > 0) && (alpha_item_codec_config_size > 0))
-  {
-    m_alpha_item_codec_config = bits.read_bytes(alpha_item_codec_config_size);
-  }
-  if (m_hdr_flag && m_gainmap_flag && (gainmap_item_codec_config_size > 0))
-  {
-    m_gainmap_item_codec_config = bits.read_bytes(gainmap_item_codec_config_size);
-  }
   if (main_item_codec_config_size > 0)
   {
     m_main_item_codec_config = bits.read_bytes(main_item_codec_config_size);
+  }
+
+  // Chunks
+  if (m_alpha_flag && m_alpha_item_data_size > 0) {
+    if (alpha_item_codec_config_size == 0) {
+      m_alpha_item_codec_config = m_main_item_codec_config;
+    }
+    else {
+      // TODO: should we have a flag indicating that we have explicit config for alpha?
+      m_alpha_item_codec_config = bits.read_bytes(alpha_item_codec_config_size);
+    }
+  }
+
+  if (m_hdr_flag && m_gainmap_flag && m_gainmap_item_data_size > 0)
+  {
+    if (gainmap_item_codec_config_size == 0) {
+      m_gainmap_item_codec_config = m_main_item_codec_config;
+    }
+    else {
+      // TODO: should we have a flag indicating that we have explicit config for the gain map?
+      m_gainmap_item_codec_config = bits.read_bytes(gainmap_item_codec_config_size);
+    }
   }
 
   if (m_icc_flag)
   {
     m_icc_data = bits.read_bytes(icc_data_size);
   }
+
   if (m_hdr_flag && m_gainmap_flag && m_tmap_icc_flag)
   {
     m_tmap_icc_data = bits.read_bytes(tmap_icc_data_size);
   }
-  if (m_hdr_flag && m_gainmap_flag && (gainmap_metadata_size > 0))
+
+  if (m_hdr_flag && m_gainmap_flag && gainmap_metadata_size > 0)
   {
     m_gainmap_metadata = bits.read_bytes(gainmap_metadata_size);
   }
 
-  if (m_alpha_flag && (m_alpha_item_data_size > 0))
+  if (m_alpha_flag && m_alpha_item_data_size > 0)
   {
     m_alpha_item_data_offset = bits.get_current_byte_index() + start_offset;
     bits.skip_bytes(m_alpha_item_data_size);
   }
-  if (m_alpha_flag && m_gainmap_flag && (m_gainmap_item_data_size > 0))
+  if (m_alpha_flag && m_gainmap_flag && m_gainmap_item_data_size > 0)
   {
     m_gainmap_item_data_offset = bits.get_current_byte_index() + start_offset;
-    bits.skip_bits(m_gainmap_item_data_size);
+    bits.skip_bytes(m_gainmap_item_data_size);
   }
 
   m_main_item_data_offset = bits.get_current_byte_index() + start_offset;
@@ -449,13 +479,14 @@ Error Box_mini::parse(BitstreamRange &range, const heif_security_limits *limits)
   if (m_exif_flag)
   {
     m_exif_item_data_offset = bits.get_current_byte_index() + start_offset;
-    bits.skip_bytes(m_exif_item_data_size);
+    bits.skip_bytes(m_exif_data_size);
   }
   if (m_xmp_flag)
   {
     m_xmp_item_data_offset = bits.get_current_byte_index() + start_offset;
-    bits.skip_bytes(m_xmp_item_data_size);
+    bits.skip_bytes(m_xmp_data_size);
   }
+
   return range.get_error();
 }
 
@@ -483,11 +514,11 @@ std::string Box_mini::dump(Indent &indent) const
 
   if ((m_chroma_subsampling == 1) || (m_chroma_subsampling == 2))
   {
-    sstr << indent << "chroma_is_horizontally_centered: " << m_chroma_is_horizontally_centred << "\n";
+    sstr << indent << "chroma_is_horizontally_centered: " << m_chroma_is_horizontally_centered << "\n";
   }
   if (m_chroma_subsampling == 1)
   {
-    sstr << indent << "chroma_is_vertically_centered: " << m_chroma_is_vertically_centred << "\n";
+    sstr << indent << "chroma_is_vertically_centered: " << m_chroma_is_vertically_centered << "\n";
   }
 
   sstr << "bit_depth: " << (int)m_bit_depth << "\n";
@@ -733,13 +764,434 @@ std::string Box_mini::dump(Indent &indent) const
 
   if (m_exif_flag)
   {
-    sstr << "exif_data offset: " << m_exif_item_data_offset << ", size: " << m_exif_item_data_size << "\n";
+    sstr << "exif_data offset: " << m_exif_item_data_offset << ", size: " << m_exif_data_size << "\n";
   }
   if (m_xmp_flag)
   {
-    sstr << "xmp_data offset: " << m_xmp_item_data_offset << ", size: " << m_xmp_item_data_size << "\n";
+    sstr << "xmp_data offset: " << m_xmp_item_data_offset << ", size: " << m_xmp_data_size << "\n";
   }
   return sstr.str();
+}
+
+
+static void write_cclv_to_bits(BitWriter& bits, const Box_cclv& cclv)
+{
+  bool primaries_present = cclv.ccv_primaries_are_valid();
+  bool min_lum_present = cclv.min_luminance_is_valid();
+  bool max_lum_present = cclv.max_luminance_is_valid();
+  bool avg_lum_present = cclv.avg_luminance_is_valid();
+
+  bits.write_bits(0, 2); // ccv_cancel_flag, ccv_persistence_flag
+  bits.write_flag(primaries_present);
+  bits.write_flag(min_lum_present);
+  bits.write_flag(max_lum_present);
+  bits.write_flag(avg_lum_present);
+  bits.write_bits(0, 2); // reserved
+
+  if (primaries_present) {
+    bits.write_bits32s(cclv.get_ccv_primary_x0());
+    bits.write_bits32s(cclv.get_ccv_primary_y0());
+    bits.write_bits32s(cclv.get_ccv_primary_x1());
+    bits.write_bits32s(cclv.get_ccv_primary_y1());
+    bits.write_bits32s(cclv.get_ccv_primary_x2());
+    bits.write_bits32s(cclv.get_ccv_primary_y2());
+  }
+  if (min_lum_present) {
+    bits.write_bits32(cclv.get_min_luminance(), 32);
+  }
+  if (max_lum_present) {
+    bits.write_bits32(cclv.get_max_luminance(), 32);
+  }
+  if (avg_lum_present) {
+    bits.write_bits32(cclv.get_avg_luminance(), 32);
+  }
+}
+
+
+Error Box_mini::write(StreamWriter& writer) const
+{
+  size_t box_start = reserve_box_header_space(writer);
+
+  BitWriter bits;
+
+  // --- Bit-packed header ---
+
+  // First byte: version(2) + 6 flags
+  bits.write_bits8(m_version, 2);
+  bits.write_flag(m_explicit_codec_types_flag);
+  bits.write_flag(m_float_flag);
+  bits.write_flag(m_full_range_flag);
+  bits.write_flag(m_alpha_flag);
+  bits.write_flag(m_explicit_cicp_flag);
+  bits.write_flag(m_hdr_flag);
+
+  // Second byte area: icc(1), exif(1), xmp(1), chroma_subsampling(2), orientation(3)
+  bits.write_flag(m_icc_flag);
+  bits.write_flag(m_exif_flag);
+  bits.write_flag(m_xmp_flag);
+  bits.write_bits8(m_chroma_subsampling, 2);
+  bits.write_bits8(m_orientation - 1, 3);
+
+  // Dimensions
+  bool large_dimensions_flag = (m_width > 128) || (m_height > 128);
+  bits.write_flag(large_dimensions_flag);
+  bits.write_bits32(m_width - 1, large_dimensions_flag ? 15 : 7);
+  bits.write_bits32(m_height - 1, large_dimensions_flag ? 15 : 7);
+
+  // Chroma centering
+  if (m_chroma_subsampling == 1 || m_chroma_subsampling == 2) {
+    bits.write_flag(m_chroma_is_horizontally_centered);
+  }
+  if (m_chroma_subsampling == 1) {
+    bits.write_flag(m_chroma_is_vertically_centered);
+  }
+
+  // Bit depth
+  if (m_float_flag) {
+    // bit_depth_log2 = log2(m_bit_depth), stored as (log2 - 4)
+    uint8_t bit_depth_log2;
+    switch (m_bit_depth) {
+      case 16:  bit_depth_log2 = 4; break;
+      case 32:  bit_depth_log2 = 5; break;
+      case 64:  bit_depth_log2 = 6; break;
+      case 128: bit_depth_log2 = 7; break;
+      default:  bit_depth_log2 = 4; break; // fallback
+    }
+    bits.write_bits8(bit_depth_log2 - 4, 2);
+  }
+  else {
+    bool high_bit_depth_flag = (m_bit_depth > 8);
+    bits.write_flag(high_bit_depth_flag);
+    if (high_bit_depth_flag) {
+      bits.write_bits8(m_bit_depth - 9, 3);
+    }
+  }
+
+  // Alpha premultiplied
+  if (m_alpha_flag) {
+    bits.write_flag(m_alpha_is_premultiplied);
+  }
+
+  // CICP
+  if (m_explicit_cicp_flag) {
+    bits.write_bits8(static_cast<uint8_t>(m_colour_primaries), 8);
+    bits.write_bits8(static_cast<uint8_t>(m_transfer_characteristics), 8);
+    if (m_chroma_subsampling != 0) {
+      bits.write_bits8(static_cast<uint8_t>(m_matrix_coefficients), 8);
+    }
+  }
+
+  // Explicit codec types
+  if (m_explicit_codec_types_flag) {
+    bits.write_bits32(m_infe_type, 32);
+    bits.write_bits32(m_codec_config_type, 32);
+  }
+
+  // --- HDR block ---
+  if (m_hdr_flag) {
+    bits.write_flag(m_gainmap_flag);
+
+    if (m_gainmap_flag) {
+      bits.write_bits32(m_gainmap_width - 1, large_dimensions_flag ? 15 : 7);
+      bits.write_bits32(m_gainmap_height - 1, large_dimensions_flag ? 15 : 7);
+      bits.write_bits8(m_gainmap_matrix_coefficients, 8);
+      bits.write_flag(m_gainmap_full_range_flag);
+      bits.write_bits8(m_gainmap_chroma_subsampling, 2);
+
+      if (m_gainmap_chroma_subsampling == 1 || m_gainmap_chroma_subsampling == 2) {
+        bits.write_flag(m_gainmap_chroma_is_horizontally_centred);
+      }
+      if (m_gainmap_chroma_subsampling == 1) {
+        bits.write_flag(m_gainmap_chroma_is_vertically_centred);
+      }
+
+      bits.write_flag(m_gainmap_float_flag);
+
+      if (m_gainmap_float_flag) {
+        uint8_t gm_bit_depth_log2;
+        switch (m_gainmap_bit_depth) {
+          case 16:  gm_bit_depth_log2 = 4; break;
+          case 32:  gm_bit_depth_log2 = 5; break;
+          case 64:  gm_bit_depth_log2 = 6; break;
+          case 128: gm_bit_depth_log2 = 7; break;
+          default:  gm_bit_depth_log2 = 4; break;
+        }
+        bits.write_bits8(gm_bit_depth_log2 - 4, 2);
+      }
+      else {
+        bool gainmap_high_bit_depth_flag = (m_gainmap_bit_depth > 8);
+        bits.write_flag(gainmap_high_bit_depth_flag);
+        if (gainmap_high_bit_depth_flag) {
+          bits.write_bits8(m_gainmap_bit_depth - 9, 3);
+        }
+      }
+
+      bits.write_flag(m_tmap_icc_flag);
+      bits.write_flag(m_tmap_explicit_cicp_flag);
+      if (m_tmap_explicit_cicp_flag) {
+        bits.write_bits8(static_cast<uint8_t>(m_tmap_colour_primaries), 8);
+        bits.write_bits8(static_cast<uint8_t>(m_tmap_transfer_characteristics), 8);
+        bits.write_bits8(static_cast<uint8_t>(m_tmap_matrix_coefficients), 8);
+        bits.write_flag(m_tmap_full_range_flag);
+      }
+    }
+
+    // HDR metadata flags
+    bits.write_flag(m_clli != nullptr);
+    bits.write_flag(m_mdcv != nullptr);
+    bits.write_flag(m_cclv != nullptr);
+    bits.write_flag(m_amve != nullptr);
+    bits.write_flag(m_reve_flag);
+    bits.write_flag(m_ndwt_flag);
+
+    if (m_clli) {
+      bits.write_bits16(m_clli->clli.max_content_light_level, 16);
+      bits.write_bits16(m_clli->clli.max_pic_average_light_level, 16);
+    }
+
+    if (m_mdcv) {
+      for (int c = 0; c < 3; c++) {
+        bits.write_bits16(m_mdcv->mdcv.display_primaries_x[c], 16);
+        bits.write_bits16(m_mdcv->mdcv.display_primaries_y[c], 16);
+      }
+      bits.write_bits16(m_mdcv->mdcv.white_point_x, 16);
+      bits.write_bits16(m_mdcv->mdcv.white_point_y, 16);
+      bits.write_bits32(m_mdcv->mdcv.max_display_mastering_luminance, 32);
+      bits.write_bits32(m_mdcv->mdcv.min_display_mastering_luminance, 32);
+    }
+
+    if (m_cclv) {
+      write_cclv_to_bits(bits, *m_cclv);
+    }
+
+    if (m_amve) {
+      bits.write_bits32(m_amve->amve.ambient_illumination, 32);
+      bits.write_bits16(m_amve->amve.ambient_light_x, 16);
+      bits.write_bits16(m_amve->amve.ambient_light_y, 16);
+    }
+
+    if (m_reve_flag) {
+      // TODO: ReferenceViewingEnvironment isn't published yet — write zeros
+      bits.write_bits32(0, 32);
+      bits.write_bits16(0, 16);
+      bits.write_bits16(0, 16);
+      bits.write_bits32(0, 32);
+      bits.write_bits16(0, 16);
+      bits.write_bits16(0, 16);
+    }
+
+    if (m_ndwt_flag) {
+      // TODO: NominalDiffuseWhite isn't published yet — write zero
+      bits.write_bits32(0, 32);
+    }
+
+    // Tmap HDR metadata (if gainmap)
+    if (m_gainmap_flag) {
+      bits.write_flag(m_tmap_clli != nullptr);
+      bits.write_flag(m_tmap_mdcv != nullptr);
+      bits.write_flag(m_tmap_cclv != nullptr);
+      bits.write_flag(m_tmap_amve != nullptr);
+      bits.write_flag(m_tmap_reve_flag);
+      bits.write_flag(m_tmap_ndwt_flag);
+
+      if (m_tmap_clli) {
+        bits.write_bits16(m_tmap_clli->clli.max_content_light_level, 16);
+        bits.write_bits16(m_tmap_clli->clli.max_pic_average_light_level, 16);
+      }
+
+      if (m_tmap_mdcv) {
+        for (int c = 0; c < 3; c++) {
+          bits.write_bits16(m_tmap_mdcv->mdcv.display_primaries_x[c], 16);
+          bits.write_bits16(m_tmap_mdcv->mdcv.display_primaries_y[c], 16);
+        }
+        bits.write_bits16(m_tmap_mdcv->mdcv.white_point_x, 16);
+        bits.write_bits16(m_tmap_mdcv->mdcv.white_point_y, 16);
+        bits.write_bits32(m_tmap_mdcv->mdcv.max_display_mastering_luminance, 32);
+        bits.write_bits32(m_tmap_mdcv->mdcv.min_display_mastering_luminance, 32);
+      }
+
+      if (m_tmap_cclv) {
+        write_cclv_to_bits(bits, *m_tmap_cclv);
+      }
+
+      if (m_tmap_amve) {
+        bits.write_bits32(m_tmap_amve->amve.ambient_illumination, 32);
+        bits.write_bits16(m_tmap_amve->amve.ambient_light_x, 16);
+        bits.write_bits16(m_tmap_amve->amve.ambient_light_y, 16);
+      }
+
+      if (m_tmap_reve_flag) {
+        bits.write_bits32(0, 32);
+        bits.write_bits16(0, 16);
+        bits.write_bits16(0, 16);
+        bits.write_bits32(0, 32);
+        bits.write_bits16(0, 16);
+        bits.write_bits16(0, 16);
+      }
+
+      if (m_tmap_ndwt_flag) {
+        bits.write_bits32(0, 32);
+      }
+    }
+  }
+
+  // --- Size fields ---
+
+  // Determine actual data sizes for write path
+  uint32_t icc_data_size = static_cast<uint32_t>(m_icc_data.size());
+  uint32_t tmap_icc_data_size = static_cast<uint32_t>(m_tmap_icc_data.size());
+  uint32_t gainmap_metadata_size = static_cast<uint32_t>(m_gainmap_metadata.size());
+  uint32_t main_item_data_size = static_cast<uint32_t>(m_main_item_data.size());
+  uint32_t alpha_item_data_size = static_cast<uint32_t>(m_alpha_item_data.size());
+  uint32_t gainmap_item_data_size = static_cast<uint32_t>(m_gainmap_item_data.size());
+  uint32_t exif_data_size = static_cast<uint32_t>(m_exif_data_bytes.size());
+  uint32_t xmp_data_size = static_cast<uint32_t>(m_xmp_data_bytes.size());
+
+  uint32_t main_item_codec_config_size = static_cast<uint32_t>(m_main_item_codec_config.size());
+  uint32_t alpha_item_codec_config_size = 0;
+  if (m_alpha_flag && alpha_item_data_size > 0) {
+    // If alpha codec config differs from main, we need to write it separately
+    if (m_alpha_item_codec_config != m_main_item_codec_config) {
+      alpha_item_codec_config_size = static_cast<uint32_t>(m_alpha_item_codec_config.size());
+    }
+    // else size stays 0, meaning "reuse main config"
+  }
+  uint32_t gainmap_item_codec_config_size = 0;
+  if (m_hdr_flag && m_gainmap_flag && gainmap_item_data_size > 0) {
+    if (m_gainmap_item_codec_config != m_main_item_codec_config) {
+      gainmap_item_codec_config_size = static_cast<uint32_t>(m_gainmap_item_codec_config.size());
+    }
+  }
+
+  // Compute "large" flags based on actual sizes
+  bool large_metadata_flag = false;
+  if (m_icc_flag || m_exif_flag || m_xmp_flag || (m_hdr_flag && m_gainmap_flag)) {
+    // Check if any metadata size exceeds 10-bit capacity
+    // ICC/exif/xmp store (size-1), max representable size with 10 bits = 1024
+    // gainmap_metadata/tmap_icc store raw or (size-1), same limit
+    uint32_t max_meta = 0;
+    if (m_icc_flag) max_meta = std::max(max_meta, icc_data_size);
+    if (m_exif_flag) max_meta = std::max(max_meta, exif_data_size);
+    if (m_xmp_flag) max_meta = std::max(max_meta, xmp_data_size);
+    if (m_hdr_flag && m_gainmap_flag && m_tmap_icc_flag) max_meta = std::max(max_meta, tmap_icc_data_size);
+    if (m_hdr_flag && m_gainmap_flag) max_meta = std::max(max_meta, gainmap_metadata_size + 1); // gainmap_metadata is raw, others are size-1
+    large_metadata_flag = (max_meta > 1024);
+
+    bits.write_flag(large_metadata_flag);
+  }
+
+  bool large_codec_config_flag = (main_item_codec_config_size > 7 ||
+                                  alpha_item_codec_config_size > 7 ||
+                                  gainmap_item_codec_config_size > 7);
+  bits.write_flag(large_codec_config_flag);
+
+  bool large_item_data_flag = (main_item_data_size > 32768 ||  // main stores size-1, max representable = 32768
+                               alpha_item_data_size > 32767 ||
+                               gainmap_item_data_size > 32767);
+  bits.write_flag(large_item_data_flag);
+
+  // Write size fields in parse order
+  if (m_icc_flag) {
+    bits.write_bits32(icc_data_size - 1, large_metadata_flag ? 20 : 10);
+  }
+
+  if (m_hdr_flag && m_gainmap_flag && m_tmap_icc_flag) {
+    bits.write_bits32(tmap_icc_data_size - 1, large_metadata_flag ? 20 : 10);
+  }
+
+  if (m_hdr_flag && m_gainmap_flag) {
+    bits.write_bits32(gainmap_metadata_size, large_metadata_flag ? 20 : 10);
+  }
+
+  if (m_hdr_flag && m_gainmap_flag) {
+    bits.write_bits32(gainmap_item_data_size, large_item_data_flag ? 28 : 15);
+  }
+
+  if (m_hdr_flag && m_gainmap_flag && gainmap_item_data_size > 0) {
+    bits.write_bits32(gainmap_item_codec_config_size, large_codec_config_flag ? 12 : 3);
+  }
+
+  bits.write_bits32(main_item_codec_config_size, large_codec_config_flag ? 12 : 3);
+  bits.write_bits32(main_item_data_size - 1, large_item_data_flag ? 28 : 15);
+
+  if (m_alpha_flag) {
+    bits.write_bits32(alpha_item_data_size, large_item_data_flag ? 28 : 15);
+  }
+
+  if (m_alpha_flag && alpha_item_data_size > 0) {
+    bits.write_bits32(alpha_item_codec_config_size, large_codec_config_flag ? 12 : 3);
+  }
+
+  if (m_exif_flag || m_xmp_flag) {
+    bits.write_flag(m_exif_xmp_compressed_flag);
+  }
+
+  if (m_exif_flag) {
+    bits.write_bits32(exif_data_size - 1, large_metadata_flag ? 20 : 10);
+  }
+  if (m_xmp_flag) {
+    bits.write_bits32(xmp_data_size - 1, large_metadata_flag ? 20 : 10);
+  }
+
+  // --- Byte alignment ---
+  bits.skip_to_byte_boundary();
+
+  // --- Byte-aligned data blocks ---
+
+  // Codec configs
+  if (main_item_codec_config_size > 0) {
+    bits.write_bytes(m_main_item_codec_config);
+  }
+
+  if (m_alpha_flag && alpha_item_data_size > 0) {
+    if (alpha_item_codec_config_size > 0) {
+      bits.write_bytes(m_alpha_item_codec_config);
+    }
+  }
+
+  if (m_hdr_flag && m_gainmap_flag && gainmap_item_data_size > 0) {
+    if (gainmap_item_codec_config_size > 0) {
+      bits.write_bytes(m_gainmap_item_codec_config);
+    }
+  }
+
+  // ICC and metadata
+  if (m_icc_flag) {
+    bits.write_bytes(m_icc_data);
+  }
+
+  if (m_hdr_flag && m_gainmap_flag && m_tmap_icc_flag) {
+    bits.write_bytes(m_tmap_icc_data);
+  }
+
+  if (m_hdr_flag && m_gainmap_flag && gainmap_metadata_size > 0) {
+    bits.write_bytes(m_gainmap_metadata);
+  }
+
+  // Image data (order: alpha, gainmap, main, exif, xmp)
+  if (m_alpha_flag && alpha_item_data_size > 0) {
+    bits.write_bytes(m_alpha_item_data);
+  }
+
+  if (m_hdr_flag && m_gainmap_flag && gainmap_item_data_size > 0) {
+    bits.write_bytes(m_gainmap_item_data);
+  }
+
+  bits.write_bytes(m_main_item_data);
+
+  if (m_exif_flag) {
+    bits.write_bytes(m_exif_data_bytes);
+  }
+
+  if (m_xmp_flag) {
+    bits.write_bytes(m_xmp_data_bytes);
+  }
+
+  // Flush to StreamWriter
+  writer.write(bits.get_data());
+
+  prepend_header(writer, box_start);
+  return Error::Ok;
 }
 
 
@@ -800,6 +1252,9 @@ Error Box_mini::create_expanded_boxes(class HeifFile* file)
     exif_infe_box->set_flags(1);
     exif_infe_box->set_item_ID(6);
     exif_infe_box->set_item_type_4cc(fourcc("Exif"));
+    if (m_exif_xmp_compressed_flag) {
+      exif_infe_box->set_content_encoding("deflate");
+    }
     file->add_infe_box(6, exif_infe_box);
   }
 
@@ -810,6 +1265,9 @@ Error Box_mini::create_expanded_boxes(class HeifFile* file)
     xmp_infe_box->set_item_ID(7);
     xmp_infe_box->set_item_type_4cc(fourcc("mime"));
     xmp_infe_box->set_content_type("application/rdf+xml");
+    if (m_exif_xmp_compressed_flag) {
+      xmp_infe_box->set_content_encoding("deflate");
+    }
     file->add_infe_box(7, xmp_infe_box);
   }
 
@@ -1030,4 +1488,484 @@ Error Box_mini::create_expanded_boxes(class HeifFile* file)
   }
 
   return Error::Ok;
+}
+
+
+// --- Reverse mapping: irot/imir to EXIF orientation ---
+
+static uint8_t compute_orientation_from_transforms(const Box_irot* irot, const Box_imir* imir)
+{
+  int rotation = irot ? irot->get_rotation_ccw() : 0;
+  bool has_mirror = (imir != nullptr);
+  heif_transform_mirror_direction mirror_dir = has_mirror ? imir->get_mirror_direction() : heif_transform_mirror_direction_horizontal;
+
+  // Reverse of create_expanded_boxes (mini.cc lines 955-981):
+  // orientation 1: no transform
+  // orientation 2: irot(180) only
+  // orientation 3: imir(horizontal) only
+  // orientation 4: imir(vertical) only
+  // orientation 5: irot(270) only
+  // orientation 6: irot(90) + imir(horizontal)
+  // orientation 7: irot(90) only
+  // orientation 8: irot(90) + imir(vertical)
+
+  if (!has_mirror) {
+    switch (rotation) {
+      case 0:   return 1;
+      case 180: return 2;
+      case 270: return 5;
+      case 90:  return 7;
+      default:  return 1;
+    }
+  }
+  else {
+    if (mirror_dir == heif_transform_mirror_direction_horizontal) {
+      switch (rotation) {
+        case 0:  return 3;
+        case 90: return 6;
+        default: return 1;
+      }
+    }
+    else { // vertical
+      switch (rotation) {
+        case 0:  return 4;
+        case 90: return 8;
+        default: return 1;
+      }
+    }
+  }
+}
+
+
+// --- Extract codec config as raw bytes (without box header) ---
+
+static std::vector<uint8_t> extract_codec_config_bytes(const std::shared_ptr<Box>& codec_config_box)
+{
+  if (!codec_config_box) {
+    return {};
+  }
+
+  StreamWriter temp_writer;
+  codec_config_box->write(temp_writer);
+  auto full_data = temp_writer.get_data();
+
+  // Strip the 8-byte box header (size + fourcc)
+  if (full_data.size() <= 8) {
+    return {};
+  }
+  return std::vector<uint8_t>(full_data.begin() + 8, full_data.end());
+}
+
+
+// --- Eligibility check ---
+
+bool Box_mini::can_convert_to_mini(const HeifFile* file, std::string& out_reason)
+{
+  // Must have a primary item
+  heif_item_id primary_id = file->get_primary_image_ID();
+  if (primary_id == 0) {
+    out_reason = "no primary item";
+    return false;
+  }
+
+  // Check primary item type
+  uint32_t item_type = file->get_item_type_4cc(primary_id);
+  if (item_type != fourcc("av01") && item_type != fourcc("hvc1")) {
+    out_reason = "primary item type not supported for mini (need av01 or hvc1)";
+    return false;
+  }
+
+  // Check dimensions
+  std::vector<std::shared_ptr<Box>> properties;
+  file->get_properties(primary_id, properties);
+
+  for (auto& prop : properties) {
+    if (auto ispe = std::dynamic_pointer_cast<Box_ispe>(prop)) {
+      if (ispe->get_width() > 32768 || ispe->get_height() > 32768) {
+        out_reason = "dimensions exceed mini box limits";
+        return false;
+      }
+    }
+  }
+
+  // Check that we don't have unsupported derived image types
+  auto item_ids = file->get_item_IDs();
+  heif_item_id alpha_id = 0;
+  heif_item_id exif_id = 0;
+  heif_item_id xmp_id = 0;
+
+  for (auto id : item_ids) {
+    if (id == primary_id) continue;
+
+    uint32_t type = file->get_item_type_4cc(id);
+    if (type == fourcc("grid") || type == fourcc("iovl") || type == fourcc("iden")) {
+      out_reason = "derived image items (grid/overlay/identity) not supported in mini";
+      return false;
+    }
+
+    // Check for alpha auxiliary
+    auto iref = file->get_iref_box();
+    if (iref) {
+      auto refs = iref->get_references(id, fourcc("auxl"));
+      if (!refs.empty() && refs[0] == primary_id) {
+        if (alpha_id != 0) {
+          out_reason = "multiple alpha items not supported in mini";
+          return false;
+        }
+        alpha_id = id;
+        continue;
+      }
+      auto cdsc_refs = iref->get_references(id, fourcc("cdsc"));
+      if (!cdsc_refs.empty() && cdsc_refs[0] == primary_id) {
+        if (type == fourcc("Exif")) {
+          if (exif_id != 0) {
+            out_reason = "multiple EXIF items not supported in mini";
+            return false;
+          }
+          exif_id = id;
+          continue;
+        }
+        if (type == fourcc("mime")) {
+          auto infe = file->get_infe_box(id);
+          if (infe && infe->get_content_type() == "application/rdf+xml") {
+            if (xmp_id != 0) {
+              out_reason = "multiple XMP items not supported in mini";
+              return false;
+            }
+            xmp_id = id;
+            continue;
+          }
+          else {
+            out_reason = "unsupported mime item type for mini: " + (infe ? infe->get_content_type() : "unknown");
+            return false;
+          }
+        }
+      }
+    }
+
+    // If it's a hidden item or an item type we know about, skip it.
+    // Otherwise, it's unsupported for mini.
+    auto infe = file->get_infe_box(id);
+    if (infe && !infe->is_hidden_item() && type != item_type) {
+      out_reason = "unsupported additional item type for mini: " + fourcc_to_string(type);
+      return false;
+    }
+  }
+
+  // The mini box has a single compressed flag for both EXIF and XMP.
+  // If both are present, they must use the same compression method.
+  if (exif_id != 0 && xmp_id != 0) {
+    auto exif_infe = file->get_infe_box(exif_id);
+    auto xmp_infe = file->get_infe_box(xmp_id);
+    bool exif_compressed = (exif_infe && exif_infe->get_content_encoding() == "deflate");
+    bool xmp_compressed = (xmp_infe && xmp_infe->get_content_encoding() == "deflate");
+    if (exif_compressed != xmp_compressed) {
+      out_reason = "EXIF and XMP have different compression methods";
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+// --- Meta-to-Mini conversion ---
+
+std::shared_ptr<Box_mini> Box_mini::create_from_heif_file(HeifFile* file)
+{
+  std::string reason;
+  if (!can_convert_to_mini(file, reason)) {
+    return nullptr;
+  }
+
+  auto mini = std::make_shared<Box_mini>();
+  mini->set_version(0);
+
+  heif_item_id primary_id = file->get_primary_image_ID();
+  uint32_t item_type = file->get_item_type_4cc(primary_id);
+
+  bool is_avif = (item_type == fourcc("av01"));
+
+  // For av01/hvc1 the codec is identified via the ftyp minor version brand,
+  // so we don't need explicit codec type fields in the mini bitstream.
+  mini->set_explicit_codec_types_flag(false);
+
+  // Get properties for primary item
+  std::vector<std::shared_ptr<Box>> properties;
+  file->get_properties(primary_id, properties);
+
+  // Extract properties
+  std::shared_ptr<Box_ispe> ispe;
+  std::shared_ptr<Box_pixi> pixi;
+  std::shared_ptr<Box_colr> colr_nclx;
+  std::shared_ptr<Box_colr> colr_icc;
+  std::shared_ptr<Box_irot> irot;
+  std::shared_ptr<Box_imir> imir;
+  std::shared_ptr<Box> codec_config;
+
+  for (auto& prop : properties) {
+    if (auto p = std::dynamic_pointer_cast<Box_ispe>(prop)) {
+      ispe = p;
+    }
+    else if (auto p = std::dynamic_pointer_cast<Box_pixi>(prop)) {
+      pixi = p;
+    }
+    else if (auto p = std::dynamic_pointer_cast<Box_colr>(prop)) {
+      if (p->get_color_profile_type() == fourcc("nclx")) {
+        colr_nclx = p;
+      }
+      else {
+        colr_icc = p;
+      }
+    }
+    else if (auto p = std::dynamic_pointer_cast<Box_irot>(prop)) {
+      irot = p;
+    }
+    else if (auto p = std::dynamic_pointer_cast<Box_imir>(prop)) {
+      imir = p;
+    }
+    else if (std::dynamic_pointer_cast<Box_av1C>(prop) || std::dynamic_pointer_cast<Box_hvcC>(prop)) {
+      codec_config = prop;
+    }
+  }
+
+  // Dimensions
+  if (ispe) {
+    mini->set_width(ispe->get_width());
+    mini->set_height(ispe->get_height());
+  }
+
+  // Bit depth
+  if (pixi && pixi->get_num_channels() > 0) {
+    mini->set_bit_depth(static_cast<uint8_t>(pixi->get_bits_per_channel(0)));
+  }
+  mini->set_float_flag(false); // TODO: detect float from codec config
+
+  // CICP / color
+  bool has_icc = (colr_icc != nullptr);
+  mini->set_icc_flag(has_icc);
+
+  if (has_icc) {
+    auto raw_profile = std::dynamic_pointer_cast<const color_profile_raw>(colr_icc->get_color_profile());
+    if (raw_profile) {
+      mini->set_icc_data(raw_profile->get_data());
+    }
+  }
+
+  if (colr_nclx) {
+    auto nclx = std::dynamic_pointer_cast<const color_profile_nclx>(colr_nclx->get_color_profile());
+    if (nclx) {
+      auto profile = nclx->get_nclx_color_profile();
+      mini->set_colour_primaries(profile.m_colour_primaries);
+      mini->set_transfer_characteristics(profile.m_transfer_characteristics);
+      mini->set_matrix_coefficients(profile.m_matrix_coefficients);
+      mini->set_full_range_flag(profile.m_full_range_flag);
+    }
+  }
+
+  // Determine chroma subsampling from codec config
+  // mini chroma_subsampling values: 0=monochrome, 1=4:2:0, 2=4:2:2, 3=4:4:4
+  uint8_t chroma_sub = 0;
+  if (is_avif) {
+    auto av1c = std::dynamic_pointer_cast<Box_av1C>(codec_config);
+    if (av1c) {
+      auto& config = av1c->get_configuration();
+      if (config.chroma_subsampling_x == 1 && config.chroma_subsampling_y == 1) {
+        chroma_sub = 1; // 4:2:0
+      }
+      else if (config.chroma_subsampling_x == 1 && config.chroma_subsampling_y == 0) {
+        chroma_sub = 2; // 4:2:2
+      }
+      else if (config.chroma_subsampling_x == 0 && config.chroma_subsampling_y == 0) {
+        if (config.monochrome) {
+          chroma_sub = 0;
+        }
+        else {
+          chroma_sub = 3; // 4:4:4
+        }
+      }
+    }
+  }
+  else if (item_type == fourcc("hvc1")) {
+    auto hvcc = std::dynamic_pointer_cast<Box_hvcC>(codec_config);
+    if (hvcc) {
+      // HEVC chroma_format uses the same values as mini chroma_subsampling
+      chroma_sub = hvcc->get_configuration().chroma_format;
+    }
+  }
+  mini->set_chroma_subsampling(chroma_sub);
+
+  // Determine if explicit CICP is needed (vs implicit defaults)
+  bool need_explicit_cicp = true;
+  uint16_t default_primaries = has_icc ? 2 : 1;
+  uint16_t default_transfer = has_icc ? 2 : 13;
+  uint16_t default_matrix = (chroma_sub == 0) ? 2 : 6;
+
+  if (colr_nclx) {
+    auto nclx = std::dynamic_pointer_cast<const color_profile_nclx>(colr_nclx->get_color_profile());
+    if (nclx) {
+      auto profile = nclx->get_nclx_color_profile();
+      if (profile.m_colour_primaries == default_primaries &&
+          profile.m_transfer_characteristics == default_transfer &&
+          profile.m_matrix_coefficients == default_matrix) {
+        need_explicit_cicp = false;
+      }
+    }
+  }
+  else {
+    // No NCLX profile, use defaults
+    mini->set_colour_primaries(default_primaries);
+    mini->set_transfer_characteristics(default_transfer);
+    mini->set_matrix_coefficients(default_matrix);
+    need_explicit_cicp = false;
+  }
+  mini->set_explicit_cicp_flag(need_explicit_cicp);
+
+  // Orientation
+  uint8_t orientation = compute_orientation_from_transforms(irot.get(), imir.get());
+  mini->set_orientation(orientation);
+
+  // Codec config
+  auto config_bytes = extract_codec_config_bytes(codec_config);
+  mini->set_main_item_codec_config(config_bytes);
+
+  // Find alpha, exif, xmp items
+  heif_item_id alpha_id = 0;
+  heif_item_id exif_id = 0;
+  heif_item_id xmp_id = 0;
+
+  auto item_ids = file->get_item_IDs();
+  auto iref = file->get_iref_box();
+
+  for (auto id : item_ids) {
+    if (id == primary_id) continue;
+    if (!iref) continue;
+
+    auto auxl_refs = iref->get_references(id, fourcc("auxl"));
+    if (!auxl_refs.empty() && auxl_refs[0] == primary_id) {
+      alpha_id = id;
+      continue;
+    }
+
+    auto cdsc_refs = iref->get_references(id, fourcc("cdsc"));
+    if (!cdsc_refs.empty() && cdsc_refs[0] == primary_id) {
+      uint32_t type = file->get_item_type_4cc(id);
+      if (type == fourcc("Exif")) {
+        exif_id = id;
+      }
+      else if (type == fourcc("mime")) {
+        auto infe = file->get_infe_box(id);
+        if (infe && infe->get_content_type() == "application/rdf+xml") {
+          xmp_id = id;
+        }
+      }
+    }
+  }
+
+  // Alpha
+  mini->set_alpha_flag(alpha_id != 0);
+  if (alpha_id != 0) {
+    mini->set_alpha_is_premultiplied(false); // TODO: detect from auxC
+
+    // Alpha codec config
+    std::vector<std::shared_ptr<Box>> alpha_props;
+    file->get_properties(alpha_id, alpha_props);
+    for (auto& prop : alpha_props) {
+      if (std::dynamic_pointer_cast<Box_av1C>(prop) || std::dynamic_pointer_cast<Box_hvcC>(prop)) {
+        auto alpha_config_bytes = extract_codec_config_bytes(prop);
+        mini->set_alpha_item_codec_config(alpha_config_bytes);
+        break;
+      }
+    }
+
+    // Alpha item data from iloc
+    auto iloc = file->get_iloc_box();
+    if (iloc) {
+      for (auto& item : iloc->get_items()) {
+        if (item.item_ID == alpha_id) {
+          std::vector<uint8_t> data;
+          for (auto& extent : item.extents) {
+            data.insert(data.end(), extent.data.begin(), extent.data.end());
+          }
+          mini->set_alpha_item_data(std::move(data));
+          break;
+        }
+      }
+    }
+  }
+
+  // EXIF and XMP share a single compressed flag in the mini box.
+  // Determine it from whichever item is present (can_convert_to_mini already
+  // verified they agree when both exist).
+  mini->set_exif_flag(exif_id != 0);
+  mini->set_xmp_flag(xmp_id != 0);
+
+  bool metadata_compressed = false;
+  if (exif_id != 0) {
+    auto infe = file->get_infe_box(exif_id);
+    if (infe && infe->get_content_encoding() == "deflate") {
+      metadata_compressed = true;
+    }
+  }
+  if (xmp_id != 0) {
+    auto infe = file->get_infe_box(xmp_id);
+    if (infe && infe->get_content_encoding() == "deflate") {
+      metadata_compressed = true;
+    }
+  }
+  mini->set_exif_xmp_compressed_flag(metadata_compressed);
+
+  if (exif_id != 0) {
+    auto iloc = file->get_iloc_box();
+    if (iloc) {
+      for (auto& item : iloc->get_items()) {
+        if (item.item_ID == exif_id) {
+          std::vector<uint8_t> data;
+          for (auto& extent : item.extents) {
+            data.insert(data.end(), extent.data.begin(), extent.data.end());
+          }
+          mini->set_exif_data(std::move(data));
+          break;
+        }
+      }
+    }
+  }
+
+  if (xmp_id != 0) {
+    auto iloc = file->get_iloc_box();
+    if (iloc) {
+      for (auto& item : iloc->get_items()) {
+        if (item.item_ID == xmp_id) {
+          std::vector<uint8_t> data;
+          for (auto& extent : item.extents) {
+            data.insert(data.end(), extent.data.begin(), extent.data.end());
+          }
+          mini->set_xmp_data(std::move(data));
+          break;
+        }
+      }
+    }
+  }
+
+  // Main item data from iloc
+  {
+    auto iloc = file->get_iloc_box();
+    if (iloc) {
+      for (auto& item : iloc->get_items()) {
+        if (item.item_ID == primary_id) {
+          std::vector<uint8_t> data;
+          for (auto& extent : item.extents) {
+            data.insert(data.end(), extent.data.begin(), extent.data.end());
+          }
+          mini->set_main_item_data(std::move(data));
+          break;
+        }
+      }
+    }
+  }
+
+  // HDR / gainmap: not yet implemented for conversion
+  mini->set_hdr_flag(false);
+
+  return mini;
 }

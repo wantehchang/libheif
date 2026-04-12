@@ -123,6 +123,9 @@ bool force_enc_htj2k = false;
 bool use_tiling = false;
 bool encode_sequence = false;
 bool option_unif = false;
+#if ENABLE_EXPERIMENTAL_MINI_FORMAT
+bool option_mini = false;
+#endif
 bool use_video_handler = false;
 bool option_component_content_ids = false;
 heif_orientation transform = heif_orientation_normal;
@@ -238,6 +241,9 @@ const int OPTION_RAW = 1045;
 const int OPTION_DO_ROTATE = 1046;
 const int OPTION_DO_FLIP_H = 1047;
 const int OPTION_DO_FLIP_V = 1048;
+#if ENABLE_EXPERIMENTAL_MINI_FORMAT
+const int OPTION_MINI = 1049;
+#endif
 
 
 #if HEIF_ENABLE_EXPERIMENTAL_FEATURES
@@ -422,6 +428,9 @@ static option long_options[] = {
 #endif
     {(char* const) "add-compatible-brand",        required_argument,       nullptr, OPTION_ADD_COMPATIBLE_BRAND},
     {(char* const) "unif",                      no_argument,             nullptr, OPTION_UNIF},
+#if ENABLE_EXPERIMENTAL_MINI_FORMAT
+    {(char* const) "mini",                      no_argument,             nullptr, OPTION_MINI},
+#endif
     {(char* const) "raw",                    no_argument,             nullptr, OPTION_RAW},
     {(char* const) "raw-width",               required_argument,       nullptr, OPTION_RAW_WIDTH},
     {(char* const) "raw-height",              required_argument,       nullptr, OPTION_RAW_HEIGHT},
@@ -488,6 +497,9 @@ void show_help(const char* argv0)
 #endif
             << "      --add-compatible-brand BRAND  add a compatible brand to the output file (4 characters)\n"
             << "      --unif                        use unified ID namespace (adds 'unif' compatible brand)\n"
+#if ENABLE_EXPERIMENTAL_MINI_FORMAT
+            << "      --mini                        use compact 'mini' box format (experimental)\n"
+#endif
             << "\n"
             << "codecs:\n"
             << "  -A, --avif                     encode as AVIF (not needed if output filename with .avif suffix is provided)\n"
@@ -1866,6 +1878,11 @@ int main(int argc, char** argv)
       case OPTION_UNIF:
         option_unif = true;
         break;
+#if ENABLE_EXPERIMENTAL_MINI_FORMAT
+      case OPTION_MINI:
+        option_mini = true;
+        break;
+#endif
       case OPTION_RAW:
         force_raw_input = true;
         break;
@@ -1986,6 +2003,12 @@ int main(int argc, char** argv)
   if (option_unif) {
     heif_context_set_unif(context.get(), 1);
   }
+
+#if ENABLE_EXPERIMENTAL_MINI_FORMAT
+  if (option_mini) {
+    heif_context_set_write_mini_format(context.get(), 1);
+  }
+#endif
 
 
 #define MAX_ENCODERS 10

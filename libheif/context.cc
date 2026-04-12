@@ -467,6 +467,14 @@ std::string HeifContext::debug_dump_boxes() const
 }
 
 
+#if ENABLE_EXPERIMENTAL_MINI_FORMAT
+void HeifContext::set_write_mini_format(bool enable)
+{
+  m_heif_file->set_write_mini_format(enable);
+}
+#endif
+
+
 static bool item_type_is_image(uint32_t item_type, const std::string& content_type)
 {
   return (item_type == fourcc("hvc1") ||

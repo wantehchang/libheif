@@ -245,6 +245,14 @@ static heif_error heif_file_writer_write(heif_context* ctx,
 }
 
 
+void heif_context_set_write_mini_format(heif_context* ctx, int enable)
+{
+#if ENABLE_EXPERIMENTAL_MINI_FORMAT
+  ctx->context->set_write_mini_format(enable != 0);
+#endif
+}
+
+
 heif_error heif_context_write_to_file(heif_context* ctx,
                                       const char* filename)
 {
