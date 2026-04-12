@@ -26,6 +26,7 @@
 #include "api_structs.h"
 #include "context.h"
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <vector>
 #include <utility>
@@ -705,7 +706,11 @@ heif_error heif_region_item_add_region_inline_mask(heif_region_item* item,
   region->y = y0;
   region->width = width;
   region->height = height;
-  region->mask_data.resize((width * height + 7) / 8);
+  uint64_t mask_size = (static_cast<uint64_t>(width) * height + 7) / 8;
+  if (mask_size > std::numeric_limits<size_t>::max()) {
+    return {heif_error_Memory_allocation_error, heif_suberror_Security_limit_exceeded, "Inline mask size overflow"};
+  }
+  region->mask_data.resize(static_cast<size_t>(mask_size));
   memset(region->mask_data.data(), 0, region->mask_data.size());
 
   uint32_t mask_height = mask_image->image->get_height();

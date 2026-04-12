@@ -616,6 +616,12 @@ Error HeifPixelImage::ImageComponent::alloc(uint32_t width, uint32_t height, hei
             "Invalid image size"};
   }
 
+  if (width == std::numeric_limits<uint32_t>::max() || height == std::numeric_limits<uint32_t>::max()) {
+    return {heif_error_Memory_allocation_error,
+            heif_suberror_Security_limit_exceeded,
+            "Image size too large for memory alignment"};
+  }
+
   // use 16 byte alignment (enough for 128 bit data-types). Every row is an integer number of data-elements.
   uint16_t alignment = 16; // must be power of two
 
@@ -634,8 +640,14 @@ Error HeifPixelImage::ImageComponent::alloc(uint32_t width, uint32_t height, hei
 
   int bytes_per_pixel = get_bytes_per_pixel();
 
-  stride = m_mem_width * bytes_per_pixel;
-  stride = (stride + alignment - 1U) & ~(alignment - 1U);
+  uint64_t stride_64 = static_cast<uint64_t>(m_mem_width) * bytes_per_pixel;
+  stride_64 = (stride_64 + alignment - 1U) & ~static_cast<uint64_t>(alignment - 1U);
+  if (stride_64 > std::numeric_limits<size_t>::max()) {
+    return {heif_error_Memory_allocation_error,
+            heif_suberror_Security_limit_exceeded,
+            "Image stride overflow"};
+  }
+  stride = static_cast<size_t>(stride_64);
 
   assert(alignment>=1);
 

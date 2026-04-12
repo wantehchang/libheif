@@ -95,7 +95,7 @@ unc_encoder_rgb_bytealign_pixel_interleave::unc_encoder_rgb_bytealign_pixel_inte
 
 uint64_t unc_encoder_rgb_bytealign_pixel_interleave::compute_tile_data_size_bytes(uint32_t tile_width, uint32_t tile_height) const
 {
-  return tile_width * tile_height * m_bytes_per_pixel;
+  return static_cast<uint64_t>(tile_width) * tile_height * m_bytes_per_pixel;
 }
 
 
