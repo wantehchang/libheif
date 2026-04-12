@@ -40,9 +40,9 @@ public:
 private:
   struct channel_component
   {
-    uint32_t component_idx;
+    uint32_t component_id;
     heif_channel channel;
-    heif_uncompressed_component_type component_type;
+    heif_unci_component_type component_type;
     heif_uncompressed_component_format component_format;
     uint16_t bpp;
     bool byte_aligned;

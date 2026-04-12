@@ -38,39 +38,39 @@ static struct heif_error heif_error_ok = {heif_error_Ok, heif_suberror_Unspecifi
 
 
 bool parse_raw_pixel_type(const std::string& type_string,
-                          heif_channel_datatype* out_datatype,
+                          heif_component_datatype* out_datatype,
                           int* out_bit_depth)
 {
   if (type_string == "uint8") {
-    *out_datatype = heif_channel_datatype_unsigned_integer;
+    *out_datatype = heif_component_datatype_unsigned_integer;
     *out_bit_depth = 8;
   }
   else if (type_string == "sint8") {
-    *out_datatype = heif_channel_datatype_signed_integer;
+    *out_datatype = heif_component_datatype_signed_integer;
     *out_bit_depth = 8;
   }
   else if (type_string == "uint16") {
-    *out_datatype = heif_channel_datatype_unsigned_integer;
+    *out_datatype = heif_component_datatype_unsigned_integer;
     *out_bit_depth = 16;
   }
   else if (type_string == "sint16") {
-    *out_datatype = heif_channel_datatype_signed_integer;
+    *out_datatype = heif_component_datatype_signed_integer;
     *out_bit_depth = 16;
   }
   else if (type_string == "uint32") {
-    *out_datatype = heif_channel_datatype_unsigned_integer;
+    *out_datatype = heif_component_datatype_unsigned_integer;
     *out_bit_depth = 32;
   }
   else if (type_string == "sint32") {
-    *out_datatype = heif_channel_datatype_signed_integer;
+    *out_datatype = heif_component_datatype_signed_integer;
     *out_bit_depth = 32;
   }
   else if (type_string == "float32") {
-    *out_datatype = heif_channel_datatype_floating_point;
+    *out_datatype = heif_component_datatype_floating_point;
     *out_bit_depth = 32;
   }
   else if (type_string == "float64") {
-    *out_datatype = heif_channel_datatype_floating_point;
+    *out_datatype = heif_component_datatype_floating_point;
     *out_bit_depth = 64;
   }
   else {
@@ -103,7 +103,7 @@ heif_error loadRAW(const char* filename, const RawImageParameters& params, Input
             "At least one of --raw-width or --raw-height must be specified"};
   }
 
-  if (params.datatype == heif_channel_datatype_undefined || params.bit_depth <= 0) {
+  if (params.datatype == heif_component_datatype_undefined || params.bit_depth <= 0) {
     return {heif_error_Invalid_input, heif_suberror_Unspecified,
             "Raw image pixel type must be specified (use --raw-type)"};
   }
@@ -187,7 +187,7 @@ heif_error loadRAW(const char* filename, const RawImageParameters& params, Input
 
   uint32_t component_idx = 0;
   err = heif_image_add_component(image, width, height,
-                                 heif_uncompressed_component_type_monochrome,
+                                 heif_unci_component_type_monochrome,
                                  params.datatype, params.bit_depth,
                                  &component_idx);
   if (err.code != heif_error_Ok) {

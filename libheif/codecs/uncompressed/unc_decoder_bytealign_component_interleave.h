@@ -31,7 +31,8 @@ class unc_decoder_bytealign_component_interleave : public unc_decoder
 public:
   unc_decoder_bytealign_component_interleave(uint32_t width, uint32_t height,
                                               std::shared_ptr<const Box_cmpd> cmpd,
-                                              std::shared_ptr<const Box_uncC> uncC);
+                                              std::shared_ptr<const Box_uncC> uncC,
+                                              const std::vector<uint32_t>& uncC_index_to_comp_ids);
 
   std::vector<uint64_t> get_tile_data_sizes() const override;
 
@@ -49,7 +50,8 @@ private:
   std::unique_ptr<unc_decoder> create(
       uint32_t width, uint32_t height,
       const std::shared_ptr<const Box_cmpd>& cmpd,
-      const std::shared_ptr<const Box_uncC>& uncC) const override;
+      const std::shared_ptr<const Box_uncC>& uncC,
+      const std::vector<uint32_t>& uncC_index_to_comp_ids) const override;
 };
 
 #endif // LIBHEIF_UNC_DECODER_BYTEALIGN_COMPONENT_INTERLEAVE_H

@@ -241,7 +241,7 @@ const int8_t* get_component_ptr_readonly<int8_t>(const heif_image* image, uint32
 
 
 template <typename T>
-static heif_image* create_and_fill_image(heif_channel_datatype datatype, int bit_depth)
+static heif_image* create_and_fill_image(heif_component_datatype datatype, int bit_depth)
 {
   heif_image* image = nullptr;
   heif_error err;
@@ -252,20 +252,20 @@ static heif_image* create_and_fill_image(heif_channel_datatype datatype, int bit
   REQUIRE(image != nullptr);
 
   for (uint32_t c = 0; c < kNumComponents; c++) {
-    uint32_t idx = 0;
+    uint32_t id = 0;
     err = heif_image_add_component(image, kWidth, kHeight,
-                                   kMonoComponentType, datatype, bit_depth, &idx);
+                                   kMonoComponentType, datatype, bit_depth, &id);
     REQUIRE(err.code == heif_error_Ok);
-    REQUIRE(idx == c);
+    //REQUIRE(idx == c);
 
     size_t stride = 0;
-    T* data = get_component_ptr<T>(image, idx, &stride);
+    T* data = get_component_ptr<T>(image, id, &stride);
     REQUIRE(data != nullptr);
     REQUIRE(stride >= kWidth);
 
     for (uint32_t y = 0; y < kHeight; y++) {
       for (uint32_t x = 0; x < kWidth; x++) {
-        data[y * stride + x] = compute_fill_value<T>(c, y, x);
+        data[y * stride + x] = compute_fill_value<T>(id, y, x);
       }
     }
   }
@@ -311,7 +311,10 @@ static void verify_image_data(const heif_image* image)
   uint32_t num_components = heif_image_get_number_of_used_components(image);
   REQUIRE(num_components == kNumComponents);
 
-  for (uint32_t c = 0; c < kNumComponents; c++) {
+  std::vector<uint32_t> components(num_components);
+  heif_image_get_used_component_ids(image, components.data());
+
+  for (uint32_t c : components) {
     REQUIRE(heif_image_get_component_width(image, c) == kWidth);
     REQUIRE(heif_image_get_component_height(image, c) == kHeight);
     REQUIRE(heif_image_get_component_type(image, c) == kMonoComponentType);
@@ -332,7 +335,7 @@ static void verify_image_data(const heif_image* image)
 
 
 template <typename T>
-static void test_multi_mono(heif_channel_datatype datatype, int bit_depth, const char* output_filename)
+static void test_multi_mono(heif_component_datatype datatype, int bit_depth, const char* output_filename)
 {
   heif_image* image = create_and_fill_image<T>(datatype, bit_depth);
 
@@ -380,57 +383,57 @@ static void test_multi_mono(heif_channel_datatype datatype, int bit_depth, const
 
 TEST_CASE("Multi-mono uint8")
 {
-  test_multi_mono<uint8_t>(heif_channel_datatype_unsigned_integer, 8, "multi_mono_uint8.heif");
+  test_multi_mono<uint8_t>(heif_component_datatype_unsigned_integer, 8, "multi_mono_uint8.heif");
 }
 
 TEST_CASE("Multi-mono uint16")
 {
-  test_multi_mono<uint16_t>(heif_channel_datatype_unsigned_integer, 16, "multi_mono_uint16.heif");
+  test_multi_mono<uint16_t>(heif_component_datatype_unsigned_integer, 16, "multi_mono_uint16.heif");
 }
 
 TEST_CASE("Multi-mono uint12")
 {
-  test_multi_mono<uint16_t>(heif_channel_datatype_unsigned_integer, 12, "multi_mono_uint12.heif");
+  test_multi_mono<uint16_t>(heif_component_datatype_unsigned_integer, 12, "multi_mono_uint12.heif");
 }
 
 TEST_CASE("Multi-mono uint32")
 {
-  test_multi_mono<uint32_t>(heif_channel_datatype_unsigned_integer, 32, "multi_mono_uint32.heif");
+  test_multi_mono<uint32_t>(heif_component_datatype_unsigned_integer, 32, "multi_mono_uint32.heif");
 }
 
 TEST_CASE("Multi-mono int8")
 {
-  test_multi_mono<int8_t>(heif_channel_datatype_signed_integer, 8, "multi_mono_int8.heif");
+  test_multi_mono<int8_t>(heif_component_datatype_signed_integer, 8, "multi_mono_int8.heif");
 }
 
 TEST_CASE("Multi-mono int16")
 {
-  test_multi_mono<int16_t>(heif_channel_datatype_signed_integer, 16, "multi_mono_int16.heif");
+  test_multi_mono<int16_t>(heif_component_datatype_signed_integer, 16, "multi_mono_int16.heif");
 }
 
 TEST_CASE("Multi-mono int32")
 {
-  test_multi_mono<int32_t>(heif_channel_datatype_signed_integer, 32, "multi_mono_int32.heif");
+  test_multi_mono<int32_t>(heif_component_datatype_signed_integer, 32, "multi_mono_int32.heif");
 }
 
 TEST_CASE("Multi-mono float32")
 {
-  test_multi_mono<float>(heif_channel_datatype_floating_point, 32, "multi_mono_float32.heif");
+  test_multi_mono<float>(heif_component_datatype_floating_point, 32, "multi_mono_float32.heif");
 }
 
 TEST_CASE("Multi-mono float64")
 {
-  test_multi_mono<double>(heif_channel_datatype_floating_point, 64, "multi_mono_float64.heif");
+  test_multi_mono<double>(heif_component_datatype_floating_point, 64, "multi_mono_float64.heif");
 }
 
 TEST_CASE("Multi-mono complex32")
 {
-  test_multi_mono<heif_complex32>(heif_channel_datatype_complex_number, 64, "multi_mono_complex32.heif");
+  test_multi_mono<heif_complex32>(heif_component_datatype_complex_number, 64, "multi_mono_complex32.heif");
 }
 
 TEST_CASE("Multi-mono complex64")
 {
-  test_multi_mono<heif_complex64>(heif_channel_datatype_complex_number, 128, "multi_mono_complex64.heif");
+  test_multi_mono<heif_complex64>(heif_component_datatype_complex_number, 128, "multi_mono_complex64.heif");
 }
 
 
@@ -455,13 +458,13 @@ TEST_CASE("Mixed bpp: 16-bit and 14-bit components")
   // Add 16-bit component (byte-aligned)
   uint32_t idx0 = 0;
   err = heif_image_add_component(image, kW, kH, kMonoComponentType,
-                                 heif_channel_datatype_unsigned_integer, kBpp16, &idx0);
+                                 heif_component_datatype_unsigned_integer, kBpp16, &idx0);
   REQUIRE(err.code == heif_error_Ok);
 
   // Add 14-bit component (non-byte-aligned)
   uint32_t idx1 = 0;
   err = heif_image_add_component(image, kW, kH, kMonoComponentType,
-                                 heif_channel_datatype_unsigned_integer, kBpp14, &idx1);
+                                 heif_component_datatype_unsigned_integer, kBpp14, &idx1);
   REQUIRE(err.code == heif_error_Ok);
 
   // Fill 16-bit component

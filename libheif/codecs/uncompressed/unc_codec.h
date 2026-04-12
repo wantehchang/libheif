@@ -83,10 +83,10 @@ public:
                                             heif_colorspace* out_colourspace,
                                             bool* out_has_alpha);
 
-  static Result<std::shared_ptr<HeifPixelImage>> create_image(std::shared_ptr<const Box_cmpd>,
-                                                              std::shared_ptr<const Box_uncC>,
+  static Result<std::shared_ptr<HeifPixelImage>> create_image(const unci_properties& properties,
                                                               uint32_t width,
                                                               uint32_t height,
+                                                              std::vector<uint32_t>& uncC_index_to_comp_ids,
                                                               const heif_security_limits* limits);
 
   static Error check_header_validity(std::optional<const std::shared_ptr<const Box_ispe>>,

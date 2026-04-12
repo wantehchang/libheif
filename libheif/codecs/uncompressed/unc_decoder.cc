@@ -39,30 +39,17 @@
 #include <string>
 
 
-static Error validate_component_indices(const std::vector<uint32_t>& indices,
-                                        size_t cmpd_size,
-                                        const char* box_name)
-{
-  for (uint32_t idx : indices) {
-    if (idx >= cmpd_size) {
-      return {heif_error_Invalid_input,
-              heif_suberror_Invalid_parameter_value,
-              std::string(box_name) + " component index out of range of cmpd table"};
-    }
-  }
-  return Error::Ok;
-}
-
-
 // --- unc_decoder ---
 
 unc_decoder::unc_decoder(uint32_t width, uint32_t height,
                          const std::shared_ptr<const Box_cmpd>& cmpd,
-                         const std::shared_ptr<const Box_uncC>& uncC)
+                         const std::shared_ptr<const Box_uncC>& uncC,
+                         const std::vector<uint32_t>& uncC_index_to_comp_ids)
   : m_width(width),
     m_height(height),
     m_cmpd(cmpd),
-    m_uncC(uncC)
+    m_uncC(uncC),
+    m_uncC_index_to_comp_ids(uncC_index_to_comp_ids)
 {
   m_tile_height = m_height / m_uncC->get_number_of_tile_rows();
   m_tile_width = m_width / m_uncC->get_number_of_tile_columns();
@@ -425,7 +412,9 @@ Error check_hard_limits(const std::shared_ptr<const Box_uncC>& uncC)
 Result<std::unique_ptr<unc_decoder> > unc_decoder_factory::get_unc_decoder(
   uint32_t width, uint32_t height,
   const std::shared_ptr<const Box_cmpd>& cmpd,
-  const std::shared_ptr<const Box_uncC>& uncC)
+  const std::shared_ptr<const Box_uncC>& uncC,
+  const std::vector<uint32_t>& uncC_index_to_comp_ids
+)
 {
   static unc_decoder_factory_component_interleave dec_component;
   static unc_decoder_factory_bytealign_component_interleave dec_bytealign_component;
@@ -441,7 +430,7 @@ Result<std::unique_ptr<unc_decoder> > unc_decoder_factory::get_unc_decoder(
 
   for (const unc_decoder_factory* dec : decoders) {
     if (dec->can_decode(uncC)) {
-      return {dec->create(width, height, cmpd, uncC)};
+      return {dec->create(width, height, cmpd, uncC, uncC_index_to_comp_ids)};
     }
   }
 
@@ -471,60 +460,17 @@ Result<std::shared_ptr<HeifPixelImage> > unc_decoder::decode_full_image(
     return {global_limit_error};
   }
 
-  Result<std::shared_ptr<HeifPixelImage> > createImgResult = UncompressedImageCodec::create_image(cmpd, uncC, width, height, limits);
+  std::vector<uint32_t> uncC_index_to_comp_ids;
+
+  Result<std::shared_ptr<HeifPixelImage> > createImgResult = UncompressedImageCodec::create_image(properties, width, height, uncC_index_to_comp_ids, limits);
   if (!createImgResult) {
     return createImgResult.error();
   }
 
   auto img = *createImgResult;
 
-  size_t cmpd_size = cmpd ? cmpd->get_components().size() : 0;
 
-  if (properties.cpat) {
-    const auto& pattern = properties.cpat->get_pattern();
-    std::vector<uint32_t> cpat_indices;
-    for (const auto& pixel : pattern.pixels) {
-      cpat_indices.push_back(pixel.component_index);
-    }
-    Error err = validate_component_indices(cpat_indices, cmpd_size, "cpat");
-    if (err) {
-      return err;
-    }
-    img->set_bayer_pattern(pattern);
-  }
-
-  for (const auto& splz_box : properties.splz) {
-    const auto& pattern = splz_box->get_pattern();
-    Error err = validate_component_indices(pattern.component_indices, cmpd_size, "splz");
-    if (err) {
-      return err;
-    }
-    img->add_polarization_pattern(pattern);
-  }
-
-  for (const auto& sbpm_box : properties.sbpm) {
-    const auto& bad_pixels_map = sbpm_box->get_bad_pixels_map();
-    Error err = validate_component_indices(bad_pixels_map.component_indices, cmpd_size, "sbpm");
-    if (err) {
-      return err;
-    }
-    img->add_sensor_bad_pixels_map(bad_pixels_map);
-  }
-
-  for (const auto& snuc_box : properties.snuc) {
-    const auto& nuc = snuc_box->get_nuc();
-    Error err = validate_component_indices(nuc.component_indices, cmpd_size, "snuc");
-    if (err) {
-      return err;
-    }
-    img->add_sensor_nuc(nuc);
-  }
-
-  if (properties.cloc) {
-    img->set_chroma_location(properties.cloc->get_chroma_location());
-  }
-
-  auto decoderResult = unc_decoder_factory::get_unc_decoder(width, height, cmpd, uncC);
+  auto decoderResult = unc_decoder_factory::get_unc_decoder(width, height, cmpd, uncC, uncC_index_to_comp_ids);
   if (!decoderResult) {
     return decoderResult.error();
   }

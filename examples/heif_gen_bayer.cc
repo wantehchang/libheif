@@ -50,7 +50,7 @@ struct PatternDefinition
   std::string name;
   uint16_t width;
   uint16_t height;
-  std::vector<heif_uncompressed_component_type> cpat;
+  std::vector<heif_unci_component_type> cpat;
 };
 
 
@@ -61,10 +61,10 @@ static const PatternDefinition patterns[] = {
   {
     "rggb", 2, 2,
     {
-      heif_uncompressed_component_type_red,
-      heif_uncompressed_component_type_green,
-      heif_uncompressed_component_type_green,
-      heif_uncompressed_component_type_blue,
+      heif_unci_component_type_red,
+      heif_unci_component_type_green,
+      heif_unci_component_type_green,
+      heif_unci_component_type_blue,
     }
   },
 
@@ -77,25 +77,25 @@ static const PatternDefinition patterns[] = {
   {
     "rgbw", 4, 4,
     {
-      heif_uncompressed_component_type_Y,
-      heif_uncompressed_component_type_green,
-      heif_uncompressed_component_type_Y,
-      heif_uncompressed_component_type_red,
+      heif_unci_component_type_Y,
+      heif_unci_component_type_green,
+      heif_unci_component_type_Y,
+      heif_unci_component_type_red,
 
-      heif_uncompressed_component_type_green,
-      heif_uncompressed_component_type_Y,
-      heif_uncompressed_component_type_blue,
-      heif_uncompressed_component_type_Y,
+      heif_unci_component_type_green,
+      heif_unci_component_type_Y,
+      heif_unci_component_type_blue,
+      heif_unci_component_type_Y,
 
-      heif_uncompressed_component_type_Y,
-      heif_uncompressed_component_type_blue,
-      heif_uncompressed_component_type_Y,
-      heif_uncompressed_component_type_green,
+      heif_unci_component_type_Y,
+      heif_unci_component_type_blue,
+      heif_unci_component_type_Y,
+      heif_unci_component_type_green,
 
-      heif_uncompressed_component_type_red,
-      heif_uncompressed_component_type_Y,
-      heif_uncompressed_component_type_green,
-      heif_uncompressed_component_type_Y,
+      heif_unci_component_type_red,
+      heif_unci_component_type_Y,
+      heif_unci_component_type_green,
+      heif_unci_component_type_Y,
     }
   },
 
@@ -107,25 +107,25 @@ static const PatternDefinition patterns[] = {
   {
     "qbc", 4, 4,
     {
-      heif_uncompressed_component_type_green,
-      heif_uncompressed_component_type_green,
-      heif_uncompressed_component_type_red,
-      heif_uncompressed_component_type_red,
+      heif_unci_component_type_green,
+      heif_unci_component_type_green,
+      heif_unci_component_type_red,
+      heif_unci_component_type_red,
 
-      heif_uncompressed_component_type_green,
-      heif_uncompressed_component_type_green,
-      heif_uncompressed_component_type_red,
-      heif_uncompressed_component_type_red,
+      heif_unci_component_type_green,
+      heif_unci_component_type_green,
+      heif_unci_component_type_red,
+      heif_unci_component_type_red,
 
-      heif_uncompressed_component_type_blue,
-      heif_uncompressed_component_type_blue,
-      heif_uncompressed_component_type_green,
-      heif_uncompressed_component_type_green,
+      heif_unci_component_type_blue,
+      heif_unci_component_type_blue,
+      heif_unci_component_type_green,
+      heif_unci_component_type_green,
 
-      heif_uncompressed_component_type_blue,
-      heif_uncompressed_component_type_blue,
-      heif_uncompressed_component_type_green,
-      heif_uncompressed_component_type_green,
+      heif_unci_component_type_blue,
+      heif_unci_component_type_blue,
+      heif_unci_component_type_green,
+      heif_unci_component_type_green,
     }
   },
 };
@@ -153,14 +153,14 @@ static std::optional<PatternDefinition> parse_pattern_string(const char* str)
   }
 
   uint16_t dim = (len == 4) ? 2 : 4;
-  std::vector<heif_uncompressed_component_type> cpat;
+  std::vector<heif_unci_component_type> cpat;
   cpat.reserve(len);
 
   for (char c : s) {
     switch (std::tolower(c)) {
-      case 'r': cpat.push_back(heif_uncompressed_component_type_red); break;
-      case 'g': cpat.push_back(heif_uncompressed_component_type_green); break;
-      case 'b': cpat.push_back(heif_uncompressed_component_type_blue); break;
+      case 'r': cpat.push_back(heif_unci_component_type_red); break;
+      case 'g': cpat.push_back(heif_unci_component_type_green); break;
+      case 'b': cpat.push_back(heif_unci_component_type_blue); break;
       default: return {};
     }
   }
@@ -309,7 +309,9 @@ static heif_image* create_bayer_image_from_png(const char* png_filename,
     return nullptr;
   }
 
-  err = heif_image_add_plane(bayer_img, heif_channel_filter_array, width, height, output_bit_depth);
+  uint32_t filter_array_component_id;
+
+  err = heif_image_add_component(bayer_img, width, height, heif_unci_component_type_filter_array, heif_component_datatype_unsigned_integer, output_bit_depth, &filter_array_component_id);
   if (err.code != heif_error_Ok) {
     std::cerr << "Cannot add plane: " << err.message << "\n";
     heif_image_release(bayer_img);
@@ -335,10 +337,10 @@ static heif_image* create_bayer_image_from_png(const char* png_filename,
         auto comp_type = pat->cpat[py * pat->width + px];
 
         switch (comp_type) {
-          case heif_uncompressed_component_type_red:   dst_row[x] = r; break;
-          case heif_uncompressed_component_type_green: dst_row[x] = g; break;
-          case heif_uncompressed_component_type_blue:  dst_row[x] = b; break;
-          case heif_uncompressed_component_type_Y: dst_row[x] = static_cast<uint8_t>((r + g + b) / 3); break;
+          case heif_unci_component_type_red:   dst_row[x] = r; break;
+          case heif_unci_component_type_green: dst_row[x] = g; break;
+          case heif_unci_component_type_blue:  dst_row[x] = b; break;
+          case heif_unci_component_type_Y: dst_row[x] = static_cast<uint8_t>((r + g + b) / 3); break;
           default:
             assert(false);
         }
@@ -366,14 +368,26 @@ static heif_image* create_bayer_image_from_png(const char* png_filename,
         auto comp_type = pat->cpat[py * pat->width + px];
 
         switch (comp_type) {
-          case heif_uncompressed_component_type_red:   dst_row[x] = r; break;
-          case heif_uncompressed_component_type_green: dst_row[x] = g; break;
-          case heif_uncompressed_component_type_blue:  dst_row[x] = b; break;
-          case heif_uncompressed_component_type_Y: dst_row[x] = static_cast<uint16_t>((r + g + b) / 3); break;
+          case heif_unci_component_type_red:   dst_row[x] = r; break;
+          case heif_unci_component_type_green: dst_row[x] = g; break;
+          case heif_unci_component_type_blue:  dst_row[x] = b; break;
+          case heif_unci_component_type_Y: dst_row[x] = static_cast<uint16_t>((r + g + b) / 3); break;
           default:
             assert(false);
         }
       }
+    }
+  }
+
+  // map component type to component id
+
+  std::map<uint16_t, uint32_t> map_type_to_id;
+  for (const auto& type : pat->cpat) {
+    if (map_type_to_id.find(type) == map_type_to_id.end()) {
+      uint32_t component_id;
+      heif_image_add_bayer_component(bayer_img, type, &component_id);
+
+      map_type_to_id[type] = component_id;
     }
   }
 
@@ -382,12 +396,13 @@ static heif_image* create_bayer_image_from_png(const char* png_filename,
   // will resolve them to proper cmpd indices when writing the cpat box.
   std::vector<heif_bayer_pattern_pixel> bayer_pixels(pat->cpat.size());
   for (size_t i = 0; i < pat->cpat.size(); i++) {
-    bayer_pixels[i].component_index = static_cast<uint16_t>(pat->cpat[i]);
+    bayer_pixels[i].component_id = map_type_to_id[pat->cpat[i]];
     bayer_pixels[i].component_gain = 1.0f;
   }
 
   // Set Bayer pattern metadata
   err = heif_image_set_bayer_pattern(bayer_img,
+                                     filter_array_component_id,
                                      pat->width, pat->height,
                                      bayer_pixels.data());
   if (err.code != heif_error_Ok) {

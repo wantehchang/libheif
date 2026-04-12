@@ -55,11 +55,11 @@ unc_encoder_rgb_pixel_interleave::unc_encoder_rgb_pixel_interleave(const std::sh
                                              const heif_encoding_options& options)
     : unc_encoder(image)
 {
-  auto cmpd_idx = image->get_component_cmpd_indices_interleaved();
+  auto cmpd_ids = image->get_component_ids_interleaved();
   bool save_alpha = image->has_alpha();
 
   m_bytes_per_pixel = save_alpha ? 4 : 3;
-  assert(cmpd_idx.size() == m_bytes_per_pixel);
+  assert(cmpd_ids.size() == m_bytes_per_pixel);
 
   uint16_t bpp = image->get_bits_per_pixel(heif_channel_interleaved);
 
@@ -79,11 +79,11 @@ unc_encoder_rgb_pixel_interleave::unc_encoder_rgb_pixel_interleave(const std::sh
 
   m_uncC->set_interleave_type(interleave_mode_pixel);
   m_uncC->set_sampling_type(sampling_mode_no_subsampling);
-  m_uncC->add_component({cmpd_idx[0], bpp, component_format_unsigned, component_align_size});
-  m_uncC->add_component({cmpd_idx[1], bpp, component_format_unsigned, component_align_size});
-  m_uncC->add_component({cmpd_idx[2], bpp, component_format_unsigned, component_align_size});
+  m_uncC->add_component({m_map_id_to_cmpd_index[cmpd_ids[0]], bpp, component_format_unsigned, component_align_size});
+  m_uncC->add_component({m_map_id_to_cmpd_index[cmpd_ids[1]], bpp, component_format_unsigned, component_align_size});
+  m_uncC->add_component({m_map_id_to_cmpd_index[cmpd_ids[2]], bpp, component_format_unsigned, component_align_size});
   if (save_alpha) {
-    m_uncC->add_component({cmpd_idx[3], bpp, component_format_unsigned, component_align_size});
+    m_uncC->add_component({m_map_id_to_cmpd_index[cmpd_ids[3]], bpp, component_format_unsigned, component_align_size});
   }
 }
 

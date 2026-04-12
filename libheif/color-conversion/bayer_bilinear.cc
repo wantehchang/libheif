@@ -65,11 +65,11 @@ Op_bayer_bilinear_to_RGB24_32::state_after_conversion(const ColorState& input_st
 static int component_type_to_rgb_index(uint16_t component_type)
 {
   switch (component_type) {
-    case heif_uncompressed_component_type_red:
+    case heif_unci_component_type_red:
       return 0;
-    case heif_uncompressed_component_type_green:
+    case heif_unci_component_type_green:
       return 1;
-    case heif_uncompressed_component_type_blue:
+    case heif_unci_component_type_blue:
       return 2;
     default:
       return -1;
@@ -88,11 +88,11 @@ Op_bayer_bilinear_to_RGB24_32::convert_colorspace(const std::shared_ptr<const He
   uint32_t width = input->get_width();
   uint32_t height = input->get_height();
 
-  if (!input->has_bayer_pattern()) {
+  if (!input->has_any_bayer_pattern()) {
     return Error::InternalError;
   }
 
-  const BayerPattern& pattern = input->get_bayer_pattern();
+  const BayerPattern& pattern = input->get_any_bayer_pattern();
   uint16_t pw = pattern.pattern_width;
   uint16_t ph = pattern.pattern_height;
 
@@ -122,7 +122,7 @@ Op_bayer_bilinear_to_RGB24_32::convert_colorspace(const std::shared_ptr<const He
   // Build a lookup table: for each pattern position, which RGB channel (0=R,1=G,2=B) does it provide?
   std::vector<int> pattern_channel(pw * ph);
   for (int i = 0; i < pw * ph; i++) {
-    uint16_t comp_type = input->get_component_type(pattern.pixels[i].component_index);
+    uint16_t comp_type = input->get_component_type(pattern.pixels[i].component_id);
     pattern_channel[i] = component_type_to_rgb_index(comp_type);
     if (pattern_channel[i] < 0) {
       return Error(heif_error_Unsupported_feature,

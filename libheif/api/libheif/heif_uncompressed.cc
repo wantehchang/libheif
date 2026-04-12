@@ -31,6 +31,7 @@
 
 
 heif_error heif_image_set_bayer_pattern(heif_image* image,
+                                        uint32_t bayer_component_id,
                                         uint16_t pattern_width,
                                         uint16_t pattern_height,
                                         const struct heif_bayer_pattern_pixel* patternPixels)
@@ -58,11 +59,26 @@ heif_error heif_image_set_bayer_pattern(heif_image* image,
 }
 
 
+heif_error heif_image_add_bayer_component(heif_image* image,
+                                          uint16_t component_type,
+                                          uint32_t* out_component_id)
+{
+  if (image == nullptr || out_component_id == nullptr) {
+    return heif_error_null_pointer_argument;
+  }
+
+  *out_component_id = image->image->add_component_without_data(component_type);
+
+  return heif_error_success;
+}
+
+
 int heif_image_has_bayer_pattern(const heif_image* image,
+                                 uint32_t bayer_component_id,
                                  uint16_t* out_pattern_width,
                                  uint16_t* out_pattern_height)
 {
-  if (image == nullptr || !image->image->has_bayer_pattern()) {
+  if (image == nullptr || !image->image->has_bayer_pattern(bayer_component_id)) {
     if (out_pattern_width) {
       *out_pattern_width = 0;
     }
@@ -72,7 +88,7 @@ int heif_image_has_bayer_pattern(const heif_image* image,
     return 0;
   }
 
-  const BayerPattern& pattern = image->image->get_bayer_pattern();
+  const BayerPattern& pattern = image->image->get_bayer_pattern(bayer_component_id);
 
   if (out_pattern_width) {
     *out_pattern_width = pattern.pattern_width;
@@ -86,19 +102,20 @@ int heif_image_has_bayer_pattern(const heif_image* image,
 
 
 heif_error heif_image_get_bayer_pattern(const heif_image* image,
+                                        uint32_t bayer_component_id,
                                         struct heif_bayer_pattern_pixel* out_patternPixels)
 {
   if (image == nullptr || out_patternPixels == nullptr) {
     return heif_error_null_pointer_argument;
   }
 
-  if (!image->image->has_bayer_pattern()) {
+  if (!image->image->has_bayer_pattern(bayer_component_id)) {
     return {heif_error_Usage_error,
             heif_suberror_Invalid_parameter_value,
             "Image does not have a Bayer pattern."};
   }
 
-  const BayerPattern& pattern = image->image->get_bayer_pattern();
+  const BayerPattern& pattern = image->image->get_bayer_pattern(bayer_component_id);
   size_t num_pixels = size_t{pattern.pattern_width} * pattern.pattern_height;
   std::copy(pattern.pixels.begin(), pattern.pixels.begin() + num_pixels, out_patternPixels);
 
@@ -124,8 +141,8 @@ int heif_polarization_angle_is_no_filter(float angle)
 
 
 heif_error heif_image_add_polarization_pattern(heif_image* image,
-                                               uint32_t num_component_indices,
-                                               const uint32_t* component_indices,
+                                               uint32_t num_component_ids,
+                                               const uint32_t* component_ids,
                                                uint16_t pattern_width,
                                                uint16_t pattern_height,
                                                const float* polarization_angles)
@@ -134,7 +151,7 @@ heif_error heif_image_add_polarization_pattern(heif_image* image,
     return heif_error_null_pointer_argument;
   }
 
-  if (num_component_indices > 0 && component_indices == nullptr) {
+  if (num_component_ids > 0 && component_ids == nullptr) {
     return heif_error_null_pointer_argument;
   }
 
@@ -145,7 +162,7 @@ heif_error heif_image_add_polarization_pattern(heif_image* image,
   }
 
   PolarizationPattern pattern;
-  pattern.component_indices.assign(component_indices, component_indices + num_component_indices);
+  pattern.component_ids.assign(component_ids, component_ids + num_component_ids);
   pattern.pattern_width = pattern_width;
   pattern.pattern_height = pattern_height;
 
@@ -170,7 +187,7 @@ int heif_image_get_number_of_polarization_patterns(const heif_image* image)
 
 heif_error heif_image_get_polarization_pattern_info(const heif_image* image,
                                                     int pattern_index,
-                                                    uint32_t* out_num_component_indices,
+                                                    uint32_t* out_num_component_ids,
                                                     uint16_t* out_pattern_width,
                                                     uint16_t* out_pattern_height)
 {
@@ -186,8 +203,8 @@ heif_error heif_image_get_polarization_pattern_info(const heif_image* image,
   }
 
   const auto& p = patterns[pattern_index];
-  if (out_num_component_indices) {
-    *out_num_component_indices = static_cast<uint32_t>(p.component_indices.size());
+  if (out_num_component_ids) {
+    *out_num_component_ids = static_cast<uint32_t>(p.component_ids.size());
   }
   if (out_pattern_width) {
     *out_pattern_width = p.pattern_width;
@@ -202,7 +219,7 @@ heif_error heif_image_get_polarization_pattern_info(const heif_image* image,
 
 heif_error heif_image_get_polarization_pattern_data(const heif_image* image,
                                                     int pattern_index,
-                                                    uint32_t* out_component_indices,
+                                                    uint32_t* out_component_ids,
                                                     float* out_polarization_angles)
 {
   if (image == nullptr || out_polarization_angles == nullptr) {
@@ -218,8 +235,8 @@ heif_error heif_image_get_polarization_pattern_data(const heif_image* image,
 
   const auto& p = patterns[pattern_index];
 
-  if (out_component_indices && !p.component_indices.empty()) {
-    std::copy(p.component_indices.begin(), p.component_indices.end(), out_component_indices);
+  if (out_component_ids && !p.component_ids.empty()) {
+    std::copy(p.component_ids.begin(), p.component_ids.end(), out_component_ids);
   }
 
   size_t num_pixels = size_t{p.pattern_width} * p.pattern_height;
@@ -230,7 +247,7 @@ heif_error heif_image_get_polarization_pattern_data(const heif_image* image,
 
 
 int heif_image_get_polarization_pattern_index_for_component(const heif_image* image,
-                                                            uint32_t component_index)
+                                                            uint32_t component_id)
 {
   if (image == nullptr) {
     return -1;
@@ -239,12 +256,12 @@ int heif_image_get_polarization_pattern_index_for_component(const heif_image* im
   const auto& patterns = image->image->get_polarization_patterns();
   for (size_t i = 0; i < patterns.size(); i++) {
     const auto& p = patterns[i];
-    if (p.component_indices.empty()) {
+    if (p.component_ids.empty()) {
       // Empty component list means pattern applies to all components.
       return static_cast<int>(i);
     }
-    for (uint32_t idx : p.component_indices) {
-      if (idx == component_index) {
+    for (uint32_t idx : p.component_ids) {
+      if (idx == component_id) {
         return static_cast<int>(i);
       }
     }
@@ -255,8 +272,8 @@ int heif_image_get_polarization_pattern_index_for_component(const heif_image* im
 
 
 heif_error heif_image_add_sensor_bad_pixels_map(heif_image* image,
-                                                 uint32_t num_component_indices,
-                                                 const uint32_t* component_indices,
+                                                 uint32_t num_component_ids,
+                                                 const uint32_t* component_ids,
                                                  int correction_applied,
                                                  uint32_t num_bad_rows,
                                                  const uint32_t* bad_rows,
@@ -269,7 +286,7 @@ heif_error heif_image_add_sensor_bad_pixels_map(heif_image* image,
     return heif_error_null_pointer_argument;
   }
 
-  if (num_component_indices > 0 && component_indices == nullptr) {
+  if (num_component_ids > 0 && component_ids == nullptr) {
     return heif_error_null_pointer_argument;
   }
 
@@ -286,7 +303,7 @@ heif_error heif_image_add_sensor_bad_pixels_map(heif_image* image,
   }
 
   SensorBadPixelsMap map;
-  map.component_indices.assign(component_indices, component_indices + num_component_indices);
+  map.component_ids.assign(component_ids, component_ids + num_component_ids);
   map.correction_applied = (correction_applied != 0);
 
   map.bad_rows.assign(bad_rows, bad_rows + num_bad_rows);
@@ -316,7 +333,7 @@ int heif_image_get_number_of_sensor_bad_pixels_maps(const heif_image* image)
 
 heif_error heif_image_get_sensor_bad_pixels_map_info(const heif_image* image,
                                                       int map_index,
-                                                      uint32_t* out_num_component_indices,
+                                                      uint32_t* out_num_component_ids,
                                                       int* out_correction_applied,
                                                       uint32_t* out_num_bad_rows,
                                                       uint32_t* out_num_bad_columns,
@@ -334,8 +351,8 @@ heif_error heif_image_get_sensor_bad_pixels_map_info(const heif_image* image,
   }
 
   const auto& m = maps[map_index];
-  if (out_num_component_indices) {
-    *out_num_component_indices = static_cast<uint32_t>(m.component_indices.size());
+  if (out_num_component_ids) {
+    *out_num_component_ids = static_cast<uint32_t>(m.component_ids.size());
   }
   if (out_correction_applied) {
     *out_correction_applied = m.correction_applied ? 1 : 0;
@@ -356,7 +373,7 @@ heif_error heif_image_get_sensor_bad_pixels_map_info(const heif_image* image,
 
 heif_error heif_image_get_sensor_bad_pixels_map_data(const heif_image* image,
                                                       int map_index,
-                                                      uint32_t* out_component_indices,
+                                                      uint32_t* out_component_ids,
                                                       uint32_t* out_bad_rows,
                                                       uint32_t* out_bad_columns,
                                                       struct heif_bad_pixel* out_bad_pixels)
@@ -374,8 +391,8 @@ heif_error heif_image_get_sensor_bad_pixels_map_data(const heif_image* image,
 
   const auto& m = maps[map_index];
 
-  if (out_component_indices && !m.component_indices.empty()) {
-    std::copy(m.component_indices.begin(), m.component_indices.end(), out_component_indices);
+  if (out_component_ids && !m.component_ids.empty()) {
+    std::copy(m.component_ids.begin(), m.component_ids.end(), out_component_ids);
   }
 
   if (out_bad_rows && !m.bad_rows.empty()) {
@@ -398,8 +415,8 @@ heif_error heif_image_get_sensor_bad_pixels_map_data(const heif_image* image,
 
 
 heif_error heif_image_add_sensor_nuc(heif_image* image,
-                                      uint32_t num_component_indices,
-                                      const uint32_t* component_indices,
+                                      uint32_t num_component_ids,
+                                      const uint32_t* component_ids,
                                       int nuc_is_applied,
                                       uint32_t image_width,
                                       uint32_t image_height,
@@ -410,7 +427,7 @@ heif_error heif_image_add_sensor_nuc(heif_image* image,
     return heif_error_null_pointer_argument;
   }
 
-  if (num_component_indices > 0 && component_indices == nullptr) {
+  if (num_component_ids > 0 && component_ids == nullptr) {
     return heif_error_null_pointer_argument;
   }
 
@@ -421,7 +438,7 @@ heif_error heif_image_add_sensor_nuc(heif_image* image,
   }
 
   SensorNonUniformityCorrection nuc;
-  nuc.component_indices.assign(component_indices, component_indices + num_component_indices);
+  nuc.component_ids.assign(component_ids, component_ids + num_component_ids);
   nuc.nuc_is_applied = (nuc_is_applied != 0);
   nuc.image_width = image_width;
   nuc.image_height = image_height;
@@ -448,7 +465,7 @@ int heif_image_get_number_of_sensor_nucs(const heif_image* image)
 
 heif_error heif_image_get_sensor_nuc_info(const heif_image* image,
                                            int nuc_index,
-                                           uint32_t* out_num_component_indices,
+                                           uint32_t* out_num_component_ids,
                                            int* out_nuc_is_applied,
                                            uint32_t* out_image_width,
                                            uint32_t* out_image_height)
@@ -465,8 +482,8 @@ heif_error heif_image_get_sensor_nuc_info(const heif_image* image,
   }
 
   const auto& n = nucs[nuc_index];
-  if (out_num_component_indices) {
-    *out_num_component_indices = static_cast<uint32_t>(n.component_indices.size());
+  if (out_num_component_ids) {
+    *out_num_component_ids = static_cast<uint32_t>(n.component_ids.size());
   }
   if (out_nuc_is_applied) {
     *out_nuc_is_applied = n.nuc_is_applied ? 1 : 0;
@@ -484,7 +501,7 @@ heif_error heif_image_get_sensor_nuc_info(const heif_image* image,
 
 heif_error heif_image_get_sensor_nuc_data(const heif_image* image,
                                            int nuc_index,
-                                           uint32_t* out_component_indices,
+                                           uint32_t* out_component_ids,
                                            float* out_nuc_gains,
                                            float* out_nuc_offsets)
 {
@@ -501,8 +518,8 @@ heif_error heif_image_get_sensor_nuc_data(const heif_image* image,
 
   const auto& n = nucs[nuc_index];
 
-  if (out_component_indices && !n.component_indices.empty()) {
-    std::copy(n.component_indices.begin(), n.component_indices.end(), out_component_indices);
+  if (out_component_ids && !n.component_ids.empty()) {
+    std::copy(n.component_ids.begin(), n.component_ids.end(), out_component_ids);
   }
 
   size_t num_pixels = size_t{n.image_width} * n.image_height;
@@ -605,7 +622,7 @@ void heif_unci_image_parameters_release(heif_unci_image_parameters* params)
 }
 
 
-// --- index-based component access
+// --- id-based component access
 
 uint32_t heif_image_get_number_of_used_components(const heif_image* image)
 {
@@ -616,24 +633,15 @@ uint32_t heif_image_get_number_of_used_components(const heif_image* image)
 }
 
 
-uint32_t heif_image_get_total_number_of_cmpd_components(const heif_image* image)
+void heif_image_get_used_component_ids(const heif_image* image, uint32_t* out_component_ids)
 {
-  if (!image || !image->image) {
-    return 0;
-  }
-  return image->image->get_total_number_of_cmpd_components();
-}
-
-
-void heif_image_get_used_component_indices(const heif_image* image, uint32_t* out_component_indices)
-{
-  if (!image || !image->image || !out_component_indices) {
+  if (!image || !image->image || !out_component_ids) {
     return;
   }
 
-  auto indices = image->image->get_used_component_indices();
+  auto indices = image->image->get_used_component_ids();
   for (size_t i = 0; i < indices.size(); i++) {
-    out_component_indices[i] = indices[i];
+    out_component_ids[i] = indices[i];
   }
 }
 
@@ -686,7 +694,7 @@ uint16_t heif_image_get_component_type(const heif_image* image, uint32_t compone
 heif_error heif_image_add_component(heif_image* image,
                                     int width, int height,
                                     uint16_t component_type,
-                                    heif_channel_datatype datatype,
+                                    heif_component_datatype datatype,
                                     int bit_depth,
                                     uint32_t* out_component_idx)
 {

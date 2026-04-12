@@ -728,7 +728,7 @@ TEST_CASE("splz")
   // Construct: 2 component indices, 2x1 pattern, angles 45.0 and 90.0
   auto splz = std::make_shared<Box_splz>();
   PolarizationPattern pattern;
-  pattern.component_indices = {0, 1};
+  pattern.component_ids = {0, 1};
   pattern.pattern_width = 2;
   pattern.pattern_height = 1;
   pattern.polarization_angles = {45.0f, 90.0f};
@@ -767,9 +767,9 @@ TEST_CASE("splz")
   REQUIRE(parsed != nullptr);
 
   const auto& p = parsed->get_pattern();
-  REQUIRE(p.component_indices.size() == 2);
-  REQUIRE(p.component_indices[0] == 0);
-  REQUIRE(p.component_indices[1] == 1);
+  REQUIRE(p.component_ids.size() == 2);
+  REQUIRE(p.component_ids[0] == 0);
+  REQUIRE(p.component_ids[1] == 1);
   REQUIRE(p.pattern_width == 2);
   REQUIRE(p.pattern_height == 1);
   REQUIRE(p.polarization_angles.size() == 2);
@@ -822,7 +822,7 @@ TEST_CASE("snuc")
   // Construct: 1 component index, nuc_is_applied=true, 2x1 image, 2 gains + 2 offsets
   auto snuc = std::make_shared<Box_snuc>();
   SensorNonUniformityCorrection nuc;
-  nuc.component_indices = {0};
+  nuc.component_ids = {0};
   nuc.nuc_is_applied = true;
   nuc.image_width = 2;
   nuc.image_height = 1;
@@ -866,8 +866,8 @@ TEST_CASE("snuc")
   REQUIRE(parsed != nullptr);
 
   const auto& n = parsed->get_nuc();
-  REQUIRE(n.component_indices.size() == 1);
-  REQUIRE(n.component_indices[0] == 0);
+  REQUIRE(n.component_ids.size() == 1);
+  REQUIRE(n.component_ids[0] == 0);
   REQUIRE(n.nuc_is_applied == true);
   REQUIRE(n.image_width == 2);
   REQUIRE(n.image_height == 1);

@@ -59,12 +59,12 @@ unc_encoder_rgb_bytealign_pixel_interleave::unc_encoder_rgb_bytealign_pixel_inte
                                        const heif_encoding_options& options)
     : unc_encoder(image)
 {
-  auto cmpd_idx = image->get_component_cmpd_indices_interleaved();
+  auto cmpd_ids = image->get_component_ids_interleaved();
 
   bool save_alpha = image->has_alpha();
 
   m_bytes_per_pixel = save_alpha ? 8 : 6;
-  assert(cmpd_idx.size() == m_bytes_per_pixel/2);
+  assert(cmpd_ids.size() == m_bytes_per_pixel/2);
 
   bool little_endian = (image->get_chroma_format() == heif_chroma_interleaved_RRGGBB_LE ||
                         image->get_chroma_format() == heif_chroma_interleaved_RRGGBBAA_LE);
@@ -84,11 +84,11 @@ unc_encoder_rgb_bytealign_pixel_interleave::unc_encoder_rgb_bytealign_pixel_inte
   m_uncC->set_components_little_endian(false); // little_endian);
   m_uncC->set_pixel_size(m_bytes_per_pixel);
 
-  m_uncC->add_component({cmpd_idx[0], bpp, component_format_unsigned, component_align_size});
-  m_uncC->add_component({cmpd_idx[1], bpp, component_format_unsigned, component_align_size});
-  m_uncC->add_component({cmpd_idx[2], bpp, component_format_unsigned, component_align_size});
+  m_uncC->add_component({m_map_id_to_cmpd_index[cmpd_ids[0]], bpp, component_format_unsigned, component_align_size});
+  m_uncC->add_component({m_map_id_to_cmpd_index[cmpd_ids[1]], bpp, component_format_unsigned, component_align_size});
+  m_uncC->add_component({m_map_id_to_cmpd_index[cmpd_ids[2]], bpp, component_format_unsigned, component_align_size});
   if (save_alpha) {
-    m_uncC->add_component({cmpd_idx[3], bpp, component_format_unsigned, component_align_size});
+    m_uncC->add_component({m_map_id_to_cmpd_index[cmpd_ids[3]], bpp, component_format_unsigned, component_align_size});
   }
 }
 
