@@ -34,6 +34,7 @@
 #include "libheif/heif_uncompressed.h"
 #include "compression.h"
 #include <utility>
+#include <algorithm>
 
 
 heif_unci_component_type heif_channel_to_component_type(heif_channel channel)
