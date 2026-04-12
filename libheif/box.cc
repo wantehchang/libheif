@@ -3364,19 +3364,17 @@ void Box_ipma::sort_properties(const std::shared_ptr<Box_ipco>& ipco)
 {
   auto properties = ipco->get_all_child_boxes();
 
+  // Stable-partition: all descriptive properties before all transformative properties.
+  // The order within each group is preserved (spec requires it for transformative properties).
+
   for (auto& item : m_entries) {
-    size_t nAssoc = item.associations.size();
-
-    // simple Bubble sort as a stable sorting algorithm
-
-    for (size_t n = 0; n < nAssoc - 1; n++)
-      for (size_t i = 0; i < nAssoc - 1 - n; i++) {
-        // If transformative property precedes descriptive property, swap them.
-        if (properties[item.associations[i].property_index - 1]->is_transformative_property() &&
-            !properties[item.associations[i + 1].property_index - 1]->is_transformative_property()) {
-          std::swap(item.associations[i], item.associations[i+1]);
-        }
-      }
+    std::stable_partition(item.associations.begin(), item.associations.end(),
+                          [&properties](const PropertyAssociation& assoc) {
+                            if (assoc.property_index == 0 || assoc.property_index > properties.size()) {
+                              return true; // keep invalid/unset entries in the descriptive group
+                            }
+                            return !properties[assoc.property_index - 1]->is_transformative_property();
+                          });
   }
 }
 
