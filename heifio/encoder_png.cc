@@ -158,9 +158,9 @@ bool PngEncoder::Encode(const heif_image_handle* handle,
         // Setting matrix coefficients to 0 (RGB) and full range flag to 1 (full range)
         // because data is converted into RGB specified by PngEncoder::colorspace (heif_colorspace_RGB)
         png_set_cICP(png_ptr, info_ptr, nclx->color_primaries, nclx->transfer_characteristics, 0, 1);
+        heif_nclx_color_profile_free(nclx);
     }
 #endif
-  }
   }
   }
 
