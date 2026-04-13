@@ -188,6 +188,8 @@ public:
 
   std::string debug_dump_boxes() const;
 
+  std::string debug_dump_item_data() const;
+
 
   // --- writing ---
 

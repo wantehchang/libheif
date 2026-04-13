@@ -215,6 +215,13 @@ void heif_context_debug_dump_boxes_to_file(heif_context* ctx, int fd)
   }
 
   std::string dump = ctx->context->debug_dump_boxes();
+
+  std::string item_dump = ctx->context->debug_dump_item_data();
+  if (!item_dump.empty()) {
+    dump += "\n";
+    dump += item_dump;
+  }
+
   // TODO(fancycode): Should we return an error if writing fails?
 #ifdef _WIN32
   auto written = _write(fd, dump.c_str(), static_cast<unsigned int>(dump.size()));

@@ -511,6 +511,11 @@ std::string HeifContext::debug_dump_boxes() const
   return m_heif_file->debug_dump_boxes();
 }
 
+std::string HeifContext::debug_dump_item_data() const
+{
+  return m_heif_file->debug_dump_item_data();
+}
+
 
 #if ENABLE_EXPERIMENTAL_MINI_FORMAT
 void HeifContext::set_write_mini_format(bool enable)

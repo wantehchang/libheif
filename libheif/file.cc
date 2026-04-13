@@ -23,8 +23,10 @@
 #include "libheif/heif.h"
 #include "libheif/heif_properties.h"
 #include "compression.h"
+#include "image-items/grid.h"
 #include "image-items/jpeg2000.h"
 #include "image-items/jpeg.h"
+#include "image-items/overlay.h"
 #include "image-items/vvc.h"
 #include "codecs/avif_boxes.h"
 #include "codecs/hevc_boxes.h"
@@ -346,6 +348,74 @@ std::string HeifFile::debug_dump_boxes() const
   }
 
   return sstr.str();
+}
+
+
+std::string HeifFile::debug_dump_item_data() const
+{
+  std::stringstream sstr;
+  bool has_output = false;
+
+  sstr << "=== Item Data ===\n";
+
+  for (const auto& [id, infe] : m_infe_boxes) {
+    uint32_t item_type = infe->get_item_type_4cc();
+
+    if (item_type == fourcc("grid")) {
+      auto dataResult = get_uncompressed_item_data(id);
+      if (!dataResult) {
+        continue;
+      }
+
+      ImageGrid grid;
+      Error err = grid.parse(*dataResult);
+      if (err) {
+        continue;
+      }
+
+      has_output = true;
+      sstr << "\nitem ID " << id << " (grid):\n";
+
+      std::istringstream lines(grid.dump());
+      std::string line;
+      while (std::getline(lines, line)) {
+        sstr << "  " << line << "\n";
+      }
+    }
+    else if (item_type == fourcc("iovl")) {
+      if (!m_iref_box) {
+        continue;
+      }
+
+      auto refs = m_iref_box->get_references(id, fourcc("dimg"));
+
+      auto dataResult = get_uncompressed_item_data(id);
+      if (!dataResult) {
+        continue;
+      }
+
+      ImageOverlay overlay;
+      Error err = overlay.parse(refs.size(), *dataResult);
+      if (err) {
+        continue;
+      }
+
+      has_output = true;
+      sstr << "\nitem ID " << id << " (iovl):\n";
+
+      std::istringstream lines(overlay.dump());
+      std::string line;
+      while (std::getline(lines, line)) {
+        sstr << "  " << line << "\n";
+      }
+    }
+  }
+
+  if (has_output) {
+    return sstr.str();
+  }
+
+  return {};
 }
 
 
