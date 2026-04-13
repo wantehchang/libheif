@@ -235,6 +235,10 @@ heif_error heif_context_add_grid_image(heif_context* ctx,
     return generateGridItemResult.error_struct(ctx->context.get());
   }
 
+  if (ctx->context->is_primary_image_set() == false) {
+    ctx->context->set_primary_image(*generateGridItemResult);
+  }
+
   if (out_grid_image_handle) {
     *out_grid_image_handle = new heif_image_handle;
     (*out_grid_image_handle)->image = *generateGridItemResult;
