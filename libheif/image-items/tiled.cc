@@ -22,6 +22,7 @@
 #include "context.h"
 #include "file.h"
 #include <algorithm>
+#include <limits>
 #include "security_limits.h"
 #include "codecs/hevc_dec.h"
 #if WITH_UNCOMPRESSED_CODEC
@@ -883,7 +884,13 @@ ImageItem_Tiled::decode_compressed_image(const heif_decoding_options& options,
 
 Error ImageItem_Tiled::append_compressed_tile_data(std::vector<uint8_t>& data, uint32_t tx, uint32_t ty) const
 {
-  uint32_t idx = (uint32_t) (ty * nTiles_h(m_tild_header.get_parameters()) + tx);
+  uint64_t idx64 = static_cast<uint64_t>(ty) * nTiles_h(m_tild_header.get_parameters()) + tx;
+  if (idx64 > std::numeric_limits<uint32_t>::max()) {
+    return Error{heif_error_Invalid_input,
+                 heif_suberror_Unspecified,
+                 "Tile index out of range."};
+  }
+  auto idx = static_cast<uint32_t>(idx64);
 
   if (!m_tild_header.is_tile_offset_known(idx)) {
     Error err = const_cast<ImageItem_Tiled*>(this)->load_tile_offset_entry(idx);
