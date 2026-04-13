@@ -443,6 +443,14 @@ Error Track::load(const std::shared_ptr<Box_trak>& trak_box)
         };
       }
 
+      if (saio->get_num_chunks() != 1 && m_chunks.empty() && saiz->get_num_samples() > 0) {
+        return Error{
+          heif_error_Invalid_input,
+          heif_suberror_Unspecified,
+          "'saiz' box references samples but no chunks exist."
+        };
+      }
+
       if (aux_info_type == fourcc("suid")) {
         m_aux_reader_content_ids = std::make_unique<SampleAuxInfoReader>(saiz, saio, m_chunks);
       }
