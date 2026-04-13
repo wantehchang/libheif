@@ -158,6 +158,12 @@ bool ColorState::operator==(const ColorState& b) const
     return false;
   }
 
+  if (has_alpha && b.has_alpha) {
+    if (get_alpha_bits_per_pixel() != b.get_alpha_bits_per_pixel()) {
+      return false;
+    }
+  }
+
   if (colorspace == heif_colorspace_YCbCr) {
     bool ycbcr_parameters_match = nclx.equal_except_transfer_curve(b.nclx);
 
@@ -199,6 +205,10 @@ std::ostream& operator<<(std::ostream& ostr, const ColorState& state)
   ostr << "colorspace=" << state.colorspace << " chroma=" << state.chroma
            << " bpp(R)=" << state.bits_per_pixel
               << " alpha=" << (state.has_alpha ? "yes" : "no");
+
+  if (state.has_alpha && state.get_alpha_bits_per_pixel() != state.bits_per_pixel) {
+    ostr << " alpha_bpp=" << state.get_alpha_bits_per_pixel();
+  }
 
   if (state.colorspace == heif_colorspace_YCbCr) {
     ostr << " matrix-coefficients=" << state.nclx.get_matrix_coefficients()
@@ -245,6 +255,7 @@ void ColorConversionPipeline::init_ops()
   ops.emplace_back(std::make_shared<Op_drop_alpha_plane>());
   ops.emplace_back(std::make_shared<Op_flatten_alpha_plane<uint8_t>>());
   ops.emplace_back(std::make_shared<Op_flatten_alpha_plane<uint16_t>>());
+  ops.emplace_back(std::make_shared<Op_adjust_alpha_bit_depth>());
   ops.emplace_back(std::make_shared<Op_to_hdr_planes>());
   ops.emplace_back(std::make_shared<Op_to_sdr_planes>());
   ops.emplace_back(std::make_shared<Op_YCbCr420_bilinear_to_YCbCr444<uint8_t>>());
@@ -530,6 +541,10 @@ Result<std::shared_ptr<HeifPixelImage>> convert_colorspace(const std::shared_ptr
   std::set<enum heif_channel> channels = input->get_channel_set();
   assert(!channels.empty());
   input_state.bits_per_pixel = input->get_bits_per_pixel(*(channels.begin()));
+
+  if (input_state.has_alpha && input->has_channel(heif_channel_Alpha)) {
+    input_state.alpha_bits_per_pixel = input->get_bits_per_pixel(heif_channel_Alpha);
+  }
 
   ColorState output_state = input_state;
   output_state.colorspace = target_colorspace;

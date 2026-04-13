@@ -79,6 +79,7 @@ Op_YCbCr_to_RGB<Pixel>::state_after_conversion(const ColorState& input_state,
   output_state.chroma = heif_chroma_444;
   output_state.has_alpha = input_state.has_alpha;  // we simply keep the old alpha plane
   output_state.bits_per_pixel = input_state.bits_per_pixel;
+  output_state.alpha_bits_per_pixel = input_state.alpha_bits_per_pixel;
 
   states.emplace_back(output_state, SpeedCosts_Unoptimized);
 
@@ -446,6 +447,10 @@ Op_YCbCr420_to_RGB32::state_after_conversion(const ColorState& input_state,
     return {};
   }
 
+  if (input_state.has_alpha && input_state.get_alpha_bits_per_pixel() != input_state.bits_per_pixel) {
+    return {};
+  }
+
   int matrix = input_state.nclx.get_matrix_coefficients();
   if (matrix == 0 || matrix == 8 || matrix == 11 || matrix == 14) {
     return {};
@@ -573,6 +578,10 @@ Op_YCbCr420_to_RRGGBBaa::state_after_conversion(const ColorState& input_state,
   if (input_state.colorspace != heif_colorspace_YCbCr ||
       input_state.chroma != heif_chroma_420 ||
       input_state.bits_per_pixel <= 8) {
+    return {};
+  }
+
+  if (input_state.has_alpha && input_state.get_alpha_bits_per_pixel() != input_state.bits_per_pixel) {
     return {};
   }
 

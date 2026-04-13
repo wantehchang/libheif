@@ -50,6 +50,10 @@ Op_RGB_to_YCbCr<Pixel>::state_after_conversion(const ColorState& input_state,
     return {};
   }
 
+  if (input_state.has_alpha && input_state.get_alpha_bits_per_pixel() != input_state.bits_per_pixel) {
+    return {};
+  }
+
   int matrix = target_state.nclx.get_matrix_coefficients();
   if (matrix == 11 || matrix == 14) {
     return {};

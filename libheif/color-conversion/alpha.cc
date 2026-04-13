@@ -106,6 +106,10 @@ Op_flatten_alpha_plane<Pixel>::state_after_conversion(const ColorState& input_st
     return {};
   }
 
+  if (input_state.has_alpha && input_state.get_alpha_bits_per_pixel() != input_state.bits_per_pixel) {
+    return {};
+  }
+
   // only drop alpha plane if it is not needed in output
 
   if ((input_state.chroma != heif_chroma_monochrome &&
@@ -285,3 +289,169 @@ Op_flatten_alpha_plane<Pixel>::convert_colorspace(const std::shared_ptr<const He
 
 template class Op_flatten_alpha_plane<uint8_t>;
 template class Op_flatten_alpha_plane<uint16_t>;
+
+
+std::vector<ColorStateWithCost>
+Op_adjust_alpha_bit_depth::state_after_conversion(const ColorState& input_state,
+                                                  const ColorState& target_state,
+                                                  const heif_color_conversion_options& options,
+                                                  const heif_color_conversion_options_ext& options_ext) const
+{
+  // Only applicable when alpha BPP differs from color BPP
+  if (!input_state.has_alpha ||
+      input_state.get_alpha_bits_per_pixel() == input_state.bits_per_pixel) {
+    return {};
+  }
+
+  // Only for planar formats with alpha
+  if (input_state.chroma != heif_chroma_monochrome &&
+      input_state.chroma != heif_chroma_420 &&
+      input_state.chroma != heif_chroma_422 &&
+      input_state.chroma != heif_chroma_444) {
+    return {};
+  }
+
+  std::vector<ColorStateWithCost> states;
+
+  ColorState output_state = input_state;
+  output_state.alpha_bits_per_pixel = input_state.bits_per_pixel;
+
+  states.emplace_back(output_state, SpeedCosts_Unoptimized);
+
+  return states;
+}
+
+
+Result<std::shared_ptr<HeifPixelImage>>
+Op_adjust_alpha_bit_depth::convert_colorspace(const std::shared_ptr<const HeifPixelImage>& input,
+                                              const ColorState& input_state,
+                                              const ColorState& target_state,
+                                              const heif_color_conversion_options& options,
+                                              const heif_color_conversion_options_ext& options_ext,
+                                              const heif_security_limits* limits) const
+{
+  uint32_t width = input->get_width();
+  uint32_t height = input->get_height();
+
+  auto outimg = std::make_shared<HeifPixelImage>();
+  outimg->create(width, height, input->get_colorspace(), input->get_chroma_format());
+
+  // Copy all non-alpha channels unchanged
+  for (heif_channel channel : {heif_channel_Y, heif_channel_Cb, heif_channel_Cr,
+                                heif_channel_R, heif_channel_G, heif_channel_B}) {
+    if (input->has_channel(channel)) {
+      outimg->copy_new_plane_from(input, channel, channel, limits);
+    }
+  }
+
+  if (!input->has_channel(heif_channel_Alpha)) {
+    return outimg;
+  }
+
+  int input_alpha_bpp = input->get_bits_per_pixel(heif_channel_Alpha);
+  int target_bpp = input_state.bits_per_pixel;
+
+  uint32_t alpha_width = input->get_width(heif_channel_Alpha);
+  uint32_t alpha_height = input->get_height(heif_channel_Alpha);
+
+  if (auto err = outimg->add_plane(heif_channel_Alpha, alpha_width, alpha_height, target_bpp, limits)) {
+    return err;
+  }
+
+  if (input_alpha_bpp <= 8 && target_bpp > 8) {
+    // Upscale: 8-bit alpha -> HDR using pattern replication
+    const uint8_t* p_in;
+    size_t stride_in;
+    p_in = input->get_plane(heif_channel_Alpha, &stride_in);
+
+    uint16_t* p_out;
+    size_t stride_out;
+    p_out = (uint16_t*) outimg->get_plane(heif_channel_Alpha, &stride_out);
+    stride_out /= 2;
+
+    int shift1 = target_bpp - input_alpha_bpp;
+    int shift2 = 2 * input_alpha_bpp - target_bpp;
+
+    for (uint32_t y = 0; y < alpha_height; y++)
+      for (uint32_t x = 0; x < alpha_width; x++) {
+        int in = p_in[y * stride_in + x];
+        p_out[y * stride_out + x] = (uint16_t) ((in << shift1) | (in >> shift2));
+      }
+  }
+  else if (input_alpha_bpp > 8 && target_bpp <= 8) {
+    // Downscale: HDR alpha -> 8-bit
+    const uint16_t* p_in;
+    size_t stride_in;
+    p_in = (const uint16_t*) input->get_plane(heif_channel_Alpha, &stride_in);
+    stride_in /= 2;
+
+    uint8_t* p_out;
+    size_t stride_out;
+    p_out = outimg->get_plane(heif_channel_Alpha, &stride_out);
+
+    int shift = input_alpha_bpp - 8;
+
+    for (uint32_t y = 0; y < alpha_height; y++)
+      for (uint32_t x = 0; x < alpha_width; x++) {
+        p_out[y * stride_out + x] = (uint8_t) (p_in[y * stride_in + x] >> shift);
+      }
+  }
+  else if (input_alpha_bpp > 8 && target_bpp > 8) {
+    // HDR alpha -> different HDR: rescale within uint16_t
+    const uint16_t* p_in;
+    size_t stride_in;
+    p_in = (const uint16_t*) input->get_plane(heif_channel_Alpha, &stride_in);
+    stride_in /= 2;
+
+    uint16_t* p_out;
+    size_t stride_out;
+    p_out = (uint16_t*) outimg->get_plane(heif_channel_Alpha, &stride_out);
+    stride_out /= 2;
+
+    if (target_bpp > input_alpha_bpp) {
+      int shift1 = target_bpp - input_alpha_bpp;
+      int shift2 = 2 * input_alpha_bpp - target_bpp;
+      for (uint32_t y = 0; y < alpha_height; y++)
+        for (uint32_t x = 0; x < alpha_width; x++) {
+          int in = p_in[y * stride_in + x];
+          p_out[y * stride_out + x] = (uint16_t) ((in << shift1) | (in >> shift2));
+        }
+    }
+    else {
+      int shift = input_alpha_bpp - target_bpp;
+      for (uint32_t y = 0; y < alpha_height; y++)
+        for (uint32_t x = 0; x < alpha_width; x++) {
+          p_out[y * stride_out + x] = (uint16_t) (p_in[y * stride_in + x] >> shift);
+        }
+    }
+  }
+  else {
+    // SDR alpha -> different SDR (both <= 8)
+    const uint8_t* p_in;
+    size_t stride_in;
+    p_in = input->get_plane(heif_channel_Alpha, &stride_in);
+
+    uint8_t* p_out;
+    size_t stride_out;
+    p_out = outimg->get_plane(heif_channel_Alpha, &stride_out);
+
+    if (target_bpp > input_alpha_bpp) {
+      int shift1 = target_bpp - input_alpha_bpp;
+      int shift2 = 2 * input_alpha_bpp - target_bpp;
+      for (uint32_t y = 0; y < alpha_height; y++)
+        for (uint32_t x = 0; x < alpha_width; x++) {
+          int in = p_in[y * stride_in + x];
+          p_out[y * stride_out + x] = (uint8_t) ((in << shift1) | (in >> shift2));
+        }
+    }
+    else {
+      int shift = input_alpha_bpp - target_bpp;
+      for (uint32_t y = 0; y < alpha_height; y++)
+        for (uint32_t x = 0; x < alpha_width; x++) {
+          p_out[y * stride_out + x] = (uint8_t) (p_in[y * stride_in + x] >> shift);
+        }
+    }
+  }
+
+  return outimg;
+}

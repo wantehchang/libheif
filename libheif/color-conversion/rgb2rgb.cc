@@ -37,6 +37,10 @@ Op_RGB_to_RGB24_32::state_after_conversion(const ColorState& input_state,
     return {};
   }
 
+  if (input_state.has_alpha && input_state.get_alpha_bits_per_pixel() != input_state.bits_per_pixel) {
+    return {};
+  }
+
   std::vector<ColorStateWithCost> states;
 
   ColorState output_state;
@@ -157,6 +161,10 @@ Op_RGB_HDR_to_RRGGBBaa_BE::state_after_conversion(const ColorState& input_state,
   if (input_state.colorspace != heif_colorspace_RGB ||
       input_state.chroma != heif_chroma_444 ||
       input_state.bits_per_pixel <= 8) {
+    return {};
+  }
+
+  if (input_state.has_alpha && input_state.get_alpha_bits_per_pixel() != input_state.bits_per_pixel) {
     return {};
   }
 
@@ -295,6 +303,10 @@ Op_RGB_to_RRGGBBaa_BE::state_after_conversion(const ColorState& input_state,
   if (input_state.colorspace != heif_colorspace_RGB ||
       input_state.chroma != heif_chroma_444 ||
       input_state.bits_per_pixel != 8) {
+    return {};
+  }
+
+  if (input_state.has_alpha && input_state.get_alpha_bits_per_pixel() != input_state.bits_per_pixel) {
     return {};
   }
 
@@ -440,6 +452,7 @@ Op_RRGGBBaa_BE_to_RGB_HDR::state_after_conversion(const ColorState& input_state,
   output_state.chroma = heif_chroma_444;
   output_state.has_alpha = target_state.has_alpha;
   output_state.bits_per_pixel = input_state.bits_per_pixel;
+  output_state.alpha_bits_per_pixel = input_state.bits_per_pixel;
 
   states.emplace_back(output_state, SpeedCosts_Unoptimized);
 
@@ -556,6 +569,7 @@ Op_RGB24_32_to_RGB::state_after_conversion(const ColorState& input_state,
   output_state.chroma = heif_chroma_444;
   output_state.has_alpha = target_state.has_alpha;
   output_state.bits_per_pixel = input_state.bits_per_pixel;
+  output_state.alpha_bits_per_pixel = input_state.bits_per_pixel;
 
   states.emplace_back(output_state, SpeedCosts_Unoptimized);
 
