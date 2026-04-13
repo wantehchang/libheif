@@ -83,6 +83,8 @@ struct heif_encoder
 
   void release();
 
+  void copy_parameters_from(const heif_encoder& src);
+
 
   const struct heif_encoder_plugin* plugin;
   void* encoder = nullptr;

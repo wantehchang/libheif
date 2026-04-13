@@ -98,25 +98,23 @@ heif_error heif_encoder::alloc()
 }
 
 
-static void copy_encoder_parameters(heif_encoder* dst, const heif_encoder* src)
+void heif_encoder::copy_parameters_from(const heif_encoder& src)
 {
-  const auto* plugin = src->plugin;
-
   // Copy dedicated quality/lossless/logging parameters
   int ival;
-  plugin->get_parameter_quality(src->encoder, &ival);
-  plugin->set_parameter_quality(dst->encoder, ival);
+  plugin->get_parameter_quality(src.encoder, &ival);
+  plugin->set_parameter_quality(encoder, ival);
 
-  plugin->get_parameter_lossless(src->encoder, &ival);
-  plugin->set_parameter_lossless(dst->encoder, ival);
+  plugin->get_parameter_lossless(src.encoder, &ival);
+  plugin->set_parameter_lossless(encoder, ival);
 
   if (plugin->get_parameter_logging_level && plugin->set_parameter_logging_level) {
-    plugin->get_parameter_logging_level(src->encoder, &ival);
-    plugin->set_parameter_logging_level(dst->encoder, ival);
+    plugin->get_parameter_logging_level(src.encoder, &ival);
+    plugin->set_parameter_logging_level(encoder, ival);
   }
 
   // Copy all enumerable plugin parameters
-  const heif_encoder_parameter* const* params = plugin->list_parameters(src->encoder);
+  const heif_encoder_parameter* const* params = plugin->list_parameters(src.encoder);
   if (!params) return;
 
   for (; *params; params++) {
@@ -124,20 +122,20 @@ static void copy_encoder_parameters(heif_encoder* dst, const heif_encoder* src)
     switch ((*params)->type) {
       case heif_encoder_parameter_type_integer: {
         int v;
-        if (plugin->get_parameter_integer(src->encoder, name, &v).code == heif_error_Ok)
-          plugin->set_parameter_integer(dst->encoder, name, v);
+        if (plugin->get_parameter_integer(src.encoder, name, &v).code == heif_error_Ok)
+          plugin->set_parameter_integer(encoder, name, v);
         break;
       }
       case heif_encoder_parameter_type_boolean: {
         int v;
-        if (plugin->get_parameter_boolean(src->encoder, name, &v).code == heif_error_Ok)
-          plugin->set_parameter_boolean(dst->encoder, name, v);
+        if (plugin->get_parameter_boolean(src.encoder, name, &v).code == heif_error_Ok)
+          plugin->set_parameter_boolean(encoder, name, v);
         break;
       }
       case heif_encoder_parameter_type_string: {
         char v[256];
-        if (plugin->get_parameter_string(src->encoder, name, v, sizeof(v)).code == heif_error_Ok)
-          plugin->set_parameter_string(dst->encoder, name, v);
+        if (plugin->get_parameter_string(src.encoder, name, v, sizeof(v)).code == heif_error_Ok)
+          plugin->set_parameter_string(encoder, name, v);
         break;
       }
     }
@@ -1644,7 +1642,7 @@ Result<std::shared_ptr<ImageItem>> HeifContext::encode_image(const std::shared_p
     if (alloc_err.code) {
       return Error(alloc_err.code, alloc_err.subcode, alloc_err.message);
     }
-    copy_encoder_parameters(&alpha_enc, encoder);
+    alpha_enc.copy_parameters_from(*encoder);
 
     auto alphaEncodingResult = encode_image(alpha_image, &alpha_enc, options,
                          heif_image_input_class_alpha);

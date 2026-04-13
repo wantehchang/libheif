@@ -429,6 +429,7 @@ Error Track_Visual::encode_image(std::shared_ptr<HeifPixelImage> image,
       if (err.code) {
         return {err.code, err.subcode, err.message};
       }
+      m_alpha_track_encoder->copy_parameters_from(*h_encoder);
     }
   }
 
