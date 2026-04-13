@@ -302,6 +302,7 @@ heif_error dav1d_decode_next_image2(void* decoder_raw, heif_image** out_img,
       colorspace = heif_colorspace_monochrome;
       break;
     default: {
+      dav1d_picture_unref(&frame);
       return {
         heif_error_Decoder_plugin_error,
         heif_suberror_Unspecified,
@@ -321,6 +322,7 @@ heif_error dav1d_decode_next_image2(void* decoder_raw, heif_image** out_img,
                           &heif_img);
   if (err.code != heif_error_Ok) {
     assert(heif_img == nullptr);
+    dav1d_picture_unref(&frame);
     return err;
   }
 
@@ -363,6 +365,7 @@ heif_error dav1d_decode_next_image2(void* decoder_raw, heif_image** out_img,
       err.message = decoder->error_message.c_str();
 
       heif_image_release(heif_img);
+      dav1d_picture_unref(&frame);
       return err;
     }
 
