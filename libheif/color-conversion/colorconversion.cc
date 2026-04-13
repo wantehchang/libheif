@@ -604,6 +604,9 @@ Result<std::shared_ptr<HeifPixelImage>> convert_colorspace(const std::shared_ptr
     output_state.bits_per_pixel = 10;
   }
 
+  // Output alpha should always match the output color BPP
+  output_state.alpha_bits_per_pixel = output_state.bits_per_pixel;
+
   ColorConversionPipeline pipeline;
   bool success = pipeline.construct_pipeline(input_state, output_state, options, *options_ext);
   if (!success) {

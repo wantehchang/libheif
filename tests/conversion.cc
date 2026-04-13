@@ -756,3 +756,133 @@ TEST_CASE("RGB 5-6-5 to RGB")
   assert_plane(out, heif_channel_G, {28, 32, 36, 40, 44, 48});
   assert_plane(out, heif_channel_B, {107, 115, 123, 132, 140, 148});
 }
+
+
+TEST_CASE("Mismatched alpha bit depth - pipeline construction") {
+  heif_color_conversion_options options{};
+  options.preferred_chroma_downsampling_algorithm = heif_chroma_downsampling_average;
+  options.preferred_chroma_upsampling_algorithm = heif_chroma_upsampling_bilinear;
+
+  std::unique_ptr<heif_color_conversion_options_ext, void(*)(heif_color_conversion_options_ext*)>
+      options_ext(heif_color_conversion_options_ext_alloc(), heif_color_conversion_options_ext_free);
+
+  SECTION("10-bit color, 8-bit alpha -> interleaved RGBA 8-bit") {
+    ColorState input_state(heif_colorspace_YCbCr, heif_chroma_420, true, 10);
+    input_state.alpha_bits_per_pixel = 8;
+    nclx_default_if_undefined(input_state);
+
+    ColorState target_state(heif_colorspace_RGB, heif_chroma_interleaved_RGBA, true, 8);
+
+    ColorConversionPipeline pipeline;
+    bool supported = pipeline.construct_pipeline(input_state, target_state, options, *options_ext);
+    INFO("pipeline: " << pipeline.debug_dump_pipeline());
+    REQUIRE(supported);
+  }
+
+  SECTION("8-bit color, 10-bit alpha -> interleaved RGBA 8-bit") {
+    ColorState input_state(heif_colorspace_YCbCr, heif_chroma_420, true, 8);
+    input_state.alpha_bits_per_pixel = 10;
+    nclx_default_if_undefined(input_state);
+
+    ColorState target_state(heif_colorspace_RGB, heif_chroma_interleaved_RGBA, true, 8);
+
+    ColorConversionPipeline pipeline;
+    bool supported = pipeline.construct_pipeline(input_state, target_state, options, *options_ext);
+    INFO("pipeline: " << pipeline.debug_dump_pipeline());
+    REQUIRE(supported);
+  }
+
+  SECTION("10-bit color, 8-bit alpha -> planar RGB 10-bit") {
+    ColorState input_state(heif_colorspace_YCbCr, heif_chroma_420, true, 10);
+    input_state.alpha_bits_per_pixel = 8;
+    nclx_default_if_undefined(input_state);
+
+    ColorState target_state(heif_colorspace_RGB, heif_chroma_444, true, 10);
+    target_state.alpha_bits_per_pixel = 10;
+
+    ColorConversionPipeline pipeline;
+    bool supported = pipeline.construct_pipeline(input_state, target_state, options, *options_ext);
+    INFO("pipeline: " << pipeline.debug_dump_pipeline());
+    REQUIRE(supported);
+  }
+}
+
+
+TEST_CASE("Mismatched alpha bit depth - conversion correctness") {
+  heif_color_conversion_options options{};
+
+  SECTION("10-bit RGB color with 8-bit alpha -> interleaved RGBA 8-bit") {
+    const uint32_t width = 4;
+    const uint32_t height = 2;
+
+    auto img = std::make_shared<HeifPixelImage>();
+    img->create(width, height, heif_colorspace_RGB, heif_chroma_444);
+
+    // Create 10-bit color planes filled with a known value (512 = mid-range for 10-bit)
+    img->fill_new_plane(heif_channel_R, 512, width, height, 10, nullptr);
+    img->fill_new_plane(heif_channel_G, 256, width, height, 10, nullptr);
+    img->fill_new_plane(heif_channel_B, 768, width, height, 10, nullptr);
+    // Create 8-bit alpha plane filled with 200
+    img->fill_new_plane(heif_channel_Alpha, 200, width, height, 8, nullptr);
+
+    // Verify the mismatch
+    REQUIRE(img->get_bits_per_pixel(heif_channel_R) == 10);
+    REQUIRE(img->get_bits_per_pixel(heif_channel_Alpha) == 8);
+
+    auto result = convert_colorspace(img, heif_colorspace_RGB, heif_chroma_interleaved_RGBA,
+                                     nclx_profile::defaults(), 8, options, nullptr,
+                                     heif_get_disabled_security_limits());
+    REQUIRE(result);
+    auto out = *result;
+
+    CHECK(out->get_colorspace() == heif_colorspace_RGB);
+    CHECK(out->get_chroma_format() == heif_chroma_interleaved_RGBA);
+
+    // Verify the output has correct interleaved pixel values
+    size_t stride;
+    const uint8_t* p = out->get_plane(heif_channel_interleaved, &stride);
+    REQUIRE(p != nullptr);
+
+    // Check first pixel: R=512>>2=128, G=256>>2=64, B=768>>2=192, A=200
+    CHECK(p[0] == 128);  // R
+    CHECK(p[1] == 64);   // G
+    CHECK(p[2] == 192);  // B
+    CHECK(p[3] == 200);  // A (preserved from 8-bit alpha)
+  }
+
+  SECTION("8-bit RGB color with 10-bit alpha -> interleaved RGBA 8-bit") {
+    const uint32_t width = 4;
+    const uint32_t height = 2;
+
+    auto img = std::make_shared<HeifPixelImage>();
+    img->create(width, height, heif_colorspace_RGB, heif_chroma_444);
+
+    // Create 8-bit color planes
+    img->fill_new_plane(heif_channel_R, 128, width, height, 8, nullptr);
+    img->fill_new_plane(heif_channel_G, 64, width, height, 8, nullptr);
+    img->fill_new_plane(heif_channel_B, 192, width, height, 8, nullptr);
+    // Create 10-bit alpha plane (value 800 -> 800>>2 = 200 when converted to 8-bit)
+    img->fill_new_plane(heif_channel_Alpha, 800, width, height, 10, nullptr);
+
+    REQUIRE(img->get_bits_per_pixel(heif_channel_R) == 8);
+    REQUIRE(img->get_bits_per_pixel(heif_channel_Alpha) == 10);
+
+    auto result = convert_colorspace(img, heif_colorspace_RGB, heif_chroma_interleaved_RGBA,
+                                     nclx_profile::defaults(), 8, options, nullptr,
+                                     heif_get_disabled_security_limits());
+    REQUIRE(result);
+    auto out = *result;
+
+    CHECK(out->get_colorspace() == heif_colorspace_RGB);
+    CHECK(out->get_chroma_format() == heif_chroma_interleaved_RGBA);
+
+    size_t stride;
+    const uint8_t* p = out->get_plane(heif_channel_interleaved, &stride);
+    REQUIRE(p != nullptr);
+
+    CHECK(p[0] == 128);  // R (unchanged)
+    CHECK(p[1] == 64);   // G (unchanged)
+    CHECK(p[2] == 192);  // B (unchanged)
+    CHECK(p[3] == 200);  // A (10-bit 800 >> 2 = 200)
+  }
+}
