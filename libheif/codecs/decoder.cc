@@ -270,12 +270,17 @@ Result<std::vector<uint8_t>> Decoder::get_compressed_data(bool with_configuratio
 
 Decoder::~Decoder()
 {
+  release_decoder();
+}
+
+
+void Decoder::release_decoder()
+{
   if (m_decoder) {
     assert(m_decoder_plugin);
     m_decoder_plugin->free_decoder(m_decoder);
+    m_decoder = nullptr;
   }
-
-  //std::unique_ptr<void, void (*)(void*)> decoderSmartPtr(m_decoder, m_decoder_plugin->free_decoder);
 }
 
 
@@ -453,6 +458,7 @@ Decoder::decode_single_frame_from_compressed_data(const heif_decoding_options& o
 {
   Error decodeError = decode_sequence_frame_from_compressed_data(true, options, 0, limits);
   if (decodeError) {
+    release_decoder();
     return decodeError;
   }
 
@@ -467,15 +473,19 @@ Decoder::decode_single_frame_from_compressed_data(const heif_decoding_options& o
     Result<std::shared_ptr<HeifPixelImage>> imgResult;
     imgResult = get_decoded_frame(options, nullptr, limits);
     if (imgResult.error()) {
+      release_decoder();
       return imgResult.error();
     }
 
     if (*imgResult != nullptr) {
+      release_decoder();
       return imgResult;
     }
   }
 
-  // We did not receive and image from the decoder. We give up.
+  // We did not receive an image from the decoder. We give up.
+
+  release_decoder();
 
   return Error{
     heif_error_Decoder_plugin_error,

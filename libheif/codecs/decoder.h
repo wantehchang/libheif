@@ -115,6 +115,10 @@ public:
                                                                      uintptr_t* out_user_data,
                                                                      const heif_security_limits* limits);
 
+  // Release the codec plugin decoder context (frees worker threads).
+  // Safe to call multiple times. The decoder will be re-created on next use.
+  void release_decoder();
+
 private:
   DataExtent m_data_extent;
 
