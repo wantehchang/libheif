@@ -79,8 +79,23 @@ int main() {
 endif ()
 
 
-find_package(PNG)
-set(PNG_FOUND ${PNG_FOUND} PARENT_SCOPE)
+option(WITH_LIBPNG_INTERNAL "Use the libpng build in the 'third-party' directory" OFF)
+
+if (WITH_LIBPNG_INTERNAL)
+    add_library(PNG::PNG STATIC IMPORTED)
+    set_target_properties(PNG::PNG PROPERTIES
+        IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/third-party/libpng/build/dist/lib/libpng.a"
+        INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/third-party/libpng/build/dist/include"
+    )
+    find_package(ZLIB REQUIRED)
+    target_link_libraries(PNG::PNG INTERFACE ZLIB::ZLIB m)
+    set(PNG_FOUND ON)
+    set(PNG_FOUND ON PARENT_SCOPE)
+else()
+    find_package(PNG)
+    set(PNG_FOUND ${PNG_FOUND} PARENT_SCOPE)
+endif()
+
 if (TARGET PNG::PNG)
     target_compile_definitions(heifio PUBLIC -DHAVE_LIBPNG=1)
 

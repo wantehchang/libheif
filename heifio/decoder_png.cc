@@ -472,6 +472,11 @@ heif_error loadPNG(const char* filename, int output_bit_depth, InputImage *input
         if (nclx) {
           heif_nclx_color_profile_set_color_primaries(nclx, color_primaries);
           heif_nclx_color_profile_set_transfer_characteristics(nclx, transfer_characteristics);
+
+          // Since matrix_coefficients are always 0 for PNGs, choose coefficients as default that
+          // match the color primaries.
+          // TODO: should we move this into libheif?
+
           switch (color_primaries) {
           case heif_color_primaries_ITU_R_BT_709_5:
           default:
