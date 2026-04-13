@@ -478,21 +478,25 @@ heif_error loadPNG(const char* filename, int output_bit_depth, InputImage *input
           // TODO: should we move this into libheif?
 
           switch (color_primaries) {
-          case heif_color_primaries_ITU_R_BT_709_5:
           default:
-            matrix_coefficients = heif_matrix_coefficients_ITU_R_BT_709_5;
+          case heif_color_primaries_ITU_R_BT_709_5: // 1: HD, web, sRGB
+            matrix_coefficients = heif_matrix_coefficients_ITU_R_BT_709_5; // 1
             break;
-          case heif_color_primaries_ITU_R_BT_470_6_System_B_G:
-            matrix_coefficients = heif_matrix_coefficients_ITU_R_BT_470_6_System_B_G;
+          case heif_color_primaries_ITU_R_BT_470_6_System_B_G: // 5: PAL/SECAM
+          case heif_color_primaries_EBU_Tech_3213_E: // 22: EBU legacy
+            matrix_coefficients = heif_matrix_coefficients_ITU_R_BT_470_6_System_B_G; // 5
             break;
-          case heif_color_primaries_ITU_R_BT_601_6:
-            matrix_coefficients = heif_matrix_coefficients_ITU_R_BT_601_6;
+          case heif_color_primaries_ITU_R_BT_601_6: // 6: DVD, SD web video
+          case heif_color_primaries_ITU_R_BT_470_6_System_M: // 4: Legacy NTSC
+            matrix_coefficients = heif_matrix_coefficients_ITU_R_BT_601_6; // 6
             break;
-          case heif_color_primaries_SMPTE_240M:
-            matrix_coefficients = heif_matrix_coefficients_SMPTE_240M;
+          case heif_color_primaries_SMPTE_240M: // 7
+            matrix_coefficients = heif_matrix_coefficients_SMPTE_240M; // 7
             break;
-          case heif_color_primaries_ITU_R_BT_2020_2_and_2100_0:
-            matrix_coefficients = heif_matrix_coefficients_ITU_R_BT_2020_2_constant_luminance;
+          case heif_color_primaries_ITU_R_BT_2020_2_and_2100_0: // 9: HDR10, UHD broadcast
+          case heif_color_primaries_SMPTE_RP_431_2: // 11: DCI-P3 (D65)
+          case heif_color_primaries_SMPTE_EG_432_1: // 12: DCI-P3 (theater)
+            matrix_coefficients = heif_matrix_coefficients_ITU_R_BT_2020_2_non_constant_luminance; // 9
             break;
           }
           heif_nclx_color_profile_set_matrix_coefficients(nclx, matrix_coefficients);
