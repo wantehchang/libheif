@@ -138,7 +138,9 @@ SampleAuxInfoReader::SampleAuxInfoReader(std::shared_ptr<Box_saiz> saiz,
     for (uint32_t i = 0; i < nSamples; i++) {
       if (!oneChunk && i > chunks[current_chunk]->last_sample_number()) {
         current_chunk++;
-        assert(current_chunk < chunks.size());
+        if (current_chunk >= chunks.size()) {
+          break;
+        }
         offset = saio->get_chunk_offset(current_chunk);
       }
 
@@ -448,6 +450,14 @@ Error Track::load(const std::shared_ptr<Box_trak>& trak_box)
           heif_error_Invalid_input,
           heif_suberror_Unspecified,
           "'saiz' box references samples but no chunks exist."
+        };
+      }
+
+      if (saiz->get_num_samples() > m_stsz->num_samples()) {
+        return Error{
+          heif_error_Invalid_input,
+          heif_suberror_Unspecified,
+          "Number of samples in 'saiz' box exceeds actual number of samples."
         };
       }
 
