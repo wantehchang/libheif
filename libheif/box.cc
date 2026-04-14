@@ -2142,8 +2142,23 @@ void Box_iloc::derive_box_version()
 
   m_offset_size = 4;
   m_length_size = 4;
-  //m_base_offset_size = 4; // set above
   m_index_size = 0;
+
+  // extent.length is already known; extent.offset within an item equals
+  // the cumulative length of all preceding extents (they are written sequentially).
+  // base_offset absorbs the absolute file position, so extent.offset is relative.
+  for (const auto& item : m_items) {
+    uint64_t cumulative_offset = 0;
+    for (const auto& extent : item.extents) {
+      if (cumulative_offset > 0xFFFFFFFF) {
+        m_offset_size = 8;
+      }
+      if (extent.length > 0xFFFFFFFF) {
+        m_length_size = 8;
+      }
+      cumulative_offset += extent.length;
+    }
+  }
 
   set_version((uint8_t) min_version);
 }
