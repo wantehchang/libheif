@@ -725,6 +725,7 @@ Error HeifPixelImage::extend_padding_to_size(uint32_t width, uint32_t height, bo
 
       ImageComponent newPlane;
       newPlane.m_channel = component.m_channel;
+      newPlane.m_component_ids = component.m_component_ids;
       if (auto err = newPlane.alloc(subsampled_width, subsampled_height, component.m_datatype, component.m_bit_depth,
                                     num_interleaved_components_per_plane(m_chroma),
                                     limits, m_memory_handle))
@@ -801,6 +802,7 @@ Error HeifPixelImage::extend_to_size_with_zero(uint32_t width, uint32_t height, 
 
       ImageComponent newPlane;
       newPlane.m_channel = component.m_channel;
+      newPlane.m_component_ids = component.m_component_ids;
       if (auto err = newPlane.alloc(subsampled_width, subsampled_height, component.m_datatype, component.m_bit_depth, num_interleaved_components_per_plane(m_chroma), limits, m_memory_handle)) {
         return err;
       }
