@@ -234,9 +234,23 @@ heif_error loadPNG(const char* filename, int output_bit_depth, InputImage *input
   assert(row_pointers != NULL);
 
   size_t rowbytes = png_get_rowbytes(png_ptr, info_ptr);
-  // make it 16 bytes aligned
-  if(rowbytes % 16 != 0)
-    rowbytes += 16 - (rowbytes % 16);
+  // make it 16 bytes aligned, with overflow check
+  size_t aligned_rowbytes = (rowbytes + 15) & ~(size_t)15;
+
+  // check for integer overflows in alignment and total allocation size
+  if (aligned_rowbytes < rowbytes || (height > 0 && aligned_rowbytes > SIZE_MAX / height)) {
+    delete[] row_pointers;
+    free(profile_data);
+    png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp) NULL);
+    fclose(fh);
+    struct heif_error err = {
+      .code = heif_error_Memory_allocation_error,
+      .subcode = heif_suberror_Security_limit_exceeded,
+      .message = "PNG image too large"};
+    return err;
+  }
+
+  rowbytes = aligned_rowbytes;
   row_pointers[0] = (png_bytep)malloc(rowbytes * height);
   assert(row_pointers[0] != NULL);
   for (uint32_t y = 1; y < height; y++) {
