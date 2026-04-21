@@ -82,7 +82,12 @@ int heif_context_number_of_sequence_tracks(const heif_context*);
 
 /**
  * Returns the IDs for each of the tracks stored in the HEIF file.
- * The output array must have heif_context_number_of_sequence_tracks() entries.
+ *
+ * The caller MUST allocate `out_track_id_array` with exactly
+ * heif_context_number_of_sequence_tracks() entries. The function writes
+ * that many IDs unconditionally. Passing a smaller array results in a
+ * buffer overflow (undefined behavior); there is no capacity parameter
+ * and no truncation.
  */
 LIBHEIF_API
 void heif_context_get_track_ids(const heif_context* ctx, uint32_t out_track_id_array[]);
@@ -610,7 +615,12 @@ size_t heif_track_get_number_of_track_reference_types(const heif_track*);
 
 /**
  * List the reference types used in this track.
- * The passed array must have heif_track_get_number_of_track_reference_types() entries.
+ *
+ * The caller MUST allocate `out_reference_types` with exactly
+ * heif_track_get_number_of_track_reference_types() entries. The function
+ * writes that many values unconditionally. Passing a smaller array
+ * results in a buffer overflow (undefined behavior); there is no
+ * capacity parameter and no truncation.
  */
 LIBHEIF_API
 void heif_track_get_track_reference_types(const heif_track*, uint32_t out_reference_types[]);
