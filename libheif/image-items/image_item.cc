@@ -707,6 +707,16 @@ Result<std::shared_ptr<HeifPixelImage>> ImageItem::decode_image(const heif_decod
                                                                 bool decode_tile_only, uint32_t tile_x0, uint32_t tile_y0,
                                                                 std::set<heif_item_id> processed_ids) const
 {
+  // Check for cycles before taking m_decode_mutex: a derived item that
+  // (transitively) references itself would otherwise re-enter decode_image()
+  // on the same ImageItem and self-deadlock on the non-recursive mutex.
+  if (processed_ids.contains(m_id)) {
+    return Error{heif_error_Invalid_input,
+                 heif_suberror_Unspecified,
+                 "'iref' has cyclic references"};
+  }
+  processed_ids.insert(m_id);
+
   std::lock_guard<std::mutex> lock(m_decode_mutex);
 
   // --- check whether image size (according to 'ispe') exceeds maximum
