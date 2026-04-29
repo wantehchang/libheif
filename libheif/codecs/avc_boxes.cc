@@ -324,7 +324,7 @@ void skip_scaling_list(BitReader& reader, int sizeOfScalingList)
 #else
   // fast version
   for (int j = 0; j < sizeOfScalingList; j++) {
-    int delta_scale;
+    int32_t delta_scale;
     reader.get_svlc(&delta_scale);
     nextScale = (lastScale + delta_scale + 256) % 256;
 
@@ -340,7 +340,8 @@ void skip_scaling_list(BitReader& reader, int sizeOfScalingList)
 
 Error parse_sps_for_avcC_configuration(const uint8_t* sps, size_t size,
                                        Box_avcC::configuration* config,
-                                       int* width, int* height)
+                                       uint32_t* width, uint32_t* height,
+                                       ImageSize* coded_size)
 {
   // remove start-code emulation bytes from SPS header stream
 
@@ -361,7 +362,7 @@ Error parse_sps_for_avcC_configuration(const uint8_t* sps, size_t size,
   config->AVCLevelIndication = reader.get_bits8(8);
   config->lengthSize = 4;
 
-  int value;
+  uint32_t value;
   reader.get_uvlc(&value); // SPS ID
 
   Error invalidUVLC{
@@ -413,18 +414,19 @@ Error parse_sps_for_avcC_configuration(const uint8_t* sps, size_t size,
   }
 
   reader.get_uvlc(&value); // log2_max_frame_num_minus4
-  int pic_order_cnt_type;
+  uint32_t pic_order_cnt_type;
   reader.get_uvlc(&pic_order_cnt_type);
   if (pic_order_cnt_type == 0) {
     reader.get_uvlc(&value);
   }
   else if (pic_order_cnt_type == 1) {
     reader.get_bits(1);
-    reader.get_svlc(&value);
-    reader.get_svlc(&value);
-    int num_ref_franes_in_pic_order_cnt_cycle;
+    int32_t svalue;
+    reader.get_svlc(&svalue);
+    reader.get_svlc(&svalue);
+    uint32_t num_ref_franes_in_pic_order_cnt_cycle;
     reader.get_uvlc(&num_ref_franes_in_pic_order_cnt_cycle);
-    for (int i = 0; i < num_ref_franes_in_pic_order_cnt_cycle; i++) {
+    for (uint32_t i = 0; i < num_ref_franes_in_pic_order_cnt_cycle; i++) {
       reader.get_uvlc(&value);
     }
   }
@@ -432,13 +434,18 @@ Error parse_sps_for_avcC_configuration(const uint8_t* sps, size_t size,
   reader.get_uvlc(&value); // num_ref_frames
   reader.skip_bits(1);
 
-  int pic_width_in_mbs_minus1;
-  int pic_height_in_mbs_minus1;
+  uint32_t pic_width_in_mbs_minus1;
+  uint32_t pic_height_in_mbs_minus1;
   reader.get_uvlc(&pic_width_in_mbs_minus1);
   reader.get_uvlc(&pic_height_in_mbs_minus1);
 
   *width = (pic_width_in_mbs_minus1 + 1) * 16;
   *height = (pic_height_in_mbs_minus1 + 1) * 16;
+
+  if (coded_size) {
+    coded_size->width = *width;
+    coded_size->height = *height;
+  }
 
   uint32_t frame_mbs_only_flag = reader.get_bits(1);
   if (!frame_mbs_only_flag) {
@@ -447,7 +454,7 @@ Error parse_sps_for_avcC_configuration(const uint8_t* sps, size_t size,
   reader.skip_bits(1);
   uint32_t frame_cropping_flag = reader.get_bits(1);
   if (frame_cropping_flag) {
-    int left, right, top, bottom;
+    uint32_t left, right, top, bottom;
     reader.get_uvlc(&left);
     reader.get_uvlc(&right);
     reader.get_uvlc(&top);

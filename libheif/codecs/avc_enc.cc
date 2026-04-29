@@ -49,8 +49,8 @@ Result<Encoder::CodedImageData> Encoder_AVC::encode(const std::shared_ptr<HeifPi
                  err.message);
   }
 
-  int encoded_width = 0;
-  int encoded_height = 0;
+  uint32_t encoded_width = 0;
+  uint32_t encoded_height = 0;
 
   for (;;) {
     uint8_t* data;
@@ -109,8 +109,8 @@ Result<Encoder::CodedImageData> Encoder_AVC::encode(const std::shared_ptr<HeifPi
                                         &check_encoded_width,
                                         &check_encoded_height);
 
-    assert((int)check_encoded_width == encoded_width);
-    assert((int)check_encoded_height == encoded_height);
+    assert(check_encoded_width == encoded_width);
+    assert(check_encoded_height == encoded_height);
   }
 
   codedImage.codingConstraints.intra_pred_used = true;

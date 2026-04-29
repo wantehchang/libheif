@@ -50,8 +50,8 @@ Result<Encoder::CodedImageData> Encoder_VVC::encode(const std::shared_ptr<HeifPi
                  err.message);
   }
 
-  int encoded_width = 0;
-  int encoded_height = 0;
+  uint32_t encoded_width = 0;
+  uint32_t encoded_height = 0;
 
   for (;;) {
     uint8_t* data;

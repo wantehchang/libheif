@@ -451,12 +451,12 @@ static Result<std::shared_ptr<SEIMessage>> read_depth_representation_info(BitRea
   msg->has_d_min = (uint8_t) reader.get_bits(1);
   msg->has_d_max = (uint8_t) reader.get_bits(1);
 
-  int rep_type;
+  uint32_t rep_type;
   if (!reader.get_uvlc(&rep_type)) {
     return Error{heif_error_Invalid_input, heif_suberror_Invalid_parameter_value, "invalid depth representation type in input"};
   }
 
-  if (rep_type < 0 || rep_type > 3) {
+  if (rep_type > 3) {
     return Error{heif_error_Invalid_input, heif_suberror_Invalid_parameter_value, "input depth representation type out of range"};
   }
 
@@ -466,7 +466,7 @@ static Result<std::shared_ptr<SEIMessage>> read_depth_representation_info(BitRea
   //printf("type: %d\n",rep_type);
 
   if (msg->has_d_min || msg->has_d_max) {
-    int ref_view;
+    uint32_t ref_view;
     if (!reader.get_uvlc(&ref_view)) {
       return Error{heif_error_Invalid_input, heif_suberror_Invalid_parameter_value, "invalid disparity_reference_view in input"};
     }
@@ -593,7 +593,8 @@ std::vector<uint8_t> remove_start_code_emulation(const uint8_t* sps, size_t size
 
 Error parse_sps_for_hvcC_configuration(const uint8_t* sps, size_t size,
                                        HEVCDecoderConfigurationRecord* config,
-                                       int* width, int* height)
+                                       uint32_t* width, uint32_t* height,
+                                       ImageSize* coded_size)
 {
   // remove start-code emulation bytes from SPS header stream
 
@@ -657,7 +658,7 @@ Error parse_sps_for_hvcC_configuration(const uint8_t* sps, size_t size,
 
   // --- SPS continued ---
 
-  int dummy, value;
+  uint32_t dummy, value;
   reader.get_uvlc(&dummy); // skip seq_parameter_seq_id
 
   reader.get_uvlc(&value);
@@ -670,17 +671,22 @@ Error parse_sps_for_hvcC_configuration(const uint8_t* sps, size_t size,
   reader.get_uvlc(width);
   reader.get_uvlc(height);
 
+  if (coded_size) {
+    coded_size->width = *width;
+    coded_size->height = *height;
+  }
+
   bool conformance_window = reader.get_bits(1);
   if (conformance_window) {
-    int left, right, top, bottom;
+    uint32_t left, right, top, bottom;
     reader.get_uvlc(&left);
     reader.get_uvlc(&right);
     reader.get_uvlc(&top);
     reader.get_uvlc(&bottom);
 
-    //printf("conformance borders: %d %d %d %d\n",left,right,top,bottom);
+    //printf("conformance borders: %u %u %u %u\n",left,right,top,bottom);
 
-    int subH = 1, subV = 1;
+    uint32_t subH = 1, subV = 1;
     if (config->chroma_format == 1) {
       subV = 2;
       subH = 2;

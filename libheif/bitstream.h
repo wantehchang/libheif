@@ -443,9 +443,9 @@ public:
 
   void skip_to_byte_boundary();
 
-  bool get_uvlc(int* value);
+  bool get_uvlc(uint32_t* value);
 
-  bool get_svlc(int* value);
+  bool get_svlc(int32_t* value);
 
   int get_current_byte_index() const
   {

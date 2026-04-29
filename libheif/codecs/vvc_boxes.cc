@@ -20,6 +20,7 @@
 
 #include "vvc_boxes.h"
 #include "hevc_boxes.h"
+#include "codecs/decoder.h"
 #include "file.h"
 #include <cstring>
 #include <string>
@@ -213,6 +214,18 @@ void Box_vvcC::append_nal_data(const std::vector<uint8_t>& nal)
 }
 
 
+const std::vector<uint8_t>* Box_vvcC::get_first_nal_of_type(uint8_t nal_type) const
+{
+  for (const auto& arr : m_nal_array) {
+    if (arr.m_NAL_unit_type == nal_type && !arr.m_nal_units.empty()) {
+      return &arr.m_nal_units[0];
+    }
+  }
+
+  return nullptr;
+}
+
+
 void Box_vvcC::append_nal_data(const uint8_t* data, size_t size)
 {
   std::vector<uint8_t> nal;
@@ -402,7 +415,8 @@ std::string Box_vvcC::dump(Indent& indent) const
 
 Error parse_sps_for_vvcC_configuration(const uint8_t* sps, size_t size,
                                        Box_vvcC::configuration* config,
-                                       int* width, int* height)
+                                       uint32_t* width, uint32_t* height,
+                                       ImageSize* coded_size)
 {
   // remove start-code emulation bytes from SPS header stream
 
@@ -486,8 +500,8 @@ Error parse_sps_for_vvcC_configuration(const uint8_t* sps, size_t size,
     reader.skip_bits(1); // sps_res_change_in_clvs_allowed_flag
   }
 
-  int sps_pic_width_max_in_luma_samples;
-  int sps_pic_height_max_in_luma_samples;
+  uint32_t sps_pic_width_max_in_luma_samples;
+  uint32_t sps_pic_height_max_in_luma_samples;
 
   bool success;
   success = reader.get_uvlc(&sps_pic_width_max_in_luma_samples);
@@ -497,6 +511,11 @@ Error parse_sps_for_vvcC_configuration(const uint8_t* sps, size_t size,
 
   *width = sps_pic_width_max_in_luma_samples;
   *height = sps_pic_height_max_in_luma_samples;
+
+  if (coded_size) {
+    coded_size->width = *width;
+    coded_size->height = *height;
+  }
 
   if (sps_pic_width_max_in_luma_samples > 0xFFFF ||
       sps_pic_height_max_in_luma_samples > 0xFFFF) {
@@ -510,11 +529,22 @@ Error parse_sps_for_vvcC_configuration(const uint8_t* sps, size_t size,
 
   int sps_conformance_window_flag = reader.get_bits(1);
   if (sps_conformance_window_flag) {
-    int left,right,top,bottom;
+    uint32_t left, right, top, bottom;
     reader.get_uvlc(&left);
     reader.get_uvlc(&right);
     reader.get_uvlc(&top);
     reader.get_uvlc(&bottom);
+
+    // SubWidthC / SubHeightC per ITU-T H.266 Table 5-1, indexed by chroma_format_idc.
+    uint32_t subWidthC = 1, subHeightC = 1;
+    switch (config->chroma_format_idc) {
+      case 1: subWidthC = 2; subHeightC = 2; break;  // 4:2:0
+      case 2: subWidthC = 2; subHeightC = 1; break;  // 4:2:2
+      default: break;                                // mono / 4:4:4
+    }
+
+    *width  -= subWidthC  * (left + right);
+    *height -= subHeightC * (top + bottom);
   }
 
   bool sps_subpic_info_present_flag = reader.get_bits(1);
@@ -522,7 +552,7 @@ Error parse_sps_for_vvcC_configuration(const uint8_t* sps, size_t size,
     assert(false); // TODO
   }
 
-  int bitDepth_minus8;
+  uint32_t bitDepth_minus8;
   success = reader.get_uvlc(&bitDepth_minus8);
   (void)success;
 

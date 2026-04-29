@@ -85,6 +85,10 @@ public:
   void append_nal_data(const std::vector<uint8_t>& nal);
   void append_nal_data(const uint8_t* data, size_t size);
 
+  // Returns the bytes of the first NAL unit of the requested type stored in
+  // the configuration record, or nullptr if none is present.
+  const std::vector<uint8_t>* get_first_nal_of_type(uint8_t nal_type) const;
+
   Error write(StreamWriter& writer) const override;
 
 protected:
@@ -114,8 +118,14 @@ public:
 };
 
 
+struct ImageSize;
+
+// Parses a VVC SPS NAL unit. *width / *height return the post-conformance-
+// window cropping (display) dimensions. If non-null, *coded_size receives the
+// pre-cropping dimensions actually allocated by the decoder.
 Error parse_sps_for_vvcC_configuration(const uint8_t* sps, size_t size,
                                        Box_vvcC::configuration* inout_config,
-                                       int* width, int* height);
+                                       uint32_t* width, uint32_t* height,
+                                       ImageSize* coded_size = nullptr);
 
 #endif // LIBHEIF_VVC_BOXES_H

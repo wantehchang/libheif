@@ -25,6 +25,7 @@
 #include "context.h"
 #include "plugin_registry.h"
 #include "api_structs.h"
+#include "security_limits.h"
 
 #include "codecs/hevc_dec.h"
 #include "codecs/avif_dec.h"
@@ -320,6 +321,25 @@ Error Decoder::decode_sequence_frame_from_compressed_data(bool upload_configurat
   auto pluginErr = require_decoder_plugin(options);
   if (pluginErr) {
     return pluginErr;
+  }
+
+  // Reject memory-bomb inputs whose codec configuration record (SPS) declares
+  // a coded picture size beyond libheif's security limits, before handing any
+  // bytes to the decoder plugin. Codecs whose configuration record does not
+  // carry dimensions (e.g. AV1's av1C) return nullopt and skip the check.
+  //
+  // TODO: check this also in the decoder plugin since SPS packets may be
+  //       found within the actual image bitstream.
+  auto codedSize = get_coded_image_size_from_config();
+  if (codedSize.is_error()) {
+    return codedSize.error();
+  }
+
+  if (codedSize->has_value()) {
+    Error sizeErr = check_for_valid_image_size(limits, (*codedSize)->width, (*codedSize)->height);
+    if (sizeErr) {
+      return sizeErr;
+    }
   }
 
   // --- decode image with the plugin

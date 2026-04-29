@@ -205,7 +205,7 @@ static std::vector<uint8_t> remove_start_code_emulation2(const uint8_t* sps, siz
 
 Error parse_sps_for_hvcC_configuration2(const uint8_t* sps, size_t size,
                                        HEVCDecoderConfigurationRecord* config,
-                                       int* width, int* height)
+                                       uint32_t* width, uint32_t* height)
 {
   // remove start-code emulation bytes from SPS header stream
 
@@ -269,7 +269,7 @@ Error parse_sps_for_hvcC_configuration2(const uint8_t* sps, size_t size,
 
   // --- SPS continued ---
 
-  int dummy, value;
+  uint32_t dummy, value;
   reader.get_uvlc(&dummy); // skip seq_parameter_seq_id
 
   reader.get_uvlc(&value);
@@ -284,15 +284,15 @@ Error parse_sps_for_hvcC_configuration2(const uint8_t* sps, size_t size,
 
   bool conformance_window = reader.get_bits(1);
   if (conformance_window) {
-    int left, right, top, bottom;
+    uint32_t left, right, top, bottom;
     reader.get_uvlc(&left);
     reader.get_uvlc(&right);
     reader.get_uvlc(&top);
     reader.get_uvlc(&bottom);
 
-    //printf("conformance borders: %d %d %d %d\n",left,right,top,bottom);
+    //printf("conformance borders: %u %u %u %u\n",left,right,top,bottom);
 
-    int subH = 1, subV = 1;
+    uint32_t subH = 1, subV = 1;
     if (config->chroma_format == 1) {
       subV = 2;
       subH = 2;
@@ -671,7 +671,7 @@ static struct heif_error webcodecs_decode_image(void* decoder_raw,
   }
 
   HEVCDecoderConfigurationRecord config;
-  int w, h;
+  uint32_t w, h;
   Error err = parse_sps_for_hvcC_configuration2(sps_nal_unit.data.data(), sps_nal_unit.data.size(), &config, &w, &h);
   if (err != Error::Ok) {
     return {heif_error_Decoder_plugin_error,

@@ -361,7 +361,7 @@ bool fill_av1C_configuration_from_stream(Box_av1C::configuration* out_config, co
 
   // --- read sequence header
 
-  int dummy; // throw away value
+  uint32_t dummy; // throw away value
 
   bool decoder_model_info_present = false;
   int buffer_delay_length_minus1 = 0;

@@ -27,10 +27,21 @@
 #include "file.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 #include "image-items/hevc.h"
+
+
+// Image dimensions in luma samples. Reused wherever libheif needs to pass
+// a (width, height) pair around — initially for SPS-derived coded sizes,
+// but designed to fit other uses (ispe, image-item dimensions) over time.
+struct ImageSize
+{
+  uint32_t width;
+  uint32_t height;
+};
 
 
 // Specifies the input data for decoding.
@@ -89,6 +100,23 @@ public:
 
   // Returns a stream of packets. Each packet is starts with a 4-byte size (MSB first).
   [[nodiscard]] virtual Result<std::vector<uint8_t>> read_bitstream_configuration_data() const = 0;
+
+  // Returns the *coded* picture size from the codec configuration record (the
+  // SPS for HEVC/AVC/VVC) — i.e. the buffer dimensions the decoder will
+  // actually allocate, BEFORE conformance-window cropping. The cropped output
+  // size is unsuitable for security checks: a malicious file can declare a
+  // huge SPS picture size with a near-equal-sized conformance window, so the
+  // displayed image looks small while the decoder still allocates the full
+  // uncropped buffer.
+  //
+  // Returns nullopt when the codec does not store dimensions in its
+  // configuration record (e.g. AV1's av1C) or when no SPS NAL is present.
+  // Returns Error only on a structurally invalid configuration record.
+  [[nodiscard]] virtual Result<std::optional<ImageSize>>
+  get_coded_image_size_from_config() const
+  {
+    return std::optional<ImageSize>{};
+  }
 
   Result<std::vector<uint8_t>> get_compressed_data(bool with_configuration_NALs) const;
 

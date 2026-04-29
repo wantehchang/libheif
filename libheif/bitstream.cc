@@ -696,7 +696,7 @@ void BitReader::skip_to_byte_boundary()
   nextbits_cnt -= nskip;
 }
 
-bool BitReader::get_uvlc(int* value)
+bool BitReader::get_uvlc(uint32_t* value)
 {
   int num_zeros = 0;
 
@@ -706,10 +706,9 @@ bool BitReader::get_uvlc(int* value)
     if (num_zeros > MAX_UVLC_LEADING_ZEROS) { return false; }
   }
 
-  int offset = 0;
   if (num_zeros != 0) {
-    offset = (int) get_bits(num_zeros);
-    *value = offset + (1 << num_zeros) - 1;
+    uint32_t offset = get_bits(num_zeros);
+    *value = offset + (1u << num_zeros) - 1u;
     assert(*value > 0);
     return true;
   }
@@ -719,19 +718,19 @@ bool BitReader::get_uvlc(int* value)
   }
 }
 
-bool BitReader::get_svlc(int* value)
+bool BitReader::get_svlc(int32_t* value)
 {
-  int v;
+  uint32_t v;
   if (!get_uvlc(&v)) {
     return false;
   }
   else if (v == 0) {
-    *value = v;
+    *value = 0;
     return true;
   }
 
-  bool negative = ((v & 1) == 0);
-  *value = negative ? -v / 2 : (v + 1) / 2;
+  bool negative = ((v & 1u) == 0);
+  *value = negative ? -static_cast<int32_t>(v / 2) : static_cast<int32_t>((v + 1) / 2);
   return true;
 }
 
