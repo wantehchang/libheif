@@ -710,12 +710,14 @@ Result<std::shared_ptr<HeifPixelImage>> ImageItem::decode_image(const heif_decod
   // Check for cycles before taking m_decode_mutex: a derived item that
   // (transitively) references itself would otherwise re-enter decode_image()
   // on the same ImageItem and self-deadlock on the non-recursive mutex.
+  // The matching insert lives inside decode_compressed_image() of derived
+  // items (grid/overlay/iden), so the current item is in processed_ids only
+  // when called from one of its own descendants.
   if (processed_ids.contains(m_id)) {
     return Error{heif_error_Invalid_input,
                  heif_suberror_Unspecified,
                  "'iref' has cyclic references"};
   }
-  processed_ids.insert(m_id);
 
   std::lock_guard<std::mutex> lock(m_decode_mutex);
 
