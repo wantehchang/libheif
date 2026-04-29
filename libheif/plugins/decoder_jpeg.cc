@@ -169,6 +169,26 @@ void on_jpeg_error(j_common_ptr cinfo)
 }
 
 
+// Conservative upper bound on bytes libjpeg will allocate to decode this JPEG.
+// Saturates to UINT64_MAX on overflow so callers can compare against limits
+// without further overflow checks. The 3x multiplier covers libjpeg's output
+// buffer plus internal sample arrays and MCU/row working buffers.
+static uint64_t jpeg_estimate_decode_memory_bytes(const jpeg_decompress_struct* cinfo)
+{
+  auto sat_mul = [](uint64_t a, uint64_t b) -> uint64_t {
+    if (a == 0 || b == 0) return 0;
+    if (a > UINT64_MAX / b) return UINT64_MAX;
+    return a * b;
+  };
+
+  uint64_t bytes_per_sample = (cinfo->data_precision > 8) ? 2 : 1;
+  uint64_t total = sat_mul(uint64_t(cinfo->image_width), uint64_t(cinfo->image_height));
+  total = sat_mul(total, uint64_t(cinfo->num_components));
+  total = sat_mul(total, bytes_per_sample);
+  return sat_mul(total, 3);
+}
+
+
 heif_error jpeg_decode_next_image2(void* decoder_raw, heif_image** out_img,
                                    uintptr_t* out_user_data,
                                    const heif_security_limits* limits)
@@ -224,6 +244,24 @@ heif_error jpeg_decode_next_image2(void* decoder_raw, heif_image** out_img,
 //  jpeg_save_markers(&cinfo, JPEG_EXIF_MARKER, 0xFFFF);
 
   jpeg_read_header(&cinfo, TRUE);
+
+  // Reject obvious memory bombs before letting libjpeg allocate decode buffers.
+  // libjpeg has no built-in resource limit API, so we enforce libheif's limits here.
+  {
+    uint64_t pixels = uint64_t(cinfo.image_width) * uint64_t(cinfo.image_height);
+    if (limits->max_image_size_pixels > 0 && pixels > limits->max_image_size_pixels) {
+      jpeg_destroy_decompress(&cinfo);
+      return {heif_error_Memory_allocation_error, heif_suberror_Security_limit_exceeded,
+              "JPEG image exceeds maximum allowed image size"};
+    }
+
+    uint64_t estimated_memory = jpeg_estimate_decode_memory_bytes(&cinfo);
+    if (limits->max_memory_block_size > 0 && estimated_memory > limits->max_memory_block_size) {
+      jpeg_destroy_decompress(&cinfo);
+      return {heif_error_Memory_allocation_error, heif_suberror_Security_limit_exceeded,
+              "JPEG image would require too much memory to decode"};
+    }
+  }
 
 //  bool embeddedIccFlag = ReadICCProfileFromJPEG(&cinfo, &iccBuffer, &iccLen);
 //  bool embeddedXMPFlag = ReadXMPFromJPEG(&cinfo, xmpData);
