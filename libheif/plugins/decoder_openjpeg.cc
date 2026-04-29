@@ -276,6 +276,36 @@ opj_stream_t* opj_stream_create_default_memory_stream(openjpeg_decoder* p_decode
 //**************************************************************************
 
 
+// Conservative upper bound on bytes OpenJPEG will allocate to decode this
+// codestream. Saturates to UINT64_MAX on overflow. OpenJPEG stores each sample
+// internally as OPJ_INT32 regardless of the codestream bit depth; the 3x
+// multiplier covers the final image planes plus in-flight tile and DWT
+// working buffers.
+static uint64_t openjpeg_estimate_decode_memory_bytes(const opj_image_t* image)
+{
+  auto sat_mul = [](uint64_t a, uint64_t b) -> uint64_t {
+    if (a == 0 || b == 0) return 0;
+    if (a > UINT64_MAX / b) return UINT64_MAX;
+    return a * b;
+  };
+
+  auto sat_add = [](uint64_t a, uint64_t b) -> uint64_t {
+    uint64_t s = a + b;
+    return (s < a) ? UINT64_MAX : s;
+  };
+
+  uint64_t total = 0;
+  for (uint32_t c = 0; c < image->numcomps; c++) {
+    const opj_image_comp_t& comp = image->comps[c];
+    uint64_t plane = sat_mul(uint64_t(comp.w), uint64_t(comp.h));
+    plane = sat_mul(plane, sizeof(OPJ_INT32));
+    total = sat_add(total, plane);
+  }
+
+  return sat_mul(total, 3);
+}
+
+
 heif_error openjpeg_decode_next_image2(void* decoder_raw, heif_image** out_img,
                                        uintptr_t* out_user_data,
                                        const heif_security_limits* limits)
@@ -316,6 +346,32 @@ heif_error openjpeg_decode_next_image2(void* decoder_raw, heif_image** out_img,
   }
 
   std::unique_ptr<opj_image_t, void (OPJ_CALLCONV *)(opj_image_t*)> image(image_ptr, opj_image_destroy);
+
+  // Reject obvious memory bombs before letting OpenJPEG allocate decode buffers.
+  // OpenJPEG has no built-in resource limit API, so we enforce libheif's limits here.
+  if (image->x1 < image->x0 || image->y1 < image->y0) {
+    return {heif_error_Decoder_plugin_error, heif_suberror_Unspecified,
+            "Invalid JPEG 2000 image bounding box"};
+  }
+
+  uint64_t img_w = image->x1 - image->x0;
+  uint64_t img_h = image->y1 - image->y0;
+
+  // image->x0,x1,y0,y1 are uint32, thus no overflow here
+  uint64_t pixels = img_w * img_h;
+  if (limits->max_image_size_pixels > 0 && pixels > limits->max_image_size_pixels) {
+    return {heif_error_Memory_allocation_error, heif_suberror_Security_limit_exceeded,
+            "JPEG 2000 image exceeds maximum allowed image size"};
+  }
+
+  uint64_t estimated_memory = openjpeg_estimate_decode_memory_bytes(image.get());
+  if (limits->max_memory_block_size > 0 && estimated_memory > limits->max_memory_block_size) {
+    return {heif_error_Memory_allocation_error, heif_suberror_Security_limit_exceeded,
+            "JPEG 2000 image would require too much memory to decode"};
+  }
+
+  // TODO: also enforce limits->max_components against image->numcomps, and
+  // limits->max_number_of_tiles against opj_get_cstr_info()->tw * th.
 
   if (image->numcomps != 3 && image->numcomps != 1) {
     //TODO - Handle other numbers of components
