@@ -34,10 +34,15 @@ bool unc_encoder_factory_component_interleave::can_encode(const std::shared_ptr<
     return false;
   }
 
+  // Only consider components with an actual data plane. cpat reference
+  // components have bpp=0 and no buffer; they're included in
+  // get_used_component_ids() but do not affect what the encoder writes.
+  // (Matches what the encoder constructor below uses to build m_components.)
+  auto component_ids = image->get_used_planar_component_ids();
+
   // If any component is not byte-aligned, we use the bit-packing path which
   // reads samples as uint32_t, limiting all components to 32 bpp.
   bool any_non_aligned = false;
-  auto component_ids = image->get_used_component_ids();
   for (uint32_t id : component_ids) {
     uint16_t bpp = image->get_component_bits_per_pixel(id);
     if (bpp % 8 != 0) {

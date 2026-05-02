@@ -2474,26 +2474,25 @@ void HeifPixelImage::apply_descriptions_from(const ImageExtraData& src)
     return; // nothing to apply (e.g. grid/iden ImageItem with no description)
   }
 
-  // Skip when this image's descriptions already match src's data-plane
-  // subset (id + channel). This is the unci decode path: the decoder used
-  // clone_component_descriptions_from(item) so ids already coincide. It
-  // also handles cases where multiple planes share a channel (e.g. unci
-  // multi-component-of-same-type), which the channel-keyed remap below
-  // can't represent.
-  bool already_aligned = true;
-  size_t i = 0;
-  for (const auto& d : src_descs) {
-    if (!d.has_data_plane) continue;
-    if (i >= m_components.size() ||
-        m_components[i].component_id != d.component_id ||
-        m_components[i].channel != d.channel) {
-      already_aligned = false;
-      break;
+  // Skip when this image's descriptions already match src's exactly. This
+  // is the unci decode path: the decoder used clone_component_descriptions_from
+  // (item) so the full description list (including any cpat reference-only
+  // entries with has_data_plane=false) was copied verbatim. Comparing the
+  // full lists also handles multiple planes that share a channel
+  // (e.g. unci multi-component-of-same-type), which the channel-keyed remap
+  // below can't represent.
+  if (m_components.size() == src_descs.size()) {
+    bool already_aligned = true;
+    for (size_t i = 0; i < src_descs.size(); i++) {
+      if (m_components[i].component_id != src_descs[i].component_id ||
+          m_components[i].channel != src_descs[i].channel) {
+        already_aligned = false;
+        break;
+      }
     }
-    i++;
-  }
-  if (already_aligned && i == m_components.size()) {
-    return;
+    if (already_aligned) {
+      return;
+    }
   }
 
   // Snapshot pre-remap descriptions keyed by channel (for any "extra"
