@@ -323,6 +323,9 @@ heif_error heif_image_add_component(heif_image* image,
                                     int bit_depth,
                                     uint32_t* out_component_idx);
 
+// All component-data getters return the row stride in bytes via out_stride
+// (regardless of the element type). When using a typed pointer for indexing,
+// divide the stride by sizeof(element).
 LIBHEIF_API
 const uint8_t* heif_image_get_component_readonly(const heif_image*, uint32_t component_idx, size_t* out_stride);
 

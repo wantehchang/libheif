@@ -439,7 +439,7 @@ public:
     }
 
     if (out_stride) {
-      *out_stride = static_cast<int>(comp->stride / sizeof(T));
+      *out_stride = static_cast<int>(comp->stride);
     }
 
     return static_cast<T*>(comp->mem);
@@ -516,7 +516,7 @@ public:
     }
 
     if (out_stride) {
-      *out_stride = comp->stride / sizeof(T);
+      *out_stride = comp->stride;
     }
     return static_cast<T*>(comp->mem);
   }
