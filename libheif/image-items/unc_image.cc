@@ -49,6 +49,72 @@ ImageItem_uncompressed::ImageItem_uncompressed(HeifContext* ctx, heif_item_id id
   m_encoder = std::make_shared<Encoder_uncompressed>();
 }
 
+void ImageItem_uncompressed::populate_component_descriptions()
+{
+  auto uncC = get_property<Box_uncC>();
+  if (!uncC) {
+    return;
+  }
+  auto cmpd = get_property<Box_cmpd>();
+
+  // For minimized (version-1) uncC, expand the profile fourcc into the
+  // components vector and synthesize cmpd if missing.
+  fill_uncC_and_cmpd_from_profile(uncC, cmpd);
+  if (!cmpd) {
+    return;
+  }
+
+  const auto& cmpd_components = cmpd->get_components();
+  uint32_t img_width = get_ispe_width();
+  uint32_t img_height = get_ispe_height();
+
+  // Track which cmpd indices already got a description from the uncC walk,
+  // so we only add reference-component entries for cpat-only indices.
+  std::vector<bool> cmpd_index_has_description(cmpd_components.size(), false);
+
+  for (const auto& uc : uncC->get_components()) {
+    if (uc.component_index >= cmpd_components.size()) {
+      continue; // malformed; skip
+    }
+    uint16_t component_type = cmpd_components[uc.component_index].component_type;
+
+    ComponentDescription desc;
+    desc.component_id = m_next_component_id++;
+    desc.channel = map_uncompressed_component_to_channel(component_type);
+    desc.component_type = component_type;
+    desc.component_format = uc.component_format;
+    desc.datatype = unc_component_format_to_datatype(uc.component_format);
+    desc.bit_depth = uc.component_bit_depth;
+    desc.width = img_width;   // TODO: apply chroma subsampling for Cb/Cr
+    desc.height = img_height; // TODO: apply chroma subsampling for Cb/Cr
+    desc.has_data_plane = true;
+    add_component_description(std::move(desc));
+
+    cmpd_index_has_description[uc.component_index] = true;
+  }
+
+  // cpat reference components: cmpd entries referenced by the Bayer pattern
+  // that don't have an uncC plane.
+  if (auto cpat = get_property<Box_cpat>()) {
+    for (const auto& pixel : cpat->get_pattern().pixels) {
+      if (pixel.cmpd_index >= cmpd_components.size()) continue;
+      if (cmpd_index_has_description[pixel.cmpd_index]) continue;
+
+      uint16_t component_type = cmpd_components[pixel.cmpd_index].component_type;
+
+      ComponentDescription desc;
+      desc.component_id = m_next_component_id++;
+      desc.channel = map_uncompressed_component_to_channel(component_type);
+      desc.component_type = component_type;
+      desc.has_data_plane = false;
+      add_component_description(std::move(desc));
+
+      cmpd_index_has_description[pixel.cmpd_index] = true;
+    }
+  }
+}
+
+
 ImageItem_uncompressed::ImageItem_uncompressed(HeifContext* ctx)
     : ImageItem(ctx)
 {

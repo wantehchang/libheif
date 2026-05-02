@@ -98,7 +98,13 @@ public:
 
   void set_properties(std::vector<std::shared_ptr<Box>> properties) {
     m_properties = std::move(properties);
+    populate_component_descriptions();
   }
+
+  // Populate the inherited ImageExtraData::m_components from the just-set
+  // property boxes. Default no-op; codec subclasses (unci, HEVC, AVIF, ...)
+  // override this to fill in component metadata available before decoding.
+  virtual void populate_component_descriptions() {}
 
   template<class BoxType>
   std::shared_ptr<BoxType> get_property() const
