@@ -1287,6 +1287,35 @@ void HeifPixelImage::transfer_plane_from_image_as(const std::shared_ptr<HeifPixe
   }
   source->m_memory_handle.free(plane.allocation_size);
 
+  // Move the matching ComponentDescription(s) from source to destination.
+  // The plane's old ids belong to source's m_next_component_id space and may
+  // collide with destination's ids, so we mint fresh ids on destination and
+  // rewrite plane.m_component_ids accordingly. Source's descriptions for the
+  // moved ids are dropped (the buffer is gone).
+  std::vector<uint32_t> new_ids;
+  new_ids.reserve(plane.m_component_ids.size());
+  for (uint32_t old_id : plane.m_component_ids) {
+    // Take the source description (snapshot; the source entry is removed below).
+    ComponentDescription desc;
+    if (auto* src_desc = source->find_component_description(old_id)) {
+      desc = *src_desc;
+    }
+    // Mint a destination id and reset description fields that change on transfer.
+    desc.component_id = mint_component_id();
+    desc.channel = dst_channel;
+    new_ids.push_back(desc.component_id);
+    add_component_description(std::move(desc));
+
+    // Drop the source's description entry for old_id.
+    auto& src_components = source->m_components;
+    src_components.erase(
+        std::remove_if(src_components.begin(), src_components.end(),
+                       [old_id](const ComponentDescription& c) {
+                         return c.component_id == old_id;
+                       }),
+        src_components.end());
+  }
+  plane.m_component_ids = std::move(new_ids);
   plane.m_channel = dst_channel;
   m_planes.push_back(plane);
 
