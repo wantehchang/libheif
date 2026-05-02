@@ -2434,6 +2434,39 @@ uint32_t HeifPixelImage::add_component_without_data(uint16_t component_type)
 }
 
 
+void HeifPixelImage::clone_component_descriptions_from(const ImageExtraData& src)
+{
+  m_components = src.get_component_descriptions();
+  m_next_component_id = src.peek_next_component_id();
+}
+
+
+Error HeifPixelImage::allocate_buffer_for_component(uint32_t component_id,
+                                                    const heif_security_limits* limits)
+{
+  auto* desc = find_component_description(component_id);
+  if (!desc) {
+    return {heif_error_Usage_error,
+            heif_suberror_Invalid_parameter_value,
+            "allocate_buffer_for_component: unknown component id"};
+  }
+  if (!desc->has_data_plane) {
+    return Error::Ok; // reference component (e.g. cpat); no buffer needed
+  }
+
+  ImageComponent plane;
+  plane.m_channel = desc->channel;
+  plane.m_component_ids = std::vector{component_id};
+  if (Error err = plane.alloc(desc->width, desc->height,
+                              desc->datatype, desc->bit_depth,
+                              1, limits, m_memory_handle)) {
+    return err;
+  }
+  m_planes.push_back(plane);
+  return Error::Ok;
+}
+
+
 #if 0
 Result<uint32_t> HeifPixelImage::add_component_for_index(uint32_t component_index,
                                                           uint32_t width, uint32_t height,

@@ -317,6 +317,11 @@ public:
   // Mint a fresh component id (monotonically increasing, starting at 1).
   uint32_t mint_component_id() { return m_next_component_id++; }
 
+  // Read-only view of the next id that mint_component_id() would return.
+  // Used by HeifPixelImage::clone_component_descriptions_from() to keep the
+  // counter aligned across an item-to-image clone.
+  uint32_t peek_next_component_id() const { return m_next_component_id; }
+
   ComponentDescription* find_component_description(uint32_t component_id)
   {
     for (auto& c : m_components) {
@@ -595,6 +600,18 @@ public:
 
   // TODO: replace uint16_t component_type with class that also handled the std::string type
   uint32_t add_component_without_data(uint16_t component_type);
+
+  // Decoder path: copy the per-component description from a source
+  // ImageExtraData (typically the ImageItem the decoder is about to populate).
+  // After this, allocate_buffer_for_component() can be called with each id
+  // already present in m_components to allocate its pixel buffer.
+  void clone_component_descriptions_from(const ImageExtraData& src);
+
+  // Decoder path: allocate a pixel buffer for a component whose description
+  // (channel, datatype, bit_depth, width, height) is already in m_components.
+  // No new id is minted. Used after clone_component_descriptions_from().
+  Error allocate_buffer_for_component(uint32_t component_id,
+                                      const heif_security_limits* limits);
 
   // Decoder path: uses a pre-populated cmpd table to look up the component type.
 #if 0

@@ -69,9 +69,10 @@ void ImageItem_uncompressed::populate_component_descriptions()
   uint32_t img_height = get_ispe_height();
 
   // Track which cmpd indices already got a description from the uncC walk,
-  // so we only add reference-component entries for cpat-only indices.
+  // so we don't duplicate them when handling cpat.
   std::vector<bool> cmpd_index_has_description(cmpd_components.size(), false);
 
+  // 1. uncC components — these get real planes after decode.
   for (const auto& uc : uncC->get_components()) {
     if (uc.component_index >= cmpd_components.size()) {
       continue; // malformed; skip
@@ -93,8 +94,10 @@ void ImageItem_uncompressed::populate_component_descriptions()
     cmpd_index_has_description[uc.component_index] = true;
   }
 
-  // cpat reference components: cmpd entries referenced by the Bayer pattern
-  // that don't have an uncC plane.
+  // 2. cpat reference components — one per UNIQUE cmpd_index that's
+  // referenced by the pattern but doesn't have an uncC plane. Two pattern
+  // pixels that share a cmpd_index share the same component id; the
+  // BayerPattern only carries per-pixel gain, not per-pixel identity.
   if (auto cpat = get_property<Box_cpat>()) {
     for (const auto& pixel : cpat->get_pattern().pixels) {
       if (pixel.cmpd_index >= cmpd_components.size()) continue;

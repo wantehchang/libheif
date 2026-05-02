@@ -225,10 +225,22 @@ Result<std::shared_ptr<HeifPixelImage>> UncompressedImageCodec::create_image(con
               chroma);
 
 
+  // Clone the per-component descriptions (id, channel, type, format, datatype,
+  // bit_depth) from the source ImageItem, populated at parse time. This is
+  // what makes component IDs stable across the handle and decoded image.
+  if (properties.source_extra_data) {
+    img->clone_component_descriptions_from(*properties.source_extra_data);
+  }
+
   // Remember which components reference which cmpd indices.
   // There can be several component ids referencing the same cmpd index.
   std::vector<std::vector<uint32_t>> cmpd_index_to_comp_ids(components.size());
 
+  // Walk uncC. populate_component_descriptions() emitted one description per
+  // uncC entry first, in order, so the first N descriptions in m_components
+  // (where N == uncC->get_components().size()) correspond positionally to
+  // the uncC entries we're walking here.
+  uint32_t desc_idx = 0;
   for (Box_uncC::Component component : uncC->get_components()) {
     if (component.component_index >= components.size()) {
       return Error{
@@ -238,37 +250,52 @@ Result<std::shared_ptr<HeifPixelImage>> UncompressedImageCodec::create_image(con
       };
     }
 
+    if (desc_idx >= img->get_component_descriptions().size()) {
+      // Fallback: source did not populate descriptions (shouldn't happen
+      // for an item that went through populate_component_descriptions, but
+      // keep the historical add_component path as a safety net).
+      auto component_type = components[component.component_index].component_type;
+      uint32_t plane_w = width;
+      uint32_t plane_h = height;
+      if (component_type == heif_unci_component_type_Cb ||
+          component_type == heif_unci_component_type_Cr) {
+        plane_w = width / chroma_h_subsampling(chroma);
+        plane_h = height / chroma_v_subsampling(chroma);
+      }
+      auto result = img->add_component(plane_w, plane_h, component_type,
+                                       unc_component_format_to_datatype(component.component_format),
+                                       component.component_bit_depth, limits);
+      if (result.is_error()) {
+        return result.error();
+      }
+      cmpd_index_to_comp_ids[component.component_index].push_back(*result);
+      uncC_index_to_comp_ids.push_back(*result);
+      continue;
+    }
+
+    // Pre-populated description path: write the correct (chroma-subsampled)
+    // dimensions onto the cloned description, then allocate a buffer.
     auto component_type = components[component.component_index].component_type;
-
-    if ((component_type == heif_unci_component_type_Cb) ||
-        (component_type == heif_unci_component_type_Cr)) {
-      Result<uint32_t> result = img->add_component((width / chroma_h_subsampling(chroma)),
-                                                   (height / chroma_v_subsampling(chroma)),
-                                                   cmpd->get_components()[component.component_index].component_type,
-                                                   unc_component_format_to_datatype(component.component_format),
-                                                   component.component_bit_depth,
-                                                   limits);
-      if (result.is_error()) {
-        return result.error();
-      }
-
-      cmpd_index_to_comp_ids[component.component_index].push_back(*result);
-      uncC_index_to_comp_ids.push_back(*result);
+    uint32_t plane_w = width;
+    uint32_t plane_h = height;
+    if (component_type == heif_unci_component_type_Cb ||
+        component_type == heif_unci_component_type_Cr) {
+      plane_w = width / chroma_h_subsampling(chroma);
+      plane_h = height / chroma_v_subsampling(chroma);
     }
-    else {
-      Result<uint32_t> result = img->add_component(width,
-                                                   height,
-                                                   cmpd->get_components()[component.component_index].component_type,
-                                                   unc_component_format_to_datatype(component.component_format),
-                                                   component.component_bit_depth,
-                                                   limits);
-      if (result.is_error()) {
-        return result.error();
-      }
 
-      cmpd_index_to_comp_ids[component.component_index].push_back(*result);
-      uncC_index_to_comp_ids.push_back(*result);
+    uint32_t comp_id = img->get_component_descriptions()[desc_idx].component_id;
+    auto* desc_mut = img->find_component_description(comp_id);
+    desc_mut->width = plane_w;
+    desc_mut->height = plane_h;
+
+    if (auto err = img->allocate_buffer_for_component(comp_id, limits)) {
+      return err;
     }
+
+    cmpd_index_to_comp_ids[component.component_index].push_back(comp_id);
+    uncC_index_to_comp_ids.push_back(comp_id);
+    desc_idx++;
   }
 
 
@@ -287,15 +314,32 @@ Result<std::shared_ptr<HeifPixelImage>> UncompressedImageCodec::create_image(con
       return err;
     }
 
-    // translate BayerPattern, adding new components to the HeifPixelImage
-
+    // Build BayerPattern. populate_component_descriptions added one
+    // reference component per UNIQUE cmpd_index referenced by the pattern,
+    // in first-occurrence order, immediately after the uncC components.
+    // We rebuild the cmpd_index -> comp_id map in the same way and reuse
+    // the existing IDs. (If descriptions weren't populated — fallback
+    // path — we fall back to minting reference components here.)
     BayerPattern pattern;
     pattern.pattern_width = pattern_cmpd.pattern_width;
     pattern.pattern_height = pattern_cmpd.pattern_height;
+    std::map<uint32_t, uint32_t> cpat_cmpd_idx_to_comp_id;
     for (auto p : pattern_cmpd.pixels) {
-      uint32_t comp_id = img->add_component_without_data(components[p.cmpd_index].component_type);
+      uint32_t comp_id;
+      auto it = cpat_cmpd_idx_to_comp_id.find(p.cmpd_index);
+      if (it != cpat_cmpd_idx_to_comp_id.end()) {
+        comp_id = it->second;
+      }
+      else if (desc_idx < img->get_component_descriptions().size()) {
+        comp_id = img->get_component_descriptions()[desc_idx].component_id;
+        desc_idx++;
+        cpat_cmpd_idx_to_comp_id[p.cmpd_index] = comp_id;
+      }
+      else {
+        comp_id = img->add_component_without_data(components[p.cmpd_index].component_type);
+        cpat_cmpd_idx_to_comp_id[p.cmpd_index] = comp_id;
+      }
       pattern.pixels.push_back({comp_id, p.component_gain});
-
       cmpd_index_to_comp_ids[p.cmpd_index].push_back(comp_id);
     }
 
@@ -556,6 +600,12 @@ void UncompressedImageCodec::unci_properties::fill_from_image_item(const std::sh
   sbpm = image->get_all_properties<Box_sbpm>();
   snuc = image->get_all_properties<Box_snuc>();
   cloc = image->get_property<Box_cloc>();
+
+  // The ImageItem already populated its ImageExtraData::m_components in
+  // ImageItem_uncompressed::populate_component_descriptions(). The decoder
+  // clones those descriptions into the new HeifPixelImage instead of minting
+  // ids itself.
+  source_extra_data = image.get();
 }
 
 
