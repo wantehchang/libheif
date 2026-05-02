@@ -68,6 +68,11 @@ void ImageItem_uncompressed::populate_component_descriptions()
   uint32_t img_width = get_ispe_width();
   uint32_t img_height = get_ispe_height();
 
+  // Determine chroma format so we can apply the correct subsampling for Cb/Cr.
+  heif_chroma chroma = heif_chroma_undefined;
+  heif_colorspace colourspace = heif_colorspace_undefined;
+  (void) UncompressedImageCodec::get_heif_chroma_uncompressed(uncC, cmpd, &chroma, &colourspace, nullptr);
+
   // Track which cmpd indices already got a description from the uncC walk,
   // so we don't duplicate them when handling cpat.
   std::vector<bool> cmpd_index_has_description(cmpd_components.size(), false);
@@ -79,15 +84,19 @@ void ImageItem_uncompressed::populate_component_descriptions()
     }
     uint16_t component_type = cmpd_components[uc.component_index].component_type;
 
+    heif_channel channel = map_uncompressed_component_to_channel(component_type);
+    uint32_t plane_w = channel_width(img_width, chroma, channel);
+    uint32_t plane_h = channel_height(img_height, chroma, channel);
+
     ComponentDescription desc;
     desc.component_id = m_next_component_id++;
-    desc.channel = map_uncompressed_component_to_channel(component_type);
+    desc.channel = channel;
     desc.component_type = component_type;
     desc.component_format = uc.component_format;
     desc.datatype = unc_component_format_to_datatype(uc.component_format);
     desc.bit_depth = uc.component_bit_depth;
-    desc.width = img_width;   // TODO: apply chroma subsampling for Cb/Cr
-    desc.height = img_height; // TODO: apply chroma subsampling for Cb/Cr
+    desc.width = plane_w;
+    desc.height = plane_h;
     desc.has_data_plane = true;
     add_component_description(std::move(desc));
 

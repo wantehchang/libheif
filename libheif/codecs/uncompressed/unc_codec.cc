@@ -273,22 +273,10 @@ Result<std::shared_ptr<HeifPixelImage>> UncompressedImageCodec::create_image(con
       continue;
     }
 
-    // Pre-populated description path: write the correct (chroma-subsampled)
-    // dimensions onto the cloned description, then allocate a buffer.
-    auto component_type = components[component.component_index].component_type;
-    uint32_t plane_w = width;
-    uint32_t plane_h = height;
-    if (component_type == heif_unci_component_type_Cb ||
-        component_type == heif_unci_component_type_Cr) {
-      plane_w = width / chroma_h_subsampling(chroma);
-      plane_h = height / chroma_v_subsampling(chroma);
-    }
-
+    // Pre-populated description path: the cloned description already has
+    // the correct (chroma-subsampled) dimensions from
+    // populate_component_descriptions(). Just allocate the buffer.
     uint32_t comp_id = img->get_component_descriptions()[desc_idx].component_id;
-    auto* desc_mut = img->find_component_description(comp_id);
-    desc_mut->width = plane_w;
-    desc_mut->height = plane_h;
-
     if (auto err = img->allocate_buffer_for_component(comp_id, limits)) {
       return err;
     }
