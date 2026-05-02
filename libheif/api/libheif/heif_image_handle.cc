@@ -23,7 +23,6 @@
 #include "box.h"
 #if WITH_UNCOMPRESSED_CODEC
 #include "codecs/uncompressed/unc_boxes.h"
-#include "codecs/uncompressed/unc_codec.h"
 #endif
 #include <climits>
 #include <cstring>
@@ -211,19 +210,6 @@ static std::shared_ptr<Box_cmpd> get_effective_cmpd(const heif_image_handle* han
   return cmpd;
 }
 
-// Returns the uncC box, with the components vector populated even for
-// profile-based (version-1) uncC. fill_uncC_and_cmpd_from_profile() expands
-// the profile fourcc into the uncC components.
-static std::shared_ptr<Box_uncC> get_effective_uncC(const heif_image_handle* handle)
-{
-  auto uncC = handle->image->get_property<Box_uncC>();
-  if (!uncC) {
-    return nullptr;
-  }
-  std::shared_ptr<Box_cmpd> cmpd;
-  fill_uncC_and_cmpd_from_profile(uncC, cmpd);
-  return uncC;
-}
 #endif
 
 
@@ -292,96 +278,67 @@ const char* heif_image_handle_get_cmpd_component_type_uri(const heif_image_handl
 }
 
 
-// --- handle-side per-component getters (unci images, indexed 0..N-1 in uncC order)
+// --- handle-side per-component getters
 //
-// These do NOT use the opaque component-ID system that the decoded heif_image
-// exposes via heif_image_get_used_component_ids(). The decoder assigns those
-// IDs at decode time (starting from 1, with extra IDs allocated for cpat
-// reference components), so they cannot be predicted from the file alone.
+// These read from ImageItem::m_components (populated at parse time by
+// ImageItem::populate_component_descriptions). For unci images, the ids are
+// the same numerical values that heif_image_get_used_component_ids() will
+// report after decoding.
 
 uint32_t heif_image_handle_get_number_of_components(const heif_image_handle* handle)
 {
-#if WITH_UNCOMPRESSED_CODEC
   if (!handle) {
     return 0;
   }
-  auto uncC = get_effective_uncC(handle);
-  if (!uncC) {
-    return 0;
-  }
-  return static_cast<uint32_t>(uncC->get_components().size());
-#else
-  return 0;
-#endif
+  return static_cast<uint32_t>(handle->image->get_component_descriptions().size());
 }
 
 
-uint16_t heif_image_handle_get_component_type(const heif_image_handle* handle, uint32_t component_idx)
+void heif_image_handle_get_used_component_ids(const heif_image_handle* handle, uint32_t* out_component_ids)
 {
-#if WITH_UNCOMPRESSED_CODEC
-  if (!handle) {
-    return 0;
+  if (!handle || !out_component_ids) {
+    return;
   }
-  auto uncC = get_effective_uncC(handle);
-  auto cmpd = get_effective_cmpd(handle);
-  if (!uncC || !cmpd) {
-    return 0;
+  const auto& comps = handle->image->get_component_descriptions();
+  for (size_t i = 0; i < comps.size(); i++) {
+    out_component_ids[i] = comps[i].component_id;
   }
-  const auto& uc = uncC->get_components();
-  if (component_idx >= uc.size()) {
-    return 0;
-  }
-  const auto& cd = cmpd->get_components();
-  uint32_t cmpd_idx = uc[component_idx].component_index;
-  if (cmpd_idx >= cd.size()) {
-    return 0;
-  }
-  return cd[cmpd_idx].component_type;
-#else
-  return 0;
-#endif
 }
 
 
-int heif_image_handle_get_component_bits_per_pixel(const heif_image_handle* handle, uint32_t component_idx)
+uint16_t heif_image_handle_get_component_type(const heif_image_handle* handle, uint32_t component_id)
 {
-#if WITH_UNCOMPRESSED_CODEC
+  if (!handle) {
+    return 0;
+  }
+  if (auto* desc = handle->image->find_component_description(component_id)) {
+    return desc->component_type;
+  }
+  return 0;
+}
+
+
+int heif_image_handle_get_component_bits_per_pixel(const heif_image_handle* handle, uint32_t component_id)
+{
   if (!handle) {
     return -1;
   }
-  auto uncC = get_effective_uncC(handle);
-  if (!uncC) {
-    return -1;
+  if (auto* desc = handle->image->find_component_description(component_id)) {
+    return static_cast<int>(desc->bit_depth);
   }
-  const auto& uc = uncC->get_components();
-  if (component_idx >= uc.size()) {
-    return -1;
-  }
-  return static_cast<int>(uc[component_idx].component_bit_depth);
-#else
   return -1;
-#endif
 }
 
 
-heif_component_datatype heif_image_handle_get_component_datatype(const heif_image_handle* handle, uint32_t component_idx)
+heif_component_datatype heif_image_handle_get_component_datatype(const heif_image_handle* handle, uint32_t component_id)
 {
-#if WITH_UNCOMPRESSED_CODEC
   if (!handle) {
     return heif_component_datatype_undefined;
   }
-  auto uncC = get_effective_uncC(handle);
-  if (!uncC) {
-    return heif_component_datatype_undefined;
+  if (auto* desc = handle->image->find_component_description(component_id)) {
+    return desc->datatype;
   }
-  const auto& uc = uncC->get_components();
-  if (component_idx >= uc.size()) {
-    return heif_component_datatype_undefined;
-  }
-  return unc_component_format_to_datatype(uc[component_idx].component_format);
-#else
   return heif_component_datatype_undefined;
-#endif
 }
 
 

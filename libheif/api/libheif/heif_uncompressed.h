@@ -316,31 +316,34 @@ uint16_t heif_image_get_component_type(const heif_image*, uint32_t component_idx
 LIBHEIF_API
 heif_component_datatype heif_image_get_component_datatype(const heif_image*, uint32_t component_idx);
 
-// --- index-based component access via heif_image_handle (before decoding)
+// --- ID-based component access via heif_image_handle (before decoding)
 //
 // These let the caller introspect a unci image's components without decoding
 // any tile. They return 0 / -1 / heif_component_datatype_undefined for
-// non-unci images or out-of-range indices.
+// non-unci images or unknown component IDs.
 //
-// Components are addressed by their position in the uncC box
-// (0 .. number_of_components - 1). This addressing is NOT the same as the
-// opaque component IDs that heif_image_get_used_component_ids() returns
-// after decoding: the decoder assigns those starting from 1 and may add
-// further IDs for cpat reference components, so the two numbering schemes
-// don't generally coincide. Use this handle-side index purely to walk the
-// components defined in the file.
+// The component IDs returned here match the IDs that
+// heif_image_get_used_component_ids() will report after the same image is
+// decoded, so the same numerical id can be used to address a component on
+// either side of the API.
 
 LIBHEIF_API
 uint32_t heif_image_handle_get_number_of_components(const heif_image_handle*);
 
+// Fills `out_component_ids` with the valid component IDs.
+// The caller must allocate an array of at least
+// heif_image_handle_get_number_of_components() elements.
 LIBHEIF_API
-uint16_t heif_image_handle_get_component_type(const heif_image_handle*, uint32_t component_idx);
+void heif_image_handle_get_used_component_ids(const heif_image_handle*, uint32_t* out_component_ids);
 
 LIBHEIF_API
-int heif_image_handle_get_component_bits_per_pixel(const heif_image_handle*, uint32_t component_idx);
+uint16_t heif_image_handle_get_component_type(const heif_image_handle*, uint32_t component_id);
 
 LIBHEIF_API
-heif_component_datatype heif_image_handle_get_component_datatype(const heif_image_handle*, uint32_t component_idx);
+int heif_image_handle_get_component_bits_per_pixel(const heif_image_handle*, uint32_t component_id);
+
+LIBHEIF_API
+heif_component_datatype heif_image_handle_get_component_datatype(const heif_image_handle*, uint32_t component_id);
 
 // TODO
 //LIBHEIF_API
