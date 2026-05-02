@@ -89,6 +89,132 @@ static void check_handle_matches_decoded_image(heif_image_handle* handle,
 }
 
 
+// Build an RGGB Bayer filter-array image, encode as unci, write to a temp
+// file, read it back, and verify that the populate-side cpat dedup matches
+// the decoded-side IDs:
+//   - cmpd has 4 entries (filter_array, R, G, B); only filter_array carries
+//     pixel data, R/G/B are reference components.
+//   - cpat is a 2x2 RGGB pattern; the two G positions reference the same
+//     cmpd index, so populate_component_descriptions() emits ONE G
+//     description, not two.
+//   - heif_image_handle_get_number_of_components() returns 4.
+//   - The decoded image's m_components has the same 4 ids in the same order.
+TEST_CASE("unci with cpat: handle and decoded image agree on component IDs")
+{
+  if (!heif_have_decoder_for_format(heif_compression_uncompressed)) {
+    SKIP("Skipping test because uncompressed codec is not compiled.");
+  }
+  if (!heif_have_encoder_for_format(heif_compression_uncompressed)) {
+    SKIP("Skipping test because uncompressed encoder is not compiled.");
+  }
+
+  constexpr uint32_t W = 8;
+  constexpr uint32_t H = 8;
+
+  // --- 1. Build the image programmatically.
+  heif_image* image = nullptr;
+  heif_error err = heif_image_create(W, H, heif_colorspace_filter_array,
+                                     heif_chroma_monochrome, &image);
+  REQUIRE(err.code == heif_error_Ok);
+
+  uint32_t fa_id = 0;
+  err = heif_image_add_component(image, W, H,
+                                 heif_unci_component_type_filter_array,
+                                 heif_component_datatype_unsigned_integer, 8,
+                                 &fa_id);
+  REQUIRE(err.code == heif_error_Ok);
+
+  // Fill the filter-array plane with arbitrary data.
+  size_t fa_stride = 0;
+  uint8_t* fa = heif_image_get_component(image, fa_id, &fa_stride);
+  REQUIRE(fa != nullptr);
+  for (uint32_t y = 0; y < H; y++) {
+    for (uint32_t x = 0; x < W; x++) {
+      fa[y * fa_stride + x] = static_cast<uint8_t>((x * 31 + y * 17) & 0xFF);
+    }
+  }
+
+  // Reference components for R, G, B (one each — G appears twice in the
+  // pattern but they share a single cmpd entry).
+  uint32_t r_id = 0, g_id = 0, b_id = 0;
+  err = heif_image_add_bayer_component(image, heif_unci_component_type_red,   &r_id); REQUIRE(err.code == heif_error_Ok);
+  err = heif_image_add_bayer_component(image, heif_unci_component_type_green, &g_id); REQUIRE(err.code == heif_error_Ok);
+  err = heif_image_add_bayer_component(image, heif_unci_component_type_blue,  &b_id); REQUIRE(err.code == heif_error_Ok);
+
+  // 2x2 RGGB pattern; pixels[1] and pixels[2] both point at g_id.
+  heif_bayer_pattern_pixel pattern[4] = {
+      { r_id, 1.0f },
+      { g_id, 1.0f },
+      { g_id, 1.0f },
+      { b_id, 1.0f },
+  };
+  err = heif_image_set_bayer_pattern(image, fa_id, /*pattern_w=*/2, /*pattern_h=*/2, pattern);
+  REQUIRE(err.code == heif_error_Ok);
+
+  // --- 2. Encode + write.
+  heif_context* ctx = heif_context_alloc();
+  heif_encoder* encoder = nullptr;
+  err = heif_context_get_encoder_for_format(ctx, heif_compression_uncompressed, &encoder);
+  REQUIRE(err.code == heif_error_Ok);
+
+  heif_encoding_options* enc_options = heif_encoding_options_alloc();
+  err = heif_context_encode_image(ctx, image, encoder, enc_options, nullptr);
+  REQUIRE(err.code == heif_error_Ok);
+  heif_encoding_options_free(enc_options);
+
+  std::string out_path = get_tests_output_file_path("cpat_rggb.heif");
+  err = heif_context_write_to_file(ctx, out_path.c_str());
+  REQUIRE(err.code == heif_error_Ok);
+
+  heif_encoder_release(encoder);
+  heif_image_release(image);
+  heif_context_free(ctx);
+
+  // --- 3. Read back and verify the handle's component descriptions.
+  heif_context* ctx2 = heif_context_alloc();
+  err = heif_context_read_from_file(ctx2, out_path.c_str(), nullptr);
+  REQUIRE(err.code == heif_error_Ok);
+
+  heif_image_handle* handle = nullptr;
+  err = heif_context_get_primary_image_handle(ctx2, &handle);
+  REQUIRE(err.code == heif_error_Ok);
+
+  // 4 components: filter_array, R, G, B (G shared between the two pattern
+  // positions — populate dedups by cmpd index).
+  REQUIRE(heif_image_handle_get_number_of_components(handle) == 4);
+
+  uint32_t handle_ids[4];
+  heif_image_handle_get_used_component_ids(handle, handle_ids);
+
+  REQUIRE(heif_image_handle_get_component_type(handle, handle_ids[0]) == heif_unci_component_type_filter_array);
+  REQUIRE(heif_image_handle_get_component_type(handle, handle_ids[1]) == heif_unci_component_type_red);
+  REQUIRE(heif_image_handle_get_component_type(handle, handle_ids[2]) == heif_unci_component_type_green);
+  REQUIRE(heif_image_handle_get_component_type(handle, handle_ids[3]) == heif_unci_component_type_blue);
+
+  REQUIRE(heif_image_handle_get_component_bits_per_pixel(handle, handle_ids[0]) == 8);
+
+  // --- 4. Decode and confirm that ids agree end-to-end.
+  heif_image* decoded = nullptr;
+  err = heif_decode_image(handle, &decoded, heif_colorspace_undefined,
+                          heif_chroma_undefined, nullptr);
+  REQUIRE(err.code == heif_error_Ok);
+
+  REQUIRE(heif_image_get_number_of_used_components(decoded) == 4);
+  uint32_t img_ids[4];
+  heif_image_get_used_component_ids(decoded, img_ids);
+  for (uint32_t i = 0; i < 4; i++) {
+    INFO("component index " << i);
+    REQUIRE(img_ids[i] == handle_ids[i]);
+    REQUIRE(heif_image_handle_get_component_type(handle, handle_ids[i]) ==
+            heif_image_get_component_type(decoded, img_ids[i]));
+  }
+
+  heif_image_release(decoded);
+  heif_image_handle_release(handle);
+  heif_context_free(ctx2);
+}
+
+
 TEST_CASE("HEVC YUV 4:2:0 component IDs match between handle and decoded image")
 {
   if (!heif_have_decoder_for_format(heif_compression_HEVC)) {
