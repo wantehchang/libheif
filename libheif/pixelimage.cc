@@ -2322,38 +2322,40 @@ const HeifPixelImage::ImageComponent* HeifPixelImage::find_component_by_id(uint3
 
 heif_channel HeifPixelImage::get_component_channel(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_id);
-  assert(comp);
-  return comp->m_channel;
+  auto* desc = find_component_description(component_id);
+  assert(desc);
+  return desc->channel;
 }
 
 
 uint32_t HeifPixelImage::get_component_width(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_id);
-  assert(comp);
-  return comp->m_width;
+  auto* desc = find_component_description(component_id);
+  assert(desc);
+  return desc->width;
 }
 
 
 uint32_t HeifPixelImage::get_component_height(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_id);
-  assert(comp);
-  return comp->m_height;
+  auto* desc = find_component_description(component_id);
+  assert(desc);
+  return desc->height;
 }
 
 
 uint16_t HeifPixelImage::get_component_bits_per_pixel(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_id);
-  assert(comp);
-  return comp->m_bit_depth;
+  auto* desc = find_component_description(component_id);
+  assert(desc);
+  return desc->bit_depth;
 }
 
 
 uint16_t HeifPixelImage::get_component_storage_bits_per_pixel(uint32_t component_id) const
 {
+  // Storage is a buffer-layout concern (alignment / padding), so this stays
+  // routed through ImageComponent rather than the description.
   auto* comp = find_component_by_id(component_id);
   assert(comp);
   uint32_t bpp = comp->get_bytes_per_pixel() * 8;
@@ -2364,9 +2366,9 @@ uint16_t HeifPixelImage::get_component_storage_bits_per_pixel(uint32_t component
 
 heif_component_datatype HeifPixelImage::get_component_datatype(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_id);
-  assert(comp);
-  return comp->m_datatype;
+  auto* desc = find_component_description(component_id);
+  assert(desc);
+  return desc->datatype;
 }
 
 
