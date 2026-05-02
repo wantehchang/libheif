@@ -263,11 +263,40 @@ public:
   std::string get_gimi_sample_content_id() const { assert(has_gimi_sample_content_id()); return *m_gimi_sample_content_id; }
 
 
-  void set_component_content_ids(const std::vector<std::string>& ids) { m_component_content_ids = ids; }
+  // Assign GIMI per-component content IDs positionally into m_components.
+  // The i-th string is written to m_components[i].gimi_content_id; entries
+  // beyond m_components.size() are ignored. An empty string clears the id.
+  void set_component_content_ids(const std::vector<std::string>& ids)
+  {
+    size_t n = std::min(ids.size(), m_components.size());
+    for (size_t i = 0; i < n; i++) {
+      if (ids[i].empty()) {
+        m_components[i].gimi_content_id.reset();
+      } else {
+        m_components[i].gimi_content_id = ids[i];
+      }
+    }
+  }
 
-  bool has_component_content_ids() const { return !m_component_content_ids.empty(); }
+  bool has_component_content_ids() const
+  {
+    for (const auto& c : m_components) {
+      if (c.gimi_content_id.has_value()) return true;
+    }
+    return false;
+  }
 
-  const std::vector<std::string>& get_component_content_ids() const { return m_component_content_ids; }
+  // Returns a positional vector: entry i is m_components[i].gimi_content_id
+  // (empty string if unset). Returned by value because it is reconstructed.
+  std::vector<std::string> get_component_content_ids() const
+  {
+    std::vector<std::string> ids;
+    ids.reserve(m_components.size());
+    for (const auto& c : m_components) {
+      ids.push_back(c.gimi_content_id.value_or(std::string{}));
+    }
+    return ids;
+  }
 
 
   // --- per-component descriptions (id-based)
@@ -388,11 +417,12 @@ private:
 
   std::optional<std::string> m_gimi_sample_content_id;
 
-  std::vector<std::string> m_component_content_ids;
+  // (per-component GIMI content IDs now live on each ComponentDescription
+  //  in m_components below, as ComponentDescription::gimi_content_id.)
 
-  // Per-component description vector (parallel to HeifPixelImage::m_planes for
-  // now; will become the single source of truth as readers migrate).
-  // Protected so HeifPixelImage can mirror-write directly during transition.
+  // Per-component description vector. Single source of truth for per-component
+  // metadata (id, channel, type, format, datatype, bit depth, dims, content ID).
+  // Protected so HeifPixelImage can read/write directly during the migration.
 protected:
   std::vector<ComponentDescription> m_components;
 

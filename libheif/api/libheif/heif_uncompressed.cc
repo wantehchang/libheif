@@ -788,6 +788,9 @@ void heif_image_set_gimi_component_content_id(heif_image* image,
     return;
   }
 
+  // component_idx is positional within the per-image component description
+  // list (matches the ordering of the cmpd table that gets emitted). Caller
+  // must have added the component before setting its content id.
   auto ids = image->image->get_component_content_ids();
   if (component_idx >= ids.size()) {
     ids.resize(component_idx + 1);
