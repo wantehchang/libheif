@@ -1324,7 +1324,7 @@ heif_image_handle* encode_tiled(heif_context* ctx, heif_encoder* encoder, heif_e
     tiled_params.image_height = tiling.image_height;
     tiled_params.tile_width = tiling.tile_width;
     tiled_params.tile_height = tiling.tile_height;
-    tiled_params.offset_field_length = 32;
+    tiled_params.offset_field_length = 40;
     tiled_params.size_field_length = 24;
     tiled_params.tiles_are_sequential = 1;
 
