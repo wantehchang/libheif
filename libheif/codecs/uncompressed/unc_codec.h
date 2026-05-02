@@ -44,6 +44,8 @@ bool map_uncompressed_component_to_channel(const std::shared_ptr<const Box_cmpd>
                                            Box_uncC::Component component,
                                            heif_channel *channel);
 
+heif_component_datatype unc_component_format_to_datatype(uint8_t format);
+
 
 class UncompressedImageCodec
 {
