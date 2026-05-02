@@ -722,11 +722,12 @@ private:
 
   ImageComponent new_image_plane_for_channel(heif_channel channel);
 
-  // Mirror-writes ComponentDescription entries into the inherited
-  // ImageExtraData::m_components vector for each id in plane.m_component_ids.
-  // Used during the migration that moves component metadata onto ImageExtraData.
-  void mirror_plane_to_component_descriptions(const ImageComponent& plane,
-                                              uint32_t width, uint32_t height);
+  // After alloc() succeeds on `plane`, fills in datatype / component_format
+  // / bit_depth / width / height of the matching ComponentDescription
+  // entries (which were already pushed at id-mint time with id, channel,
+  // and component_type populated).
+  void fill_component_descriptions_after_alloc(const ImageComponent& plane,
+                                                uint32_t width, uint32_t height);
 
   uint32_t m_width = 0;
   uint32_t m_height = 0;
@@ -737,8 +738,8 @@ private:
   //std::vector<uint16_t> m_cmpd_component_types;  // indexed by cmpd index
   MemoryHandle m_memory_handle;
 
-  // maps component_id to component_type (for all components, including cpat and all components in an interleaved plane)
-  std::map<uint32_t, uint16_t> m_component_types;
+  // (component_type now lives on each ComponentDescription in
+  //  ImageExtraData::m_components, indexed by component_id.)
 
   uint32_t m_sample_duration = 0; // duration of a sequence frame
 
