@@ -685,8 +685,16 @@ Error HeifPixelImage::ImageComponent::alloc(uint32_t width, uint32_t height, hei
   m_num_interleaved_components = static_cast<uint8_t>(num_interleaved_components);
   m_datatype = datatype;
 
+  // Cache bytes-per-pixel for the inner-loop get_bytes_per_pixel().
+  int bytes_per_component;
+  if (bit_depth <= 8)        bytes_per_component = 1;
+  else if (bit_depth <= 16)  bytes_per_component = 2;
+  else if (bit_depth <= 32)  bytes_per_component = 4;
+  else if (bit_depth <= 64)  bytes_per_component = 8;
+  else { assert(bit_depth <= 128); bytes_per_component = 16; }
+  m_bytes_per_pixel = static_cast<uint8_t>(bytes_per_component * num_interleaved_components);
 
-  int bytes_per_pixel = get_bytes_per_pixel();
+  int bytes_per_pixel = m_bytes_per_pixel;
 
   uint64_t stride_64 = static_cast<uint64_t>(m_mem_width) * bytes_per_pixel;
   stride_64 = (stride_64 + alignment - 1U) & ~static_cast<uint64_t>(alignment - 1U);
@@ -1623,26 +1631,7 @@ Result<std::shared_ptr<HeifPixelImage>> HeifPixelImage::mirror_inplace(heif_tran
 
 int HeifPixelImage::ImageComponent::get_bytes_per_pixel() const
 {
-  int bytes_per_component;
-
-  if (m_bit_depth <= 8) {
-    bytes_per_component = 1;
-  }
-  else if (m_bit_depth <= 16) {
-    bytes_per_component = 2;
-  }
-  else if (m_bit_depth <= 32) {
-    bytes_per_component = 4;
-  }
-  else if (m_bit_depth <= 64) {
-    bytes_per_component = 8;
-  }
-  else {
-    assert(m_bit_depth <= 128);
-    bytes_per_component = 16;
-  }
-
-  return bytes_per_component * m_num_interleaved_components;
+  return m_bytes_per_pixel;
 }
 
 

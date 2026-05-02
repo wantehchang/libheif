@@ -738,6 +738,11 @@ private:
     uint16_t m_bit_depth = 0; // 1-256
     uint8_t m_num_interleaved_components = 1;
 
+    // Cached at alloc() time so get_bytes_per_pixel() doesn't have to do
+    // the bit-depth → bytes ladder on every call. Equal to
+    // bytes_per_component * m_num_interleaved_components.
+    uint8_t m_bytes_per_pixel = 0;
+
     // the "visible" area of the plane
     uint32_t m_width = 0;
     uint32_t m_height = 0;
