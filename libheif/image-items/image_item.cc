@@ -550,6 +550,77 @@ Result<Encoder::CodedImageData> ImageItem::encode(const std::shared_ptr<HeifPixe
 }
 
 
+void ImageItem::populate_component_descriptions()
+{
+  // Idempotent: a subclass override (e.g. unci) may already have populated.
+  if (!get_component_descriptions().empty()) {
+    return;
+  }
+
+  // Visual codecs (HEVC/AVC/AVIF/JPEG/JPEG2000/VVC). Requires the decoder to
+  // be initialized so we can read colorspace / chroma / bit depths from the
+  // codec config. If the decoder isn't ready (e.g. on the encoder-output
+  // path that doesn't call initialize_decoder, or for items whose codec is
+  // not supported), bail out and leave m_components empty.
+  auto decoderResult = get_decoder();
+  if (!decoderResult || !*decoderResult) {
+    return;
+  }
+  heif_colorspace colorspace = heif_colorspace_undefined;
+  heif_chroma chroma = heif_chroma_undefined;
+  if (Error err = get_coded_image_colorspace(&colorspace, &chroma); err) {
+    return;
+  }
+
+  uint32_t img_w = get_ispe_width();
+  uint32_t img_h = get_ispe_height();
+  int luma_bpp = get_luma_bits_per_pixel();
+  int chroma_bpp = get_chroma_bits_per_pixel();
+  if (luma_bpp <= 0) luma_bpp = 8;
+  if (chroma_bpp <= 0) chroma_bpp = luma_bpp;
+
+  auto emit = [this](heif_channel ch, uint16_t type, int bpp,
+                     uint32_t w, uint32_t h) {
+    ComponentDescription desc;
+    desc.component_id = mint_component_id();
+    desc.channel = ch;
+    desc.component_type = type;
+    desc.datatype = heif_component_datatype_unsigned_integer;
+    desc.bit_depth = static_cast<uint16_t>(bpp);
+    desc.width = w;
+    desc.height = h;
+    desc.has_data_plane = true;
+    add_component_description(std::move(desc));
+  };
+
+  switch (colorspace) {
+    case heif_colorspace_monochrome:
+      emit(heif_channel_Y, heif_unci_component_type_monochrome, luma_bpp, img_w, img_h);
+      break;
+
+    case heif_colorspace_YCbCr: {
+      uint32_t cw = channel_width(img_w, chroma, heif_channel_Cb);
+      uint32_t ch_ = channel_height(img_h, chroma, heif_channel_Cb);
+      emit(heif_channel_Y,  heif_unci_component_type_Y,  luma_bpp,   img_w, img_h);
+      emit(heif_channel_Cb, heif_unci_component_type_Cb, chroma_bpp, cw,    ch_);
+      emit(heif_channel_Cr, heif_unci_component_type_Cr, chroma_bpp, cw,    ch_);
+      break;
+    }
+
+    case heif_colorspace_RGB:
+      emit(heif_channel_R, heif_unci_component_type_red,   luma_bpp, img_w, img_h);
+      emit(heif_channel_G, heif_unci_component_type_green, luma_bpp, img_w, img_h);
+      emit(heif_channel_B, heif_unci_component_type_blue,  luma_bpp, img_w, img_h);
+      break;
+
+    default:
+      // Other colorspaces (filter_array, nonvisual) are unci-only and are
+      // populated by the unci override.
+      break;
+  }
+}
+
+
 std::vector<std::shared_ptr<Box_colr> >
 ImageItem::add_color_profile(const std::shared_ptr<HeifPixelImage>& image,
                              const heif_encoding_options& options,

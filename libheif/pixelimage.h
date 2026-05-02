@@ -607,6 +607,17 @@ public:
   // already present in m_components to allocate its pixel buffer.
   void clone_component_descriptions_from(const ImageExtraData& src);
 
+  // Post-decode reconciliation: rebind this image's component descriptions
+  // and the m_component_ids on each plane so they match `src` (typically the
+  // ImageItem). Used after a plugin-based codec decode returns: the plugin
+  // auto-minted ids via the public C API (heif_image_add_plane_safe), but
+  // the handle has a canonical description list we want to expose.
+  // Channels in `src` overwrite this image's matching descriptions.
+  // Channels present in this image but not in `src` (e.g. alpha-from-aux
+  // attached after main decode) are kept under fresh ids that won't collide
+  // with `src`. No-op if `src` has no descriptions.
+  void apply_descriptions_from(const ImageExtraData& src);
+
   // Decoder path: allocate a pixel buffer for a component whose description
   // (channel, datatype, bit_depth, width, height) is already in m_components.
   // No new id is minted. Used after clone_component_descriptions_from().

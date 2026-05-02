@@ -2459,6 +2459,83 @@ void HeifPixelImage::clone_component_descriptions_from(const ImageExtraData& src
 }
 
 
+void HeifPixelImage::apply_descriptions_from(const ImageExtraData& src)
+{
+  const auto& src_descs = src.get_component_descriptions();
+  if (src_descs.empty()) {
+    return; // nothing to apply (e.g. grid/iden ImageItem with no description)
+  }
+
+  // Skip when this image's descriptions already match src's data-plane
+  // subset (id + channel). This is the unci decode path: the decoder used
+  // clone_component_descriptions_from(item) so ids already coincide. It
+  // also handles cases where multiple planes share a channel (e.g. unci
+  // multi-component-of-same-type), which the channel-keyed remap below
+  // can't represent.
+  bool already_aligned = true;
+  size_t i = 0;
+  for (const auto& d : src_descs) {
+    if (!d.has_data_plane) continue;
+    if (i >= m_components.size() ||
+        m_components[i].component_id != d.component_id ||
+        m_components[i].channel != d.channel) {
+      already_aligned = false;
+      break;
+    }
+    i++;
+  }
+  if (already_aligned && i == m_components.size()) {
+    return;
+  }
+
+  // Snapshot pre-remap descriptions keyed by channel (for any "extra"
+  // channels not in src that we need to keep, like alpha-from-aux).
+  std::map<heif_channel, ComponentDescription> auto_minted_by_channel;
+  for (const auto& d : m_components) {
+    auto_minted_by_channel[d.channel] = d;
+  }
+
+  // Replace m_components with src's data-plane descriptions and build a
+  // channel -> src-id map.
+  m_components.clear();
+  std::map<heif_channel, uint32_t> src_id_by_channel;
+  for (const auto& d : src_descs) {
+    if (d.has_data_plane) {
+      m_components.push_back(d);
+      src_id_by_channel[d.channel] = d.component_id;
+    }
+  }
+
+  // Compute a starting id for any extras (above src's high-water mark).
+  uint32_t next_id = src.peek_next_component_id();
+  for (const auto& d : m_components) {
+    if (d.component_id >= next_id) next_id = d.component_id + 1;
+  }
+
+  // Remap each plane's m_component_ids by channel match against src; for
+  // channels not in src, re-add the auto-minted description with a fresh id.
+  for (auto& plane : m_planes) {
+    if (plane.m_component_ids.empty()) continue;
+
+    heif_channel ch = plane.m_channel;
+    auto src_it = src_id_by_channel.find(ch);
+    if (src_it != src_id_by_channel.end()) {
+      plane.m_component_ids = { src_it->second };
+    } else {
+      auto auto_it = auto_minted_by_channel.find(ch);
+      if (auto_it != auto_minted_by_channel.end()) {
+        ComponentDescription extra = auto_it->second;
+        extra.component_id = next_id++;
+        m_components.push_back(extra);
+        plane.m_component_ids = { extra.component_id };
+      }
+    }
+  }
+
+  m_next_component_id = next_id;
+}
+
+
 Error HeifPixelImage::allocate_buffer_for_component(uint32_t component_id,
                                                     const heif_security_limits* limits)
 {

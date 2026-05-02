@@ -613,6 +613,12 @@ Error HeifContext::interpret_heif_file_images()
     if (err) {
       imageItem = std::make_shared<ImageItem_Error>(imageItem->get_infe_type(), id, err);
       imageItem->set_properties(properties);
+    } else {
+      // After initialize_decoder, codec-config queries (colorspace, bit depth)
+      // are available, so visual-codec items can now populate their component
+      // descriptions. Idempotent for items already populated by set_properties
+      // (e.g. unci items).
+      imageItem->populate_component_descriptions();
     }
 
     m_all_images.insert(std::make_pair(id, imageItem));
@@ -1407,6 +1413,15 @@ Result<std::shared_ptr<HeifPixelImage>> HeifContext::decode_image(heif_item_id I
   }
 
   std::shared_ptr<HeifPixelImage> img = *decodingResult;
+
+  // For visual codecs (HEVC/AVC/AVIF/JPEG/...) the decoder plugin builds the
+  // returned image via the public C API (heif_image_add_plane_safe), which
+  // auto-mints component ids. Reconcile those with the canonical description
+  // list that ImageItem::populate_component_descriptions() produced, so
+  // handle-side and decoded-image-side ids agree by construction.
+  // No-op for unci (which already shares ids with the item) or for items
+  // without a populated description list (grid/overlay/iden).
+  img->apply_descriptions_from(*imgitem);
 
 
   // --- check that the decoded image has the claimed size (only check if transformations are applied)

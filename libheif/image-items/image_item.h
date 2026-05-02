@@ -98,13 +98,26 @@ public:
 
   void set_properties(std::vector<std::shared_ptr<Box>> properties) {
     m_properties = std::move(properties);
+    // Codec-config-independent populate (e.g. unci, which reads cmpd/uncC
+    // directly off the just-set property boxes). Visual codecs leave
+    // m_components empty here; their populate runs after initialize_decoder()
+    // because they need codec config (colorspace, bit depth) which only the
+    // decoder can read.
     populate_component_descriptions();
   }
 
   // Populate the inherited ImageExtraData::m_components from the just-set
-  // property boxes. Default no-op; codec subclasses (unci, HEVC, AVIF, ...)
-  // override this to fill in component metadata available before decoding.
-  virtual void populate_component_descriptions() {}
+  // property boxes / codec config. The unci subclass overrides this and
+  // reads cmpd/uncC directly. The base implementation handles visual codecs
+  // (HEVC/AVC/AVIF/JPEG/JPEG2000/VVC) by querying get_coded_image_colorspace()
+  // + get_luma_bits_per_pixel() + get_chroma_bits_per_pixel() and emitting
+  // Y/Cb/Cr or R/G/B / monochrome descriptions in canonical order.
+  // Idempotent: skips work if m_components is already populated.
+  // Alpha-from-aux (separate alpha item linked via auxl) is *not* emitted
+  // here; the alpha plane is attached at decode time via
+  // transfer_plane_from_image_as, which mints its own component on the
+  // destination.
+  virtual void populate_component_descriptions();
 
   template<class BoxType>
   std::shared_ptr<BoxType> get_property() const

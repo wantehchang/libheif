@@ -51,6 +51,14 @@ ImageItem_uncompressed::ImageItem_uncompressed(HeifContext* ctx, heif_item_id id
 
 void ImageItem_uncompressed::populate_component_descriptions()
 {
+  // Idempotent: this method is called from both set_properties() (where
+  // unci populates from cmpd/uncC, no decoder needed) and from
+  // context.cc after initialize_decoder() (where visual codecs populate).
+  // For unci items the first call wins; the second is a no-op.
+  if (!get_component_descriptions().empty()) {
+    return;
+  }
+
   auto uncC = get_property<Box_uncC>();
   if (!uncC) {
     return;
