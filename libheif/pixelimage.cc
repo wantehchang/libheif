@@ -1303,6 +1303,14 @@ void HeifPixelImage::transfer_plane_from_image_as(const std::shared_ptr<HeifPixe
     // Mint a destination id and reset description fields that change on transfer.
     desc.component_id = mint_component_id();
     desc.channel = dst_channel;
+    // Re-derive the cmpd component_type from the new channel so the
+    // transferred plane is described as e.g. "alpha" rather than carrying
+    // over the source's "monochrome"/"Y" type. (The most common case is
+    // moving an alpha aux item's Y plane onto a main image as Alpha.)
+    auto types = map_channel_to_component_type(dst_channel, heif_chroma_undefined);
+    if (!types.empty()) {
+      desc.component_type = types[0];
+    }
     new_ids.push_back(desc.component_id);
     add_component_description(std::move(desc));
 

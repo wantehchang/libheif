@@ -550,6 +550,42 @@ Result<Encoder::CodedImageData> ImageItem::encode(const std::shared_ptr<HeifPixe
 }
 
 
+void ImageItem::set_alpha_channel(std::shared_ptr<ImageItem> img)
+{
+  m_alpha_channel = std::move(img);
+  if (!m_alpha_channel) {
+    return;
+  }
+
+  // Avoid emitting a duplicate Alpha description if set_alpha_channel was
+  // called more than once.
+  for (const auto& d : get_component_descriptions()) {
+    if (d.channel == heif_channel_Alpha) {
+      return;
+    }
+  }
+
+  // Bit depth of the alpha plane comes from the alpha aux item's coded
+  // image (typically a monochrome HEVC/AVIF channel). Fall back to 8 bpp
+  // if the decoder cannot tell us.
+  int alpha_bpp = m_alpha_channel->get_luma_bits_per_pixel();
+  if (alpha_bpp <= 0) {
+    alpha_bpp = 8;
+  }
+
+  ComponentDescription desc;
+  desc.component_id = mint_component_id();
+  desc.channel = heif_channel_Alpha;
+  desc.component_type = heif_unci_component_type_alpha;
+  desc.datatype = heif_component_datatype_unsigned_integer;
+  desc.bit_depth = static_cast<uint16_t>(alpha_bpp);
+  desc.width = get_ispe_width();
+  desc.height = get_ispe_height();
+  desc.has_data_plane = true;
+  add_component_description(std::move(desc));
+}
+
+
 void ImageItem::populate_component_descriptions()
 {
   // Idempotent: a subclass override (e.g. unci) may already have populated.

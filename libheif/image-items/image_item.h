@@ -213,7 +213,9 @@ public:
     m_is_alpha_channel = true;
   }
 
-  void set_alpha_channel(std::shared_ptr<ImageItem> img) { m_alpha_channel = std::move(img); }
+  // Attach an alpha aux ImageItem and append a corresponding Alpha
+  // ComponentDescription to this item's m_components. Idempotent.
+  void set_alpha_channel(std::shared_ptr<ImageItem> img);
 
   bool is_alpha_channel() const { return m_is_alpha_channel; }
 
