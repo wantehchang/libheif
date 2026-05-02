@@ -183,3 +183,119 @@ TEST_CASE( "image datatype through public API" )
   data[stride*1 + 1] = 200;
   data[stride*1 + 2] = 5;
 }
+
+
+// Verify that an interleaved RGB plane produces THREE ComponentDescription
+// entries (one per cmpd component: red, green, blue) all sharing
+// channel=heif_channel_interleaved, while m_planes has a single buffer.
+TEST_CASE( "interleaved RGB component descriptions" )
+{
+  HeifPixelImage image;
+  auto* limits = heif_get_global_security_limits();
+  image.create(100, 100, heif_colorspace_RGB, heif_chroma_interleaved_RGB);
+  REQUIRE(image.add_plane(heif_channel_interleaved, 100, 100, 8, limits).error_code == heif_error_Ok);
+
+  REQUIRE(image.get_number_of_used_components() == 3);
+
+  auto ids = image.get_used_component_ids();
+  REQUIRE(ids.size() == 3);
+
+  // ids should be three distinct, monotonically-increasing values starting
+  // from m_next_component_id's initial value (1).
+  REQUIRE(ids[0] == 1);
+  REQUIRE(ids[1] == 2);
+  REQUIRE(ids[2] == 3);
+
+  REQUIRE(image.get_component_type(ids[0]) == heif_unci_component_type_red);
+  REQUIRE(image.get_component_type(ids[1]) == heif_unci_component_type_green);
+  REQUIRE(image.get_component_type(ids[2]) == heif_unci_component_type_blue);
+
+  // All three descriptions share channel=interleaved, identical dims/bpp.
+  for (uint32_t id : ids) {
+    REQUIRE(image.get_component_channel(id) == heif_channel_interleaved);
+    REQUIRE(image.get_component_width(id) == 100);
+    REQUIRE(image.get_component_height(id) == 100);
+    REQUIRE(image.get_component_bits_per_pixel(id) == 8);
+    REQUIRE(image.get_component_datatype(id) == heif_component_datatype_unsigned_integer);
+  }
+
+  // Public C API surface: the same three ids, addressing the same single
+  // interleaved buffer (one plane).
+  REQUIRE(image.has_channel(heif_channel_interleaved));
+  REQUIRE(image.get_number_of_interleaved_components(heif_channel_interleaved) == 3);
+}
+
+
+// Same but for RGBA: four ComponentDescription entries.
+TEST_CASE( "interleaved RGBA component descriptions" )
+{
+  HeifPixelImage image;
+  auto* limits = heif_get_global_security_limits();
+  image.create(50, 50, heif_colorspace_RGB, heif_chroma_interleaved_RGBA);
+  REQUIRE(image.add_plane(heif_channel_interleaved, 50, 50, 8, limits).error_code == heif_error_Ok);
+
+  REQUIRE(image.get_number_of_used_components() == 4);
+  auto ids = image.get_used_component_ids();
+  REQUIRE(ids.size() == 4);
+  REQUIRE(image.get_component_type(ids[0]) == heif_unci_component_type_red);
+  REQUIRE(image.get_component_type(ids[1]) == heif_unci_component_type_green);
+  REQUIRE(image.get_component_type(ids[2]) == heif_unci_component_type_blue);
+  REQUIRE(image.get_component_type(ids[3]) == heif_unci_component_type_alpha);
+
+  for (uint32_t id : ids) {
+    REQUIRE(image.get_component_channel(id) == heif_channel_interleaved);
+    REQUIRE(image.get_component_bits_per_pixel(id) == 8);
+  }
+}
+
+
+// Verify that BayerPattern.pixels reuses the same component_id for two
+// pattern positions that reference the same cmpd entry.  This exercises
+// HeifPixelImage's data model directly (not the unci file -> ImageItem
+// populate path, which would need a full HEIF round-trip and a fixture).
+TEST_CASE( "Bayer pattern shares component id for same cmpd" )
+{
+  HeifPixelImage image;
+  auto* limits = heif_get_global_security_limits();
+  image.create(4, 4, heif_colorspace_filter_array, heif_chroma_monochrome);
+
+  // 1) The data plane: a 14-bit filter-array component.
+  auto fa_result = image.add_component(4, 4, heif_unci_component_type_filter_array,
+                                       heif_component_datatype_unsigned_integer, 14, limits);
+  REQUIRE(fa_result.error().error_code == heif_error_Ok);
+
+  // 2) Reference (no-data-plane) components for R, G, B.
+  uint32_t r_id = image.add_component_without_data(heif_unci_component_type_red);
+  uint32_t g_id = image.add_component_without_data(heif_unci_component_type_green);
+  uint32_t b_id = image.add_component_without_data(heif_unci_component_type_blue);
+
+  REQUIRE(image.get_number_of_used_components() == 4);
+
+  // 3) Build a 2x2 RGGB pattern: R, G, G, B with the two G positions sharing g_id.
+  BayerPattern pattern;
+  pattern.pattern_width = 2;
+  pattern.pattern_height = 2;
+  pattern.pixels = {
+    { r_id, 1.0f },
+    { g_id, 1.0f },
+    { g_id, 1.0f },   // <-- same id as the previous G position
+    { b_id, 1.0f },
+  };
+  image.set_bayer_pattern(pattern);
+
+  REQUIRE(image.has_any_bayer_pattern());
+  const auto& stored = image.get_any_bayer_pattern();
+  REQUIRE(stored.pixels.size() == 4);
+  REQUIRE(stored.pixels[0].component_id == r_id);
+  REQUIRE(stored.pixels[1].component_id == g_id);
+  REQUIRE(stored.pixels[2].component_id == g_id);   // shared
+  REQUIRE(stored.pixels[3].component_id == b_id);
+  REQUIRE(stored.pixels[1].component_id == stored.pixels[2].component_id);
+
+  // The reference components should have has_data_plane=false on their
+  // descriptions and not appear as image planes.
+  REQUIRE(image.has_channel(heif_channel_filter_array));
+  REQUIRE_FALSE(image.has_channel(heif_channel_R));
+  REQUIRE_FALSE(image.has_channel(heif_channel_G));
+  REQUIRE_FALSE(image.has_channel(heif_channel_B));
+}
