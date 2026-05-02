@@ -392,12 +392,13 @@ private:
 
   // Per-component description vector (parallel to HeifPixelImage::m_planes for
   // now; will become the single source of truth as readers migrate).
+  // Protected so HeifPixelImage can mirror-write directly during transition.
+protected:
   std::vector<ComponentDescription> m_components;
 
   // ID allocator for the per-component descriptions above. Migrated from
   // HeifPixelImage so that ImageItem (handle side) can also mint IDs at file
-  // parse time. Kept inheritable.
-protected:
+  // parse time.
   uint32_t m_next_component_id = 1;
 
 private:
@@ -534,7 +535,7 @@ public:
 
   // --- id-based component access (for ISO 23001-17 multi-component images)
 
-  uint32_t get_number_of_used_components() const { return static_cast<uint32_t>(m_component_types.size()); }
+  uint32_t get_number_of_used_components() const { return static_cast<uint32_t>(m_components.size()); }
 
   //uint32_t get_total_number_of_cmpd_components() const { return static_cast<uint32_t>(m_cmpd_component_types.size()); }
 

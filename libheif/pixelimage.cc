@@ -2228,6 +2228,8 @@ Error HeifPixelImage::create_clone_image_at_new_size(const std::shared_ptr<const
   }
 
   m_component_types = source->m_component_types;
+  m_components = source->m_components;
+  m_next_component_id = source->m_next_component_id;
 
   return Error::Ok;
 }
@@ -2366,12 +2368,10 @@ heif_component_datatype HeifPixelImage::get_component_datatype(uint32_t componen
 
 uint16_t HeifPixelImage::get_component_type(uint32_t component_id) const
 {
-  auto iter = m_component_types.find(component_id);
-  if (iter == m_component_types.end()) {
-    return heif_unci_component_type_UNDEFINED;
+  if (const auto* desc = find_component_description(component_id)) {
+    return desc->component_type;
   }
-
-  return iter->second;
+  return heif_unci_component_type_UNDEFINED;
 }
 
 
@@ -2450,10 +2450,10 @@ Result<uint32_t> HeifPixelImage::add_component_for_index(uint32_t component_inde
 std::vector<uint32_t> HeifPixelImage::get_used_component_ids() const
 {
   std::vector<uint32_t> indices;
-  indices.reserve(m_component_types.size());
+  indices.reserve(m_components.size());
 
-  for (const auto& iter : m_component_types) {
-    indices.push_back(iter.first);
+  for (const auto& desc : m_components) {
+    indices.push_back(desc.component_id);
   }
 
   return indices;
