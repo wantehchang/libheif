@@ -581,6 +581,7 @@ Error HeifPixelImage::add_plane(heif_channel channel, uint32_t width, uint32_t h
     return err;
   }
   else {
+    mirror_plane_to_component_descriptions(plane, width, height);
     m_planes.push_back(plane);
     return Error::Ok;
   }
@@ -596,8 +597,50 @@ Error HeifPixelImage::add_channel(heif_channel channel, uint32_t width, uint32_t
     return err;
   }
   else {
+    mirror_plane_to_component_descriptions(plane, width, height);
     m_planes.push_back(plane);
     return Error::Ok;
+  }
+}
+
+
+// Map heif_component_datatype back to the ISO 23001-17 component_format byte.
+// Mirror image of unc_component_format_to_datatype() (in unc_codec.cc).
+// Defined locally here to avoid pulling the unc codec into pixelimage.cc.
+static uint8_t datatype_to_unc_component_format(heif_component_datatype dt)
+{
+  switch (dt) {
+    case heif_component_datatype_signed_integer:    return 3; // component_format_signed
+    case heif_component_datatype_floating_point:    return 1; // component_format_float
+    case heif_component_datatype_complex_number:    return 2; // component_format_complex
+    case heif_component_datatype_unsigned_integer:
+    case heif_component_datatype_undefined:
+    default:                                        return 0; // component_format_unsigned
+  }
+}
+
+
+// Push one ComponentDescription per id in plane.m_component_ids, into the
+// inherited ImageExtraData::m_components vector. This mirror-writes the
+// description alongside the existing m_planes / m_component_types / etc.
+// during the transition; readers will be migrated to m_components in a
+// follow-up step.
+void HeifPixelImage::mirror_plane_to_component_descriptions(const ImageComponent& plane,
+                                                            uint32_t width, uint32_t height)
+{
+  for (uint32_t cid : plane.m_component_ids) {
+    ComponentDescription desc;
+    desc.component_id = cid;
+    desc.channel = plane.m_channel;
+    auto it = m_component_types.find(cid);
+    desc.component_type = (it != m_component_types.end()) ? it->second : 0;
+    desc.datatype = plane.m_datatype;
+    desc.component_format = datatype_to_unc_component_format(plane.m_datatype);
+    desc.bit_depth = plane.m_bit_depth;
+    desc.width = width;
+    desc.height = height;
+    desc.has_data_plane = true;
+    add_component_description(std::move(desc));
   }
 }
 
@@ -2356,6 +2399,7 @@ Result<uint32_t> HeifPixelImage::add_component(uint32_t width, uint32_t height,
     return {err};
   }
 
+  mirror_plane_to_component_descriptions(plane, width, height);
   m_planes.push_back(plane);
   return component_id;
 }
@@ -2365,6 +2409,14 @@ uint32_t HeifPixelImage::add_component_without_data(uint16_t component_type)
 {
   uint32_t new_component_id = m_next_component_id++;
   m_component_types[new_component_id] = component_type;
+
+  ComponentDescription desc;
+  desc.component_id = new_component_id;
+  desc.channel = map_uncompressed_component_to_channel(component_type);
+  desc.component_type = component_type;
+  desc.has_data_plane = false;
+  add_component_description(std::move(desc));
+
   return new_component_id;
 }
 

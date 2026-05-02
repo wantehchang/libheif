@@ -123,6 +123,40 @@ bool is_integer_multiple_of_chroma_size(uint32_t width,
 // Returns the list of valid heif_chroma values for a given colorspace.
 std::vector<heif_chroma> get_valid_chroma_values_for_colorspace(heif_colorspace colorspace);
 
+// Per-component description, independent of pixel data.
+// Lives on ImageExtraData so both ImageItem (handle side, before decoding)
+// and HeifPixelImage (decoded side) can carry the same structural view.
+struct ComponentDescription
+{
+  uint32_t component_id = 0;             // stable id, matches HeifPixelImage::m_planes ids
+  heif_channel channel = heif_channel_unknown;
+  uint16_t component_type = 0;           // heif_unci_component_type_*
+
+  // Both the raw ISO 23001-17 component_format byte (from the uncC box) and
+  // the corresponding heif_component_datatype enum are kept side by side.
+  //
+  //  - component_format preserves the exact byte that was in the file (or
+  //    that will be written), so unci file→memory→file round-trips do not
+  //    lose information even for spec values that libheif's enum does not
+  //    yet name.
+  //  - datatype is the public-API view, derived from component_format via
+  //    unc_component_format_to_datatype() at parse time, and also set
+  //    directly by codecs that don't have a uncC box (HEVC/AVIF/JPEG/...).
+  //
+  // For images coming through codecs other than unci, component_format
+  // is set to the matching ISO byte (component_format_unsigned for the
+  // typical unsigned-integer case).
+  uint8_t  component_format = 0;
+  heif_component_datatype datatype = heif_component_datatype_undefined;
+
+  uint16_t bit_depth = 0;                // logical bit depth (1..256)
+  uint32_t width = 0;
+  uint32_t height = 0;
+  bool     has_data_plane = true;        // false for cpat reference colors
+  std::optional<std::string> gimi_content_id;
+};
+
+
 class ImageExtraData
 {
 public:
@@ -236,6 +270,41 @@ public:
   const std::vector<std::string>& get_component_content_ids() const { return m_component_content_ids; }
 
 
+  // --- per-component descriptions (id-based)
+  // These describe each component independent of pixel storage. Both ImageItem
+  // (before decoding) and HeifPixelImage (after decoding) carry the same list.
+
+  const std::vector<ComponentDescription>& get_component_descriptions() const { return m_components; }
+
+  // Append a ComponentDescription. The caller is expected to have set
+  // component_id, either from a fresh mint_component_id() call or by
+  // matching an id already used by a parallel structure (e.g.
+  // HeifPixelImage::ImageComponent::m_component_ids).
+  void add_component_description(ComponentDescription desc)
+  {
+    m_components.push_back(std::move(desc));
+  }
+
+  // Mint a fresh component id (monotonically increasing, starting at 1).
+  uint32_t mint_component_id() { return m_next_component_id++; }
+
+  ComponentDescription* find_component_description(uint32_t component_id)
+  {
+    for (auto& c : m_components) {
+      if (c.component_id == component_id) return &c;
+    }
+    return nullptr;
+  }
+
+  const ComponentDescription* find_component_description(uint32_t component_id) const
+  {
+    for (const auto& c : m_components) {
+      if (c.component_id == component_id) return &c;
+    }
+    return nullptr;
+  }
+
+
   // --- bayer pattern
 
   bool has_bayer_pattern(uint32_t component_id) const { return m_bayer_pattern.has_value(); }
@@ -321,6 +390,17 @@ private:
 
   std::vector<std::string> m_component_content_ids;
 
+  // Per-component description vector (parallel to HeifPixelImage::m_planes for
+  // now; will become the single source of truth as readers migrate).
+  std::vector<ComponentDescription> m_components;
+
+  // ID allocator for the per-component descriptions above. Migrated from
+  // HeifPixelImage so that ImageItem (handle side) can also mint IDs at file
+  // parse time. Kept inheritable.
+protected:
+  uint32_t m_next_component_id = 1;
+
+private:
   std::optional<BayerPattern> m_bayer_pattern;
 
   std::vector<PolarizationPattern> m_polarization_patterns;
@@ -641,6 +721,12 @@ private:
 
   ImageComponent new_image_plane_for_channel(heif_channel channel);
 
+  // Mirror-writes ComponentDescription entries into the inherited
+  // ImageExtraData::m_components vector for each id in plane.m_component_ids.
+  // Used during the migration that moves component metadata onto ImageExtraData.
+  void mirror_plane_to_component_descriptions(const ImageComponent& plane,
+                                              uint32_t width, uint32_t height);
+
   uint32_t m_width = 0;
   uint32_t m_height = 0;
   heif_colorspace m_colorspace = heif_colorspace_undefined;
@@ -655,7 +741,7 @@ private:
 
   uint32_t m_sample_duration = 0; // duration of a sequence frame
 
-  uint32_t m_next_component_id = 1;
+  // m_next_component_id moved to ImageExtraData (inherited).
 
   std::vector<Error> m_warnings;
 };
