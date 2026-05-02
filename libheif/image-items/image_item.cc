@@ -657,6 +657,37 @@ void ImageItem::populate_component_descriptions()
 }
 
 
+bool ImageItem::populate_descriptions_from_child(const ImageItem& child,
+                                                  uint32_t child_w, uint32_t child_h)
+{
+  const auto& child_descs = child.get_component_descriptions();
+  if (child_descs.empty()) {
+    return false;
+  }
+
+  uint32_t img_w = get_ispe_width();
+  uint32_t img_h = get_ispe_height();
+  if (img_w == 0 || img_h == 0 || child_w == 0 || child_h == 0) {
+    return false;
+  }
+
+  for (const auto& src : child_descs) {
+    ComponentDescription d = src;
+    d.component_id = mint_component_id();
+    if (src.has_data_plane) {
+      // Preserve subsampling ratio: a half-size chroma plane in the child
+      // becomes half of img_w/h in the wrapper.
+      uint64_t w64 = static_cast<uint64_t>(img_w) * src.width / child_w;
+      uint64_t h64 = static_cast<uint64_t>(img_h) * src.height / child_h;
+      d.width = static_cast<uint32_t>(w64);
+      d.height = static_cast<uint32_t>(h64);
+    }
+    add_component_description(std::move(d));
+  }
+  return true;
+}
+
+
 std::vector<std::shared_ptr<Box_colr> >
 ImageItem::add_color_profile(const std::shared_ptr<HeifPixelImage>& image,
                              const heif_encoding_options& options,

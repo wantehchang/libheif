@@ -421,6 +421,41 @@ Error ImageItem_Overlay::get_coded_image_colorspace(heif_colorspace* out_colorsp
 }
 
 
+void ImageItem_Overlay::populate_component_descriptions()
+{
+  if (!get_component_descriptions().empty()) {
+    return;
+  }
+
+  // The overlay is always composed in RGB 8-bit 4:4:4 onto the canvas
+  // (decode_overlay_image converts each input child to RGB and uses an RGB
+  // background color). So the description we publish reflects that fixed
+  // output format, not the children's formats.
+  uint32_t w = get_ispe_width();
+  uint32_t h = get_ispe_height();
+  if (w == 0 || h == 0) {
+    return;
+  }
+
+  auto emit = [this, w, h](heif_channel ch, uint16_t type) {
+    ComponentDescription d;
+    d.component_id = mint_component_id();
+    d.channel = ch;
+    d.component_type = type;
+    d.datatype = heif_component_datatype_unsigned_integer;
+    d.bit_depth = 8;
+    d.width = w;
+    d.height = h;
+    d.has_data_plane = true;
+    add_component_description(std::move(d));
+  };
+
+  emit(heif_channel_R, heif_unci_component_type_red);
+  emit(heif_channel_G, heif_unci_component_type_green);
+  emit(heif_channel_B, heif_unci_component_type_blue);
+}
+
+
 Result<std::shared_ptr<ImageItem_Overlay>> ImageItem_Overlay::add_new_overlay_item(HeifContext* ctx, const ImageOverlay& overlayspec)
 {
   if (overlayspec.get_num_offsets() > 0xFFFF) {

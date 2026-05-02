@@ -2502,13 +2502,28 @@ void HeifPixelImage::apply_descriptions_from(const ImageExtraData& src)
     auto_minted_by_channel[d.channel] = d;
   }
 
+  // Build a channel -> actual-plane-dimensions map. For tile decodes the
+  // src description carries full-image dims, but the decoded plane was
+  // allocated at tile size; the description we publish should match what
+  // the buffer actually contains.
+  std::map<heif_channel, std::pair<uint32_t, uint32_t>> plane_dims_by_channel;
+  for (const auto& plane : m_planes) {
+    plane_dims_by_channel[plane.m_channel] = {plane.m_width, plane.m_height};
+  }
+
   // Replace m_components with src's data-plane descriptions and build a
   // channel -> src-id map.
   m_components.clear();
   std::map<heif_channel, uint32_t> src_id_by_channel;
   for (const auto& d : src_descs) {
     if (d.has_data_plane) {
-      m_components.push_back(d);
+      ComponentDescription copy = d;
+      auto it = plane_dims_by_channel.find(d.channel);
+      if (it != plane_dims_by_channel.end()) {
+        copy.width = it->second.first;
+        copy.height = it->second.second;
+      }
+      m_components.push_back(copy);
       src_id_by_channel[d.channel] = d.component_id;
     }
   }

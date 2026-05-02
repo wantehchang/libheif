@@ -660,6 +660,26 @@ Error ImageItem_Tiled::initialize_decoder()
 }
 
 
+void ImageItem_Tiled::populate_component_descriptions()
+{
+  // Idempotent: skip if already populated.
+  if (!get_component_descriptions().empty()) {
+    return;
+  }
+
+  // initialize_decoder() must have run; m_tile_item carries the per-tile
+  // properties (cmpd/uncC for unci tiles, codec config for visual tiles)
+  // and its own populate has filled tile-sized component descriptions.
+  if (!m_tile_item) {
+    return;
+  }
+
+  uint32_t tile_w = m_tild_header.get_parameters().tile_width;
+  uint32_t tile_h = m_tild_header.get_parameters().tile_height;
+  populate_descriptions_from_child(*m_tile_item, tile_w, tile_h);
+}
+
+
 Result<std::shared_ptr<ImageItem_Tiled>>
 ImageItem_Tiled::add_new_tiled_item(HeifContext* ctx, const heif_tiled_image_parameters* parameters,
                                     const heif_encoder* encoder,

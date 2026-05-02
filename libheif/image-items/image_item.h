@@ -119,6 +119,15 @@ public:
   // destination.
   virtual void populate_component_descriptions();
 
+  // Populate this item's m_components by cloning descriptions from a child
+  // item (e.g. tili's tile item, grid/iden/iovl's first child) and rescaling
+  // per-component dims from the child's logical size to this item's full
+  // image (ispe) size. Returns true on success. Returns false (and leaves
+  // m_components untouched) if the child has no descriptions or sizes are
+  // unusable, so the caller can fall back to the base populate.
+  bool populate_descriptions_from_child(const class ImageItem& child,
+                                        uint32_t child_w, uint32_t child_h);
+
   template<class BoxType>
   std::shared_ptr<BoxType> get_property() const
   {

@@ -111,6 +111,12 @@ public:
 
   Error initialize_decoder() override;
 
+  // Delegates to the first grid tile's already-populated descriptions and
+  // rescales per-component dims to the grid's full ispe size, so the handle
+  // exposes the correct datatype/bit-depth even for unci float tiles
+  // (which the base populate would mis-tag as unsigned_integer).
+  void populate_component_descriptions() override;
+
   int get_luma_bits_per_pixel() const override;
 
   int get_chroma_bits_per_pixel() const override;

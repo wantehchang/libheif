@@ -698,6 +698,34 @@ Result<std::shared_ptr<Decoder>> ImageItem_Grid::get_decoder() const
 }
 
 
+void ImageItem_Grid::populate_component_descriptions()
+{
+  if (!get_component_descriptions().empty()) {
+    return;
+  }
+
+  if (m_grid_tile_ids.empty()) {
+    ImageItem::populate_component_descriptions();
+    return;
+  }
+
+  auto child = get_context()->get_image(m_grid_tile_ids[0], true);
+  if (!child) {
+    ImageItem::populate_component_descriptions();
+    return;
+  }
+
+  // Try child-delegation first (correct for unci children with float/signed/
+  // complex datatypes). If the child has no descriptions yet (e.g. it's a
+  // visual codec without an initialized decoder), fall back to the base
+  // populate which queries this item's own colorspace/bpp accessors (which
+  // already delegate to the child).
+  if (!populate_descriptions_from_child(*child, child->get_width(), child->get_height())) {
+    ImageItem::populate_component_descriptions();
+  }
+}
+
+
 Result<std::shared_ptr<ImageItem_Grid>> ImageItem_Grid::add_new_grid_item(HeifContext* ctx,
                                                                           uint32_t output_width,
                                                                           uint32_t output_height,

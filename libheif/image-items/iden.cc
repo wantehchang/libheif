@@ -153,3 +153,24 @@ heif_brand2 ImageItem_iden::get_compatible_brand() const
   assert(false);
   return 0; // TODO (we never write 'iden' images)
 }
+
+
+void ImageItem_iden::populate_component_descriptions()
+{
+  if (!get_component_descriptions().empty()) {
+    return;
+  }
+
+  heif_item_id child_id;
+  Error err = get_context()->get_id_of_non_virtual_child_image(get_id(), child_id);
+  if (err) {
+    return;
+  }
+
+  auto child = get_context()->get_image(child_id, true);
+  if (!child) {
+    return;
+  }
+
+  populate_descriptions_from_child(*child, child->get_width(), child->get_height());
+}

@@ -46,6 +46,11 @@ public:
 
   Error get_coded_image_colorspace(heif_colorspace* out_colorspace, heif_chroma* out_chroma) const override;
 
+  // Delegates to the referenced image's component descriptions, rescaled to
+  // this iden's ispe. Without this override the base populate would bail
+  // (iden has no get_decoder()) and the handle would report 0 components.
+  void populate_component_descriptions() override;
+
   int get_luma_bits_per_pixel() const override;
 
   int get_chroma_bits_per_pixel() const override;

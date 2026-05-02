@@ -167,6 +167,12 @@ public:
 
   Error initialize_decoder() override;
 
+  // Copies per-component descriptions from the embedded tile item (which has
+  // tile-sized dims) and rescales them to the full image's ispe dimensions,
+  // so the handle exposes the same per-component metadata (datatype,
+  // bit-depth, type) that the decoded image will report after a tile decode.
+  void populate_component_descriptions() override;
+
   Error process_before_write() override;
 
   Error get_coded_image_colorspace(heif_colorspace* out_colorspace, heif_chroma* out_chroma) const override;
