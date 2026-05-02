@@ -311,6 +311,11 @@ int heif_image_get_component_bits_per_pixel(const heif_image*, uint32_t componen
 LIBHEIF_API
 uint16_t heif_image_get_component_type(const heif_image*, uint32_t component_idx);
 
+// Returns the datatype (unsigned/signed integer, floating point, or complex
+// number) of the given component.
+LIBHEIF_API
+heif_component_datatype heif_image_get_component_datatype(const heif_image*, uint32_t component_idx);
+
 // TODO
 //LIBHEIF_API
 //heif_error heif_image_get_component_indices_of_interleaved_channel(const heif_image* image, uint32_t* component_indices, uint8_t* nComponents_in_out);

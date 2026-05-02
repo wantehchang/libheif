@@ -691,6 +691,15 @@ uint16_t heif_image_get_component_type(const heif_image* image, uint32_t compone
 }
 
 
+heif_component_datatype heif_image_get_component_datatype(const heif_image* image, uint32_t component_idx)
+{
+  if (!image || !image->image) {
+    return heif_component_datatype_undefined;
+  }
+  return image->image->get_component_datatype(component_idx);
+}
+
+
 heif_error heif_image_add_component(heif_image* image,
                                     int width, int height,
                                     uint16_t component_type,
