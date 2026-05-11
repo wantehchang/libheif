@@ -69,6 +69,8 @@ public:
 
   ~HeifContext();
 
+  static constexpr int default_max_decoding_threads = 4;
+
   void set_max_decoding_threads(int max_threads) { m_max_decoding_threads = max_threads; }
 
   int get_max_decoding_threads() const { return m_max_decoding_threads; }
@@ -306,7 +308,7 @@ private:
 
   std::shared_ptr<HeifFile> m_heif_file;
 
-  int m_max_decoding_threads = 4;
+  int m_max_decoding_threads = default_max_decoding_threads;
 
   heif_security_limits m_limits;
   TotalMemoryTracker m_memory_tracker;
