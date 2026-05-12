@@ -35,6 +35,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 
 // === === Bayer pattern
@@ -238,29 +239,28 @@ public:
     return Error::Ok;
   }
 
-  const heif_tai_timestamp_packet* get_tai_timestamp() const {
+  [[nodiscard]] const heif_tai_timestamp_packet* get_tai_timestamp() const {
     return m_tai_timestamp;
   }
 
+  // --- GIMI content ID
 
-  virtual void set_gimi_sample_content_id(std::string id) { m_gimi_sample_content_id = id; }
+  virtual void set_gimi_sample_content_id(std::string id) { m_gimi_sample_content_id = std::move(id); }
 
-  bool has_gimi_sample_content_id() const { return m_gimi_sample_content_id.has_value(); }
+  [[nodiscard]] bool has_gimi_sample_content_id() const { return !m_gimi_sample_content_id.empty(); }
 
-  std::string get_gimi_sample_content_id() const { assert(has_gimi_sample_content_id()); return *m_gimi_sample_content_id; }
+  [[nodiscard]] const std::string& get_gimi_sample_content_id() const { return m_gimi_sample_content_id; }
 
 
-  bool has_component_content_ids() const
+  [[nodiscard]] bool has_component_content_ids() const
   {
-    for (const auto& c : m_components) {
-      if (!c.gimi_content_id.empty()) return true;
-    }
-    return false;
+    return std::any_of(m_components.begin(), m_components.end(),
+                       [](const ComponentDescription& c) { return !c.gimi_content_id.empty(); });
   }
 
   // Returns a positional vector: entry i is m_components[i].gimi_content_id
   // (empty string if unset). Returned by value because it is reconstructed.
-  std::vector<std::string> get_component_content_ids() const
+  [[nodiscard]] std::vector<std::string> get_component_content_ids() const
   {
     std::vector<std::string> ids;
     ids.reserve(m_components.size());
@@ -275,7 +275,7 @@ public:
   // These describe each component independent of pixel storage. Both ImageItem
   // (before decoding) and HeifPixelImage (after decoding) carry the same list.
 
-  const std::vector<ComponentDescription>& get_component_descriptions() const { return m_components; }
+  [[nodiscard]] const std::vector<ComponentDescription>& get_component_descriptions() const { return m_components; }
 
   // Append a ComponentDescription. The caller is expected to have set
   // component_id, either from a fresh mint_component_id() call or by
@@ -287,14 +287,14 @@ public:
   }
 
   // Mint a fresh component id (monotonically increasing, starting at 1).
-  uint32_t mint_component_id() { return m_next_component_id++; }
+  [[nodiscard]] uint32_t mint_component_id() { return m_next_component_id++; }
 
   // Read-only view of the next id that mint_component_id() would return.
   // Used by HeifPixelImage::clone_component_descriptions_from() to keep the
   // counter aligned across an item-to-image clone.
-  uint32_t peek_next_component_id() const { return m_next_component_id; }
+  [[nodiscard]] uint32_t peek_next_component_id() const { return m_next_component_id; }
 
-  ComponentDescription* find_component_description(uint32_t component_id)
+  [[nodiscard]] ComponentDescription* find_component_description(uint32_t component_id)
   {
     for (auto& c : m_components) {
       if (c.component_id == component_id) return &c;
@@ -302,7 +302,7 @@ public:
     return nullptr;
   }
 
-  const ComponentDescription* find_component_description(uint32_t component_id) const
+  [[nodiscard]] const ComponentDescription* find_component_description(uint32_t component_id) const
   {
     for (const auto& c : m_components) {
       if (c.component_id == component_id) return &c;
@@ -392,10 +392,8 @@ private:
 
   heif_tai_timestamp_packet* m_tai_timestamp = nullptr;
 
-  std::optional<std::string> m_gimi_sample_content_id;
-
-  // (per-component GIMI content IDs now live on each ComponentDescription
-  //  in m_components below, as ComponentDescription::gimi_content_id.)
+  // Empty string means "no content id assigned".
+  std::string m_gimi_sample_content_id;
 
   // Per-component description vector. Single source of truth for per-component
   // metadata (id, channel, type, format, datatype, bit depth, dims, content ID).

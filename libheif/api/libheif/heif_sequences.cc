@@ -673,12 +673,7 @@ const char* heif_raw_sequence_sample_get_gimi_sample_content_id(const heif_raw_s
 
 void heif_image_set_gimi_sample_content_id(heif_image* img, const char* contentID)
 {
-  if (contentID) {
-    img->image->set_gimi_sample_content_id(contentID);
-  }
-  else {
-    img->image->set_gimi_sample_content_id({});
-  }
+  img->image->set_gimi_sample_content_id(contentID ? contentID : std::string{});
 }
 
 
