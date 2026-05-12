@@ -116,14 +116,18 @@ typedef struct heif_unci_image_parameters
 
 
 // --- pixel datatype support
+//
+// The numeric values are aligned with the ISO/IEC 23001-17 Table 2
+// component_format byte (used by the uncC box of the uncompressed codec).
+// This is an internal convenience and should not be relied upon.
 
 typedef enum heif_component_datatype
 {
-  heif_component_datatype_undefined = 0,
-  heif_component_datatype_unsigned_integer = 1,
-  heif_component_datatype_signed_integer = 2,
-  heif_component_datatype_floating_point = 3,
-  heif_component_datatype_complex_number = 4
+  heif_component_datatype_unsigned_integer = 0,
+  heif_component_datatype_floating_point   = 1,
+  heif_component_datatype_complex_number   = 2,
+  heif_component_datatype_signed_integer   = 3,
+  heif_component_datatype_undefined        = 0xFF
 } heif_component_datatype;
 
 typedef struct heif_complex32

@@ -167,22 +167,13 @@ bool map_uncompressed_component_to_channel(const std::shared_ptr<const Box_cmpd>
 
 heif_component_datatype unc_component_format_to_datatype(uint8_t format)
 {
-  switch (format) {
-    case component_format_unsigned:
-      return heif_component_datatype_unsigned_integer;
-
-    case component_format_signed:
-      return heif_component_datatype_signed_integer;
-
-    case component_format_float:
-      return heif_component_datatype_floating_point;
-
-    case component_format_complex:
-      return heif_component_datatype_complex_number;
-
-    default:
-      return heif_component_datatype_undefined;
+  // heif_component_datatype values are aligned with ISO/IEC 23001-17 Table 2.
+  // is_valid_component_format() in unc_boxes.cc rejects out-of-range bytes
+  // before they reach here, so any spec-defined byte casts cleanly.
+  if (format > component_format_max_valid) {
+    return heif_component_datatype_undefined;
   }
+  return static_cast<heif_component_datatype>(format);
 }
 
 

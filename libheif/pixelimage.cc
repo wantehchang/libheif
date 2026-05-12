@@ -614,27 +614,11 @@ Error HeifPixelImage::add_channel(heif_channel channel, uint32_t width, uint32_t
 }
 
 
-// Map heif_component_datatype back to the ISO 23001-17 component_format byte.
-// Mirror image of unc_component_format_to_datatype() (in unc_codec.cc).
-// Defined locally here to avoid pulling the unc codec into pixelimage.cc.
-static uint8_t datatype_to_unc_component_format(heif_component_datatype dt)
-{
-  switch (dt) {
-    case heif_component_datatype_signed_integer:    return 3; // component_format_signed
-    case heif_component_datatype_floating_point:    return 1; // component_format_float
-    case heif_component_datatype_complex_number:    return 2; // component_format_complex
-    case heif_component_datatype_unsigned_integer:
-    case heif_component_datatype_undefined:
-    default:                                        return 0; // component_format_unsigned
-  }
-}
-
-
 // After alloc() has succeeded on `plane`, fill in the per-id fields of the
 // existing ComponentDescription entries (which were pushed at id-mint time
 // in new_image_plane_for_channel or by add_component). id, channel and
-// component_type were already set then; datatype, component_format,
-// bit_depth, width and height become known here.
+// component_type were already set then; datatype, bit_depth, width and
+// height become known here.
 void HeifPixelImage::fill_component_descriptions_after_alloc(const ImageComponent& plane,
                                                              uint32_t width, uint32_t height)
 {
@@ -642,7 +626,6 @@ void HeifPixelImage::fill_component_descriptions_after_alloc(const ImageComponen
     auto* desc = find_component_description(cid);
     if (!desc) continue; // shouldn't happen; defensive
     desc->datatype = plane.m_datatype;
-    desc->component_format = datatype_to_unc_component_format(plane.m_datatype);
     desc->bit_depth = plane.m_bit_depth;
     desc->width = width;
     desc->height = height;

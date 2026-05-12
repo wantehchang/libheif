@@ -132,21 +132,12 @@ struct ComponentDescription
   heif_channel channel = heif_channel_unknown;
   uint16_t component_type = 0;           // heif_unci_component_type_*
 
-  // Both the raw ISO 23001-17 component_format byte (from the uncC box) and
-  // the corresponding heif_component_datatype enum are kept side by side.
-  //
-  //  - component_format preserves the exact byte that was in the file (or
-  //    that will be written), so unci file→memory→file round-trips do not
-  //    lose information even for spec values that libheif's enum does not
-  //    yet name.
-  //  - datatype is the public-API view, derived from component_format via
-  //    unc_component_format_to_datatype() at parse time, and also set
-  //    directly by codecs that don't have a uncC box (HEVC/AVIF/JPEG/...).
-  //
-  // For images coming through codecs other than unci, component_format
-  // is set to the matching ISO byte (component_format_unsigned for the
-  // typical unsigned-integer case).
-  uint8_t  component_format = 0;
+  // The numeric values of heif_component_datatype are aligned with the
+  // ISO 23001-17 Table 2 component_format byte (from the uncC box), so on
+  // the unci read path this field directly holds the file byte and on the
+  // write path it is emitted as the file byte. For non-unci codecs
+  // (HEVC/AVIF/JPEG/...) the codec sets this to the appropriate value
+  // (typically heif_component_datatype_unsigned_integer).
   heif_component_datatype datatype = heif_component_datatype_undefined;
 
   uint16_t bit_depth = 0;                // logical bit depth (1..256)

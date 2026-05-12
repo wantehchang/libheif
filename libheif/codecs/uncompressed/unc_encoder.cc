@@ -61,21 +61,11 @@ heif_unci_component_type heif_channel_to_component_type(heif_channel channel)
 
 heif_uncompressed_component_format to_unc_component_format(heif_component_datatype channel_datatype)
 {
-  switch (channel_datatype) {
-    case heif_component_datatype_signed_integer:
-      return component_format_signed;
-
-    case heif_component_datatype_floating_point:
-      return component_format_float;
-
-    case heif_component_datatype_complex_number:
-      return component_format_complex;
-
-    case heif_component_datatype_unsigned_integer:
-    case heif_component_datatype_undefined:
-    default:
-      return component_format_unsigned;
+  // heif_component_datatype values are aligned with ISO/IEC 23001-17 Table 2.
+  if (channel_datatype == heif_component_datatype_undefined) {
+    return component_format_unsigned;
   }
+  return static_cast<heif_uncompressed_component_format>(channel_datatype);
 }
 
 

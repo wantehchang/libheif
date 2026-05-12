@@ -100,7 +100,6 @@ void ImageItem_uncompressed::populate_component_descriptions()
     desc.component_id = m_next_component_id++;
     desc.channel = channel;
     desc.component_type = component_type;
-    desc.component_format = uc.component_format;
     desc.datatype = unc_component_format_to_datatype(uc.component_format);
     desc.bit_depth = uc.component_bit_depth;
     desc.width = plane_w;
