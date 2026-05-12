@@ -112,8 +112,17 @@ struct SensorNonUniformityCorrection
 
 // === Image components
 
+// Given a list of libheif component IDs, map them to a list of cmpd IDs through the given map.
+// The output does not contain duplicates and is in no particular order.
 std::vector<uint32_t> map_component_ids_to_cmpd(const std::vector<uint32_t>& component_ids, const std::map<uint32_t, uint32_t>& comp_id_to_cmpd);
+
+// Map a list of unci component indices to libheif components.
+// Use to find the libheif components for a metadata box that assigns it through cmpd indices.
+// The output does not contain duplicates and is in no particular order.
 std::vector<uint32_t> map_cmpd_to_component_ids(const std::vector<uint32_t>& cmpd_indices, const std::vector<std::vector<uint32_t>>& cmpd_to_comp_ids);
+
+// Find the closest matching heif_channel for an ISO 23001-17 component type.
+// Returns heif_channel_unknown if no good mapping exists.
 heif_channel map_uncompressed_component_to_channel(uint16_t component_type);
 
 

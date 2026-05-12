@@ -104,6 +104,8 @@ std::vector<uint32_t> map_cmpd_to_component_ids(const std::vector<uint32_t>& cmp
     component_ids.insert(component_ids.end(), cmpd_to_comp_ids[idx].begin(), cmpd_to_comp_ids[idx].end());
   }
 
+  remove_duplicates(component_ids);
+
   return component_ids;
 }
 
