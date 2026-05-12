@@ -122,6 +122,7 @@ heif_channel map_uncompressed_component_to_channel(uint16_t component_type);
 struct ComponentDescription
 {
   uint32_t component_id = 0;             // stable id, matches HeifPixelImage::m_planes ids
+
   heif_channel channel = heif_channel_unknown;
   uint16_t component_type = 0;           // heif_unci_component_type_*
 
@@ -138,7 +139,8 @@ struct ComponentDescription
   uint32_t height = 0;
   bool has_data_plane = true; // false for cpat reference colors
 
-  std::optional<std::string> gimi_content_id;
+  // Empty string means "no content id assigned".
+  std::string gimi_content_id;
 };
 
 
@@ -251,7 +253,7 @@ public:
   bool has_component_content_ids() const
   {
     for (const auto& c : m_components) {
-      if (c.gimi_content_id.has_value()) return true;
+      if (!c.gimi_content_id.empty()) return true;
     }
     return false;
   }
@@ -263,7 +265,7 @@ public:
     std::vector<std::string> ids;
     ids.reserve(m_components.size());
     for (const auto& c : m_components) {
-      ids.push_back(c.gimi_content_id.value_or(std::string{}));
+      ids.push_back(c.gimi_content_id);
     }
     return ids;
   }
@@ -281,18 +283,7 @@ public:
   // HeifPixelImage::ImageComponent::m_component_ids).
   void add_component_description(ComponentDescription desc)
   {
-    // Work around a GCC 14 false positive: the inlined move of
-    // std::optional<std::string>::gimi_content_id triggers
-    // -Wmaybe-uninitialized when the optional is disengaged, even though
-    // _M_construct is guarded by _M_engaged.
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
     m_components.push_back(std::move(desc));
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
   }
 
   // Mint a fresh component id (monotonically increasing, starting at 1).

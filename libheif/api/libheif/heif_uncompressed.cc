@@ -794,11 +794,7 @@ heif_error heif_image_set_gimi_component_content_id(heif_image* image,
             heif_suberror_Invalid_parameter_value,
             "No component with the requested component_id exists."};
   }
-  if (*content_id == '\0') {
-    desc->gimi_content_id.reset();
-  } else {
-    desc->gimi_content_id = content_id;
-  }
+  desc->gimi_content_id = content_id;
 
   return heif_error_success;
 }
