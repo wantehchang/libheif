@@ -25,7 +25,7 @@
 #include <map>
 #include <set>
 
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include "unc_boxes.h"
 #include "unc_encoder_component_interleave.h"
 #include "unc_encoder_rgb_block_pixel_interleave.h"

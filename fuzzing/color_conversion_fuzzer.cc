@@ -24,7 +24,7 @@
 
 #include "bitstream.h"
 #include "color-conversion/colorconversion.h"
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 
 static bool is_valid_chroma(uint8_t chroma)
 {

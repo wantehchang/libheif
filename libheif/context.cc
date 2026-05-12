@@ -44,7 +44,7 @@
 
 #include "context.h"
 #include "file.h"
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include "api_structs.h"
 #include "security_limits.h"
 #include "compression.h"

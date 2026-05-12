@@ -43,8 +43,10 @@ set(libheif_sources
         file.h
         file_layout.h
         file_layout.cc
-        pixelimage.cc
-        pixelimage.h
+        image/pixelimage.cc
+        image/pixelimage.h
+        image/image_description.cc
+        image/image_description.h
         plugin_registry.cc
         nclx.cc
         nclx.h

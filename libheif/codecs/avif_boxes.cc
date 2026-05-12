@@ -18,7 +18,7 @@
  * along with libheif.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include "avif_boxes.h"
 #include "avif_dec.h"
 #include "bitstream.h"

@@ -22,7 +22,7 @@
 #ifndef LIBHEIF_UNC_IMAGE_H
 #define LIBHEIF_UNC_IMAGE_H
 
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include "file.h"
 #include "context.h"
 #include "libheif/heif_uncompressed.h"

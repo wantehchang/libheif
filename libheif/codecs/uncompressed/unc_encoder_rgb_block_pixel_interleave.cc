@@ -20,7 +20,7 @@
 
 #include "unc_encoder_rgb_block_pixel_interleave.h"
 
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include "unc_boxes.h"
 #include "unc_types.h"
 

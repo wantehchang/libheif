@@ -24,7 +24,7 @@
 
 #include "box.h"
 #include "bitstream.h"
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include "unc_types.h"
 #include "sequences/seq_boxes.h"
 

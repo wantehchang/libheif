@@ -24,7 +24,7 @@
 #include "codecs/decoder.h"
 #include "codecs/encoder.h"
 #include "chunk.h"
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include "context.h"
 #include "api_structs.h"
 #include "codecs/hevc_boxes.h"

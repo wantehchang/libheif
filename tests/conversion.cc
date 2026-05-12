@@ -27,7 +27,7 @@
 #include <iomanip>
 #include "catch_amalgamated.hpp"
 #include "color-conversion/colorconversion.h"
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include <cmath>
 
 // Enable for more verbose test output.

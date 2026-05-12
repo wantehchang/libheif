@@ -20,7 +20,7 @@
 
 #include "heif_image.h"
 #include "heif.h"
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include "api_structs.h"
 #include "error.h"
 #include <limits>

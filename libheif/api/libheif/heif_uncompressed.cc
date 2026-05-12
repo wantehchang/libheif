@@ -21,7 +21,7 @@
 #include "heif_uncompressed.h"
 #include "context.h"
 #include "api_structs.h"
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include "image-items/unc_image.h"
 
 #include <array>

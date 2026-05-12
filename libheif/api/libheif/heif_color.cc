@@ -23,7 +23,7 @@
 #include "common_utils.h"
 #include <cstdint>
 #include "heif.h"
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include "api_structs.h"
 #include "error.h"
 #include <set>

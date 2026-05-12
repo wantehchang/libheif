@@ -24,7 +24,7 @@
   SOFTWARE.
 */
 
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include "catch_amalgamated.hpp"
 
 TEST_CASE( "uint32_t" )

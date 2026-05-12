@@ -31,7 +31,7 @@
 #include <utility>
 #include <set>
 
-#include "pixelimage.h"
+#include "image/pixelimage.h"
 #include "api/libheif/heif_plugin.h"
 #include "codecs/encoder.h"
 
