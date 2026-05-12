@@ -2542,14 +2542,14 @@ void HeifPixelImage::apply_descriptions_from(const ImageExtraData& src)
     heif_channel ch = plane.m_channel;
     auto src_it = src_id_by_channel.find(ch);
     if (src_it != src_id_by_channel.end()) {
-      plane.m_component_ids = { src_it->second };
+      plane.m_component_ids.assign(1, src_it->second);
     } else {
       auto auto_it = auto_minted_by_channel.find(ch);
       if (auto_it != auto_minted_by_channel.end()) {
         ComponentDescription extra = auto_it->second;
         extra.component_id = next_id++;
         m_components.push_back(extra);
-        plane.m_component_ids = { extra.component_id };
+        plane.m_component_ids.assign(1, extra.component_id);
       }
     }
   }
