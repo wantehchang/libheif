@@ -69,6 +69,7 @@ BayerPatternCmpd BayerPattern::resolve_to_cmpd(std::map<uint32_t, uint32_t> comp
   cpat.pattern_height = pattern_height;
 
   for (auto p : pixels) {
+    assert(comp_id_to_cmpd.find(p.component_id) != comp_id_to_cmpd.end());
     cpat.pixels.push_back({comp_id_to_cmpd[p.component_id], p.component_gain});
   }
 
@@ -88,6 +89,7 @@ std::vector<uint32_t> map_component_ids_to_cmpd(const std::vector<uint32_t>& com
   std::vector<uint32_t> cmpd_indices;
 
   for (uint32_t comp_id : component_ids) {
+    assert(comp_id_to_cmpd.find(comp_id) != comp_id_to_cmpd.end());
     cmpd_indices.push_back(comp_id_to_cmpd.find(comp_id)->second);
   }
 
@@ -101,6 +103,7 @@ std::vector<uint32_t> map_cmpd_to_component_ids(const std::vector<uint32_t>& cmp
   std::vector<uint32_t> component_ids;
 
   for (uint32_t idx : cmpd_indices) {
+    assert(idx < cmpd_to_comp_ids.size());
     component_ids.insert(component_ids.end(), cmpd_to_comp_ids[idx].begin(), cmpd_to_comp_ids[idx].end());
   }
 
