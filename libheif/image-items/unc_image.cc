@@ -97,7 +97,7 @@ void ImageItem_uncompressed::populate_component_descriptions()
     uint32_t plane_h = channel_height(img_height, chroma, channel);
 
     ComponentDescription desc;
-    desc.component_id = m_next_component_id++;
+    desc.component_id = mint_component_id();
     desc.channel = channel;
     desc.component_type = component_type;
     desc.datatype = unc_component_format_to_datatype(uc.component_format);
@@ -122,7 +122,7 @@ void ImageItem_uncompressed::populate_component_descriptions()
       uint16_t component_type = cmpd_components[pixel.cmpd_index].component_type;
 
       ComponentDescription desc;
-      desc.component_id = m_next_component_id++;
+      desc.component_id = mint_component_id();
       desc.channel = map_uncompressed_component_to_channel(component_type);
       desc.component_type = component_type;
       desc.has_data_plane = false;

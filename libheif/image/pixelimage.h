@@ -156,7 +156,7 @@ public:
 
   // --- id-based component access (for ISO 23001-17 multi-component images)
 
-  uint32_t get_number_of_used_components() const { return static_cast<uint32_t>(m_components.size()); }
+  uint32_t get_number_of_used_components() const { return static_cast<uint32_t>(get_component_descriptions().size()); }
 
   //uint32_t get_total_number_of_cmpd_components() const { return static_cast<uint32_t>(m_cmpd_component_types.size()); }
 

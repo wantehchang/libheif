@@ -286,6 +286,27 @@ public:
     m_components.push_back(std::move(desc));
   }
 
+  // Bulk-replace the component descriptions and sync the next-id allocator.
+  // Used by clone/apply paths that rebuild the whole list at once.
+  void set_component_descriptions(std::vector<ComponentDescription> components, uint32_t next_id)
+  {
+    m_components = std::move(components);
+    m_next_component_id = next_id;
+  }
+
+  // Erase the description matching this component_id. Returns true if one was
+  // removed.
+  bool remove_component_description(uint32_t component_id)
+  {
+    auto it = std::find_if(m_components.begin(), m_components.end(),
+                           [component_id](const ComponentDescription& c) {
+                             return c.component_id == component_id;
+                           });
+    if (it == m_components.end()) return false;
+    m_components.erase(it);
+    return true;
+  }
+
   // Mint a fresh component id (monotonically increasing, starting at 1).
   [[nodiscard]] uint32_t mint_component_id() { return m_next_component_id++; }
 
@@ -397,16 +418,13 @@ private:
 
   // Per-component description vector. Single source of truth for per-component
   // metadata (id, channel, type, format, datatype, bit depth, dims, content ID).
-  // Protected so HeifPixelImage can read/write directly during the migration.
-protected:
   std::vector<ComponentDescription> m_components;
 
-  // ID allocator for the per-component descriptions above. Migrated from
-  // HeifPixelImage so that ImageItem (handle side) can also mint IDs at file
-  // parse time.
+  // ID allocator for the per-component descriptions above. Used both by
+  // HeifPixelImage (decoded side) and ImageItem (handle side) via the
+  // mint_component_id() / peek_next_component_id() accessors.
   uint32_t m_next_component_id = 1;
 
-private:
   std::optional<BayerPattern> m_bayer_pattern;
 
   std::vector<PolarizationPattern> m_polarization_patterns;

@@ -292,7 +292,7 @@ HeifPixelImage::ImageComponent HeifPixelImage::new_image_plane_for_channel(heif_
 
   auto component_types = map_channel_to_component_type(channel, m_chroma);
   for (auto type : component_types) {
-    uint32_t id = m_next_component_id++;
+    uint32_t id = mint_component_id();
     plane.m_component_ids.push_back(id);
 
     ComponentDescription desc;
@@ -1035,13 +1035,7 @@ void HeifPixelImage::transfer_plane_from_image_as(const std::shared_ptr<HeifPixe
     add_component_description(std::move(desc));
 
     // Drop the source's description entry for old_id.
-    auto& src_components = source->m_components;
-    src_components.erase(
-        std::remove_if(src_components.begin(), src_components.end(),
-                       [old_id](const ComponentDescription& c) {
-                         return c.component_id == old_id;
-                       }),
-        src_components.end());
+    source->remove_component_description(old_id);
   }
   plane.m_component_ids = std::move(new_ids);
   plane.m_channel = dst_channel;
@@ -1978,8 +1972,8 @@ Error HeifPixelImage::create_clone_image_at_new_size(const std::shared_ptr<const
     m_planes.push_back(plane);
   }
 
-  m_components = source->m_components;
-  m_next_component_id = source->m_next_component_id;
+  set_component_descriptions(source->get_component_descriptions(),
+                             source->peek_next_component_id());
 
   return Error::Ok;
 }
@@ -2141,7 +2135,7 @@ Result<uint32_t> HeifPixelImage::add_component(uint32_t width, uint32_t height,
                                                const heif_security_limits* limits)
 {
   // Auto-generate component_id by appending to the description vector.
-  uint32_t component_id = m_next_component_id++;
+  uint32_t component_id = mint_component_id();
 
   // Push a partial description now (id, channel, type known); the remaining
   // fields will be filled in by fill_component_descriptions_after_alloc().
@@ -2167,7 +2161,7 @@ Result<uint32_t> HeifPixelImage::add_component(uint32_t width, uint32_t height,
 
 uint32_t HeifPixelImage::add_component_without_data(uint16_t component_type)
 {
-  uint32_t new_component_id = m_next_component_id++;
+  uint32_t new_component_id = mint_component_id();
 
   ComponentDescription desc;
   desc.component_id = new_component_id;
@@ -2182,8 +2176,8 @@ uint32_t HeifPixelImage::add_component_without_data(uint16_t component_type)
 
 void HeifPixelImage::clone_component_descriptions_from(const ImageDescription& src)
 {
-  m_components = src.get_component_descriptions();
-  m_next_component_id = src.peek_next_component_id();
+  set_component_descriptions(src.get_component_descriptions(),
+                             src.peek_next_component_id());
 }
 
 
@@ -2201,11 +2195,12 @@ void HeifPixelImage::apply_descriptions_from(const ImageDescription& src)
   // full lists also handles multiple planes that share a channel
   // (e.g. unci multi-component-of-same-type), which the channel-keyed remap
   // below can't represent.
-  if (m_components.size() == src_descs.size()) {
+  const auto& my_descs = get_component_descriptions();
+  if (my_descs.size() == src_descs.size()) {
     bool already_aligned = true;
     for (size_t i = 0; i < src_descs.size(); i++) {
-      if (m_components[i].component_id != src_descs[i].component_id ||
-          m_components[i].channel != src_descs[i].channel) {
+      if (my_descs[i].component_id != src_descs[i].component_id ||
+          my_descs[i].channel != src_descs[i].channel) {
         already_aligned = false;
         break;
       }
@@ -2218,7 +2213,7 @@ void HeifPixelImage::apply_descriptions_from(const ImageDescription& src)
   // Snapshot pre-remap descriptions keyed by channel (for any "extra"
   // channels not in src that we need to keep, like alpha-from-aux).
   std::map<heif_channel, ComponentDescription> auto_minted_by_channel;
-  for (const auto& d : m_components) {
+  for (const auto& d : my_descs) {
     auto_minted_by_channel[d.channel] = d;
   }
 
@@ -2231,9 +2226,9 @@ void HeifPixelImage::apply_descriptions_from(const ImageDescription& src)
     plane_dims_by_channel[plane.m_channel] = {plane.m_width, plane.m_height};
   }
 
-  // Replace m_components with src's data-plane descriptions and build a
+  // Build the new component list from src's data-plane descriptions and a
   // channel -> src-id map.
-  m_components.clear();
+  std::vector<ComponentDescription> new_components;
   std::map<heif_channel, uint32_t> src_id_by_channel;
   for (const auto& d : src_descs) {
     if (d.has_data_plane) {
@@ -2243,14 +2238,14 @@ void HeifPixelImage::apply_descriptions_from(const ImageDescription& src)
         copy.width = it->second.first;
         copy.height = it->second.second;
       }
-      m_components.push_back(copy);
+      new_components.push_back(copy);
       src_id_by_channel[d.channel] = d.component_id;
     }
   }
 
   // Compute a starting id for any extras (above src's high-water mark).
   uint32_t next_id = src.peek_next_component_id();
-  for (const auto& d : m_components) {
+  for (const auto& d : new_components) {
     if (d.component_id >= next_id) next_id = d.component_id + 1;
   }
 
@@ -2268,13 +2263,13 @@ void HeifPixelImage::apply_descriptions_from(const ImageDescription& src)
       if (auto_it != auto_minted_by_channel.end()) {
         ComponentDescription extra = auto_it->second;
         extra.component_id = next_id++;
-        m_components.push_back(extra);
+        new_components.push_back(extra);
         plane.m_component_ids.assign(1, extra.component_id);
       }
     }
   }
 
-  m_next_component_id = next_id;
+  set_component_descriptions(std::move(new_components), next_id);
 }
 
 
@@ -2332,10 +2327,11 @@ Result<uint32_t> HeifPixelImage::add_component_for_index(uint32_t component_inde
 
 std::vector<uint32_t> HeifPixelImage::get_used_component_ids() const
 {
+  const auto& descs = get_component_descriptions();
   std::vector<uint32_t> indices;
-  indices.reserve(m_components.size());
+  indices.reserve(descs.size());
 
-  for (const auto& desc : m_components) {
+  for (const auto& desc : descs) {
     indices.push_back(desc.component_id);
   }
 
