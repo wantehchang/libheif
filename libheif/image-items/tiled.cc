@@ -440,11 +440,33 @@ std::pair<uint32_t, uint32_t> TiledHeader::get_tile_offset_table_range_to_read(u
 }
 
 
-void TiledHeader::set_tild_tile_range(uint32_t tile_x, uint32_t tile_y, uint64_t offset, uint32_t size)
+Error TiledHeader::set_tild_tile_range(uint32_t tile_x, uint32_t tile_y, uint64_t offset, uint32_t size)
 {
+  // Offset and size are written into bit-fields of the configured widths;
+  // silently truncating here produces files where the offset table points to
+  // garbage. Reject the value so the caller knows to widen the fields.
+  uint8_t off_bits = m_parameters.offset_field_length;
+  uint8_t sz_bits  = m_parameters.size_field_length;
+
+  if (off_bits < 64 && offset >> off_bits) {
+    std::stringstream sstr;
+    sstr << "Tile offset " << offset << " does not fit in the configured "
+         << static_cast<int>(off_bits) << "-bit offset field. Use a wider "
+            "offset_field_length (40/48/64) when encoding the tili image.";
+    return {heif_error_Encoding_error, heif_suberror_Unspecified, sstr.str()};
+  }
+
+  if (sz_bits != 0 && sz_bits < 32 && size >> sz_bits) {
+    std::stringstream sstr;
+    sstr << "Tile size " << size << " does not fit in the configured "
+         << static_cast<int>(sz_bits) << "-bit size field.";
+    return {heif_error_Encoding_error, heif_suberror_Unspecified, sstr.str()};
+  }
+
   uint64_t idx = uint64_t{tile_y} * nTiles_h(m_parameters) + tile_x;
   m_offsets[idx].offset = offset;
   m_offsets[idx].size = size;
+  return Error::Ok;
 }
 
 
@@ -475,7 +497,23 @@ Result<std::vector<uint8_t>> TiledHeader::write_offset_table()
 
   size_t idx = 0;
 
+  uint8_t off_bits = m_parameters.offset_field_length;
+  uint8_t sz_bits  = m_parameters.size_field_length;
+
   for (const auto& offset: m_offsets) {
+    if (off_bits < 64 && offset.offset >> off_bits) {
+      std::stringstream sstr;
+      sstr << "Tile offset " << offset.offset << " does not fit in the "
+              "configured " << static_cast<int>(off_bits) << "-bit offset field.";
+      return Error{heif_error_Encoding_error, heif_suberror_Unspecified, sstr.str()};
+    }
+    if (sz_bits != 0 && sz_bits < 32 && offset.size >> sz_bits) {
+      std::stringstream sstr;
+      sstr << "Tile size " << offset.size << " does not fit in the "
+              "configured " << static_cast<int>(sz_bits) << "-bit size field.";
+      return Error{heif_error_Encoding_error, heif_suberror_Unspecified, sstr.str()};
+    }
+
     writevec(data.data(), idx, offset.offset, m_parameters.offset_field_length / 8);
 
     if (m_parameters.size_field_length != 0) {
@@ -804,7 +842,9 @@ Error ImageItem_Tiled::add_image_tile(uint32_t tile_x, uint32_t tile_y,
   if (dataSize > 0xFFFFFFFF) {
     return {heif_error_Encoding_error, heif_suberror_Unspecified, "Compressed tile size exceeds maximum tile size."};
   }
-  header.set_tild_tile_range(tile_x, tile_y, offset, static_cast<uint32_t>(dataSize));
+  if (Error err = header.set_tild_tile_range(tile_x, tile_y, offset, static_cast<uint32_t>(dataSize))) {
+    return err;
+  }
   set_next_tild_position(offset + encodeResult->bitstream.size());
 
   auto tilC = get_property<Box_tilC>();

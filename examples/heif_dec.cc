@@ -87,6 +87,8 @@ static void show_help(const char* argv0)
 
   std::string title = sstr.str();
 
+  int default_tile_threads = heif_context_get_max_decoding_threads(nullptr);
+
   std::cerr << title << "\n"
             << std::string(title.length() + 1, '-') << "\n"
             << "Usage: " << filename << " [options]  <input-image> [output-image]\n"
@@ -116,7 +118,8 @@ static void show_help(const char* argv0)
                "                                            support transparency. MODE must be one of: white, black, checkerboard.\n"
                "      --disable-limits           disable all security limits (do not use in production environment)\n"
                "      --codec-threads #          number of threads to use in the codec plugin (0 = default)\n"
-               "      --extract-mime-item TYPE   extract the MIME item with the given content type into a file (mime-item.data)\n";
+            << "      --tile-threads #           max number of tiles to decode in parallel (default = " << default_tile_threads << ")\n"
+            << "      --extract-mime-item TYPE   extract the MIME item with the given content type into a file (mime-item.data)\n";
 }
 
 
@@ -149,6 +152,7 @@ int option_disable_limits = 0;
 int option_sequence = 0;
 int option_ignore_editlist = 0;
 int option_num_codec_threads = 0;
+int option_num_tile_threads = -1;  // -1 means "do not override library default"
 std::string option_extract_mime_item_type;
 std::string output_filename;
 
@@ -159,6 +163,7 @@ std::string transparency_composition_mode = "checkerboard";
 #define OPTION_TRANSPARENCY_COMPOSITION_MODE 1001
 #define OPTION_CODEC_THREADS 1002
 #define OPTION_EXTRACT_MIME_ITEM 1003
+#define OPTION_TILE_THREADS 1004
 
 static option long_options[] = {
     {(char* const) "quality",          required_argument, 0,                        'q'},
@@ -182,6 +187,7 @@ static option long_options[] = {
     {(char* const) "disable-limits", no_argument, &option_disable_limits, 1},
     {(char* const) "ignore-editlist", no_argument, &option_ignore_editlist, 1},
     {(char* const) "codec-threads", required_argument, 0,                     OPTION_CODEC_THREADS},
+    {(char* const) "tile-threads",  required_argument, 0,                     OPTION_TILE_THREADS},
     {(char* const) "extract-mime-item", required_argument, 0, OPTION_EXTRACT_MIME_ITEM},
     {nullptr, no_argument, nullptr, 0}
 };
@@ -677,6 +683,9 @@ int main(int argc, char** argv)
       case OPTION_CODEC_THREADS:
         option_num_codec_threads = atoi(optarg);
         break;
+      case OPTION_TILE_THREADS:
+        option_num_tile_threads = atoi(optarg);
+        break;
       case OPTION_EXTRACT_MIME_ITEM:
         option_extract_mime_item_type = optarg;
         break;
@@ -795,6 +804,10 @@ int main(int argc, char** argv)
 
   if (option_disable_limits) {
     heif_context_set_security_limits(ctx, heif_get_disabled_security_limits());
+  }
+
+  if (option_num_tile_threads >= 0) {
+    heif_context_set_max_decoding_threads(ctx, option_num_tile_threads);
   }
 
   ContextReleaser cr(ctx);

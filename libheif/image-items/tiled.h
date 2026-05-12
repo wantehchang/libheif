@@ -107,7 +107,10 @@ public:
 
   std::string dump() const;
 
-  void set_tild_tile_range(uint32_t tile_x, uint32_t tile_y, uint64_t offset, uint32_t size);
+  // Returns an error if `offset` does not fit in offset_field_length or
+  // `size` does not fit in size_field_length. Catches the encoder-side
+  // overflow that would otherwise silently truncate the field at write time.
+  Error set_tild_tile_range(uint32_t tile_x, uint32_t tile_y, uint64_t offset, uint32_t size);
 
   size_t get_header_size() const;
 
