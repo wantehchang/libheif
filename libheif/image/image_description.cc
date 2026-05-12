@@ -62,14 +62,14 @@ heif_channel map_uncompressed_component_to_channel(uint16_t component_type)
 }
 
 
-BayerPatternCmpd BayerPattern::resolve_to_cmpd(std::map<uint32_t, uint32_t> comp_id_to_cmap) const
+BayerPatternCmpd BayerPattern::resolve_to_cmpd(std::map<uint32_t, uint32_t> comp_id_to_cmpd) const
 {
   BayerPatternCmpd cpat;
   cpat.pattern_width = pattern_width;
   cpat.pattern_height = pattern_height;
 
   for (auto p : pixels) {
-    cpat.pixels.push_back({comp_id_to_cmap[p.component_id], p.component_gain});
+    cpat.pixels.push_back({comp_id_to_cmpd[p.component_id], p.component_gain});
   }
 
   return cpat;

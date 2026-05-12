@@ -989,7 +989,7 @@ Error Box_cpat::parse(BitstreamRange& range, const heif_security_limits* limits)
   m_pattern.pixels.resize(num_pixels);
 
   for (size_t i = 0; i < num_pixels; i++) {
-    bayer_pattern_pixel_cmpd pixel{};
+    BayerPatternPixelCmpd pixel{};
     pixel.cmpd_index = range.read32();
     pixel.component_gain = range.read_float32();
     m_pattern.pixels[i] = pixel;

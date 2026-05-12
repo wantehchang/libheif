@@ -37,7 +37,11 @@
 #include <vector>
 
 
-struct bayer_pattern_pixel_cmpd
+// === === Bayer pattern
+
+// --- Bayer pattern expressed as ISO 23001-17 cmpd component indices
+
+struct BayerPatternPixelCmpd
 {
   uint32_t cmpd_index;
   float component_gain;
@@ -47,8 +51,10 @@ struct BayerPatternCmpd
 {
   uint16_t pattern_width = 0;
   uint16_t pattern_height = 0;
-  std::vector<bayer_pattern_pixel_cmpd> pixels;
+  std::vector<BayerPatternPixelCmpd> pixels;
 };
+
+// --- Bayer pattern expressed as libheif components IDs
 
 struct BayerPattern
 {
@@ -56,11 +62,11 @@ struct BayerPattern
   uint16_t pattern_height = 0;
   std::vector<heif_bayer_pattern_pixel> pixels;
 
-  BayerPatternCmpd resolve_to_cmpd(std::map<uint32_t, uint32_t> comp_id_to_cmap) const;
+  [[nodiscard]] BayerPatternCmpd resolve_to_cmpd(std::map<uint32_t, uint32_t> comp_id_to_cmpd) const;
 };
 
-std::vector<uint32_t> map_component_ids_to_cmpd(const std::vector<uint32_t>& component_ids, const std::map<uint32_t, uint32_t>& comp_id_to_cmpd);
-std::vector<uint32_t> map_cmpd_to_component_ids(const std::vector<uint32_t>& cmpd_indices, const std::vector<std::vector<uint32_t>>& cmpd_to_comp_ids);
+
+// === Polarization pattern (ISO 23001-17)
 
 struct PolarizationPattern
 {
@@ -70,6 +76,9 @@ struct PolarizationPattern
   std::vector<float> polarization_angles;   // pattern_width * pattern_height entries
                                             // 0xFFFFFFFF bit-pattern (NaN) = no polarization filter
 };
+
+
+// === Sensor bad pixels map (ISO 23001-17)
 
 struct SensorBadPixelsMap
 {
@@ -85,6 +94,9 @@ struct SensorBadPixelsMap
   std::vector<BadPixelCoordinate> bad_pixels;
 };
 
+
+// === Sensor non-uniformity correction (ISO 23001-17)
+
 struct SensorNonUniformityCorrection
 {
   std::vector<uint32_t> component_ids;  // empty = applies to all components. Either cmpd-index or component-id, depending on context.
@@ -96,6 +108,11 @@ struct SensorNonUniformityCorrection
 };
 
 
+
+// === Image components
+
+std::vector<uint32_t> map_component_ids_to_cmpd(const std::vector<uint32_t>& component_ids, const std::map<uint32_t, uint32_t>& comp_id_to_cmpd);
+std::vector<uint32_t> map_cmpd_to_component_ids(const std::vector<uint32_t>& cmpd_indices, const std::vector<std::vector<uint32_t>>& cmpd_to_comp_ids);
 heif_channel map_uncompressed_component_to_channel(uint16_t component_type);
 
 
@@ -116,10 +133,11 @@ struct ComponentDescription
   // (typically heif_component_datatype_unsigned_integer).
   heif_component_datatype datatype = heif_component_datatype_undefined;
 
-  uint16_t bit_depth = 0;                // logical bit depth (1..256)
+  uint16_t bit_depth = 0; // logical bit depth (1..256)
   uint32_t width = 0;
   uint32_t height = 0;
-  bool     has_data_plane = true;        // false for cpat reference colors
+  bool has_data_plane = true; // false for cpat reference colors
+
   std::optional<std::string> gimi_content_id;
 };
 
