@@ -435,13 +435,16 @@ heif_complex64* heif_image_get_component_complex64(heif_image*, uint32_t compone
 
 // --- GIMI component content IDs (set before encoding)
 
-// Set a GIMI component content ID for a single cmpd component.
-// If the internal array is too small, it will be resized (new entries default to empty strings).
-// These are written into an ItemComponentContentIDProperty box during encoding.
+// Set a GIMI component content ID for the component with the given
+// component_id (as minted by heif_image_add_component / returned via the
+// component access API). Pass an empty string to clear a previously set id.
+// Returns an error if no component with this id exists on the image.
+// The collected ids are written into an ItemComponentContentIDProperty box
+// during encoding.
 LIBHEIF_API
-void heif_image_set_gimi_component_content_id(heif_image*,
-                                              uint32_t component_idx,
-                                              const char* content_id);
+heif_error heif_image_set_gimi_component_content_id(heif_image*,
+                                                    uint32_t component_id,
+                                                    const char* content_id);
 
 #ifdef __cplusplus
 }

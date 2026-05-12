@@ -780,23 +780,27 @@ heif_image_get_component_X(complex32, heif_complex32)
 heif_image_get_component_X(complex64, heif_complex64)
 
 
-void heif_image_set_gimi_component_content_id(heif_image* image,
-                                              uint32_t component_idx,
-                                              const char* content_id)
+heif_error heif_image_set_gimi_component_content_id(heif_image* image,
+                                                    uint32_t component_id,
+                                                    const char* content_id)
 {
-  if (!image || !image->image || !content_id) {
-    return;
+  if (image == nullptr || content_id == nullptr) {
+    return heif_error_null_pointer_argument;
   }
 
-  // component_idx is positional within the per-image component description
-  // list (matches the ordering of the cmpd table that gets emitted). Caller
-  // must have added the component before setting its content id.
-  auto ids = image->image->get_component_content_ids();
-  if (component_idx >= ids.size()) {
-    ids.resize(component_idx + 1);
+  auto* desc = image->image->find_component_description(component_id);
+  if (!desc) {
+    return {heif_error_Usage_error,
+            heif_suberror_Invalid_parameter_value,
+            "No component with the requested component_id exists."};
   }
-  ids[component_idx] = content_id;
-  image->image->set_component_content_ids(ids);
+  if (*content_id == '\0') {
+    desc->gimi_content_id.reset();
+  } else {
+    desc->gimi_content_id = content_id;
+  }
+
+  return heif_error_success;
 }
 
 

@@ -248,21 +248,6 @@ public:
   std::string get_gimi_sample_content_id() const { assert(has_gimi_sample_content_id()); return *m_gimi_sample_content_id; }
 
 
-  // Assign GIMI per-component content IDs positionally into m_components.
-  // The i-th string is written to m_components[i].gimi_content_id; entries
-  // beyond m_components.size() are ignored. An empty string clears the id.
-  void set_component_content_ids(const std::vector<std::string>& ids)
-  {
-    size_t n = std::min(ids.size(), m_components.size());
-    for (size_t i = 0; i < n; i++) {
-      if (ids[i].empty()) {
-        m_components[i].gimi_content_id.reset();
-      } else {
-        m_components[i].gimi_content_id = ids[i];
-      }
-    }
-  }
-
   bool has_component_content_ids() const
   {
     for (const auto& c : m_components) {
