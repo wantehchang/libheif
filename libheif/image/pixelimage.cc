@@ -233,7 +233,13 @@ std::vector<heif_chroma> get_valid_chroma_values_for_colorspace(heif_colorspace 
       return {heif_chroma_420, heif_chroma_422, heif_chroma_444};
 
     case heif_colorspace_RGB:
+      // heif_chroma_planar and heif_chroma_444 are synonyms here.
+      // HeifPixelImage::create() canonicalizes the stored value to
+      // heif_chroma_444, so internal state and read-back always see 444;
+      // listing both here signals to callers that either is accepted, and
+      // prepares for a possible future switch of the canonical name.
       return {heif_chroma_444,
+              heif_chroma_planar,
               heif_chroma_interleaved_RGB,
               heif_chroma_interleaved_RGBA,
               heif_chroma_interleaved_RRGGBB_BE,
@@ -242,13 +248,20 @@ std::vector<heif_chroma> get_valid_chroma_values_for_colorspace(heif_colorspace 
               heif_chroma_interleaved_RRGGBBAA_LE};
 
     case heif_colorspace_monochrome:
-      return {heif_chroma_monochrome};
+      return {heif_chroma_planar};
 
-    case heif_colorspace_nonvisual:
-      return {heif_chroma_undefined};
+    case heif_colorspace_custom:
+      // Custom-colorspace images may have any number of planar components
+      // with arbitrary semantics. heif_chroma_planar describes the layout
+      // (planar, no subsampling); the per-component semantics live in the
+      // component descriptions.
+      return {heif_chroma_planar};
 
     case heif_colorspace_filter_array:
-      return {heif_chroma_monochrome};
+      // Filter-array (CFA / Bayer) images are a single mosaicked plane.
+      // The spatial pattern encodes color, so the legacy "monochrome" label
+      // is misleading; heif_chroma_planar describes only the layout.
+      return {heif_chroma_planar};
 
     default:
       return {};
@@ -258,6 +271,13 @@ std::vector<heif_chroma> get_valid_chroma_values_for_colorspace(heif_colorspace 
 
 void HeifPixelImage::create(uint32_t width, uint32_t height, heif_colorspace colorspace, heif_chroma chroma)
 {
+  // Canonicalize (RGB, planar) to (RGB, 444). heif_chroma_planar is accepted
+  // as a synonym at this layer too (not just at heif_image_create), so any
+  // internal caller passing it gets the canonical form stored.
+  if (colorspace == heif_colorspace_RGB && chroma == heif_chroma_planar) {
+    chroma = heif_chroma_444;
+  }
+
   m_width = width;
   m_height = height;
   m_colorspace = colorspace;

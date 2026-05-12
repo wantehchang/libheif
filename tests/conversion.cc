@@ -198,7 +198,10 @@ std::vector<Plane> GetPlanes(const ColorState& state, int width, int height) {
           {heif_channel_Alpha, width, height, state.bits_per_pixel});
     }
   } else if (state.colorspace == heif_colorspace_RGB) {
+    // heif_chroma_planar is a synonym for heif_chroma_444 in the RGB
+    // colorspace (canonicalized in HeifPixelImage::create).
     if (state.chroma != heif_chroma_444 &&
+        state.chroma != heif_chroma_planar &&
         state.chroma != heif_chroma_interleaved_RGB &&
         state.chroma != heif_chroma_interleaved_RGBA &&
         state.chroma != heif_chroma_interleaved_RRGGBB_BE &&
@@ -207,7 +210,7 @@ std::vector<Plane> GetPlanes(const ColorState& state, int width, int height) {
         state.chroma != heif_chroma_interleaved_RRGGBBAA_LE) {
       return {};
     }
-    if (state.chroma == heif_chroma_444) {
+    if (state.chroma == heif_chroma_444 || state.chroma == heif_chroma_planar) {
       planes.push_back({heif_channel_R, width, height, state.bits_per_pixel});
       planes.push_back({heif_channel_G, width, height, state.bits_per_pixel});
       planes.push_back({heif_channel_B, width, height, state.bits_per_pixel});
@@ -460,6 +463,11 @@ std::vector<ColorState> GetAllColorStates(const std::vector<heif_matrix_coeffici
   std::vector<ColorState> color_states;
   for (heif_colorspace colorspace : {heif_colorspace_YCbCr, heif_colorspace_RGB, heif_colorspace_monochrome}) {
     for (heif_chroma chroma : get_valid_chroma_values_for_colorspace(colorspace)) {
+      // heif_chroma_planar is a synonym for heif_chroma_444 under
+      // heif_colorspace_RGB; the canonical-form case is already iterated.
+      if (colorspace == heif_colorspace_RGB && chroma == heif_chroma_planar) {
+        continue;
+      }
       for (bool has_alpha : GetValidHasAlpha(chroma)) {
         for (int bits_per_pixel : GetValidBitsPerPixel(chroma)) {
           // Without nclx.

@@ -32,7 +32,7 @@ TEST_CASE( "uint32_t" )
   HeifPixelImage image;
 
   auto* limits = heif_get_global_security_limits();
-  image.create(3,2, heif_colorspace_nonvisual, heif_chroma_undefined);
+  image.create(3,2, heif_colorspace_nonvisual, heif_chroma_planar);
   image.add_channel(heif_channel_Y, 3,2, heif_component_datatype_unsigned_integer, 32, limits);
 
   size_t stride;
@@ -131,7 +131,7 @@ TEST_CASE( "complex64_t" )
   HeifPixelImage image;
 
   auto* limits = heif_get_global_security_limits();
-  image.create(3,2, heif_colorspace_nonvisual, heif_chroma_undefined);
+  image.create(3,2, heif_colorspace_nonvisual, heif_chroma_planar);
   image.add_channel(heif_channel_Y, 3,2, heif_component_datatype_complex_number, 128, limits);
 
   size_t stride;
@@ -161,7 +161,7 @@ TEST_CASE( "complex64_t" )
 TEST_CASE( "image datatype through public API" )
 {
   heif_image* image;
-  heif_error error = heif_image_create(3,2,heif_colorspace_nonvisual, heif_chroma_undefined, &image);
+  heif_error error = heif_image_create(3,2,heif_colorspace_nonvisual, heif_chroma_planar, &image);
   REQUIRE(!error.code);
 
   uint32_t comp_idx;
@@ -257,7 +257,7 @@ TEST_CASE( "Bayer pattern shares component id for same cmpd" )
 {
   HeifPixelImage image;
   auto* limits = heif_get_global_security_limits();
-  image.create(4, 4, heif_colorspace_filter_array, heif_chroma_monochrome);
+  image.create(4, 4, heif_colorspace_filter_array, heif_chroma_planar);
 
   // 1) The data plane: a 14-bit filter-array component.
   auto fa_result = image.add_component(4, 4, heif_unci_component_type_filter_array,

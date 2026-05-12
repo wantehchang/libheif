@@ -114,7 +114,7 @@ TEST_CASE("unci with cpat: handle and decoded image agree on component IDs")
   // --- 1. Build the image programmatically.
   heif_image* image = nullptr;
   heif_error err = heif_image_create(W, H, heif_colorspace_filter_array,
-                                     heif_chroma_monochrome, &image);
+                                     heif_chroma_planar, &image);
   REQUIRE(err.code == heif_error_Ok);
 
   uint32_t fa_id = 0;

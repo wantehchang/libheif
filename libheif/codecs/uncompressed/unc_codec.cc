@@ -132,25 +132,21 @@ Error UncompressedImageCodec::get_heif_chroma_uncompressed(const std::shared_ptr
 
   if (componentSet == (1 << heif_unci_component_type_filter_array)) {
     // TODO - we should look up the components
-    *out_chroma = heif_chroma_monochrome;
+    *out_chroma = heif_chroma_planar;
     *out_colourspace = heif_colorspace_filter_array;
   }
 
   // TODO: more combinations
 
-  if (*out_chroma == heif_chroma_undefined) {
-    return Error(heif_error_Unsupported_feature,
-                 heif_suberror_Unsupported_data_version,
-                 "Could not determine chroma");
-  }
-  else if (*out_colourspace == heif_colorspace_undefined) {
+  // out_colourspace remains heif_colorspace_undefined iff no branch above
+  // matched any known component set.
+  if (*out_colourspace == heif_colorspace_undefined) {
     return Error(heif_error_Unsupported_feature,
                  heif_suberror_Unsupported_data_version,
                  "Could not determine colourspace");
   }
-  else {
-    return Error::Ok;
-  }
+
+  return Error::Ok;
 }
 
 bool map_uncompressed_component_to_channel(const std::shared_ptr<const Box_cmpd>& cmpd,

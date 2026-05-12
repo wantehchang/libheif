@@ -328,15 +328,17 @@ heif_error heif_image_create(int width, int height,
     return heif_error_null_pointer_argument;
   }
 
-  // auto-correct colorspace_YCbCr + chroma_monochrome to colorspace_monochrome
+  // auto-correct colorspace_YCbCr + chroma_planar (formerly chroma_monochrome)
+  // to colorspace_monochrome
   // TODO: this should return an error in a later version (see below)
-  if (chroma == heif_chroma_monochrome && colorspace == heif_colorspace_YCbCr) {
+  if (chroma == heif_chroma_planar && colorspace == heif_colorspace_YCbCr) {
     colorspace = heif_colorspace_monochrome;
 
     std::cerr << "libheif warning: heif_image_create() used with an illegal colorspace/chroma combination. This will return an error in a future version.\n";
   }
 
-  // return error if invalid colorspace + chroma combination is used
+  // return error if invalid colorspace + chroma combination is used.
+  // (RGB + planar canonicalization happens later in HeifPixelImage::create.)
   auto validChroma = get_valid_chroma_values_for_colorspace(colorspace);
   if (std::find(validChroma.begin(), validChroma.end(), chroma) == validChroma.end()) {
     *image = nullptr;

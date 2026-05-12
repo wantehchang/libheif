@@ -32,7 +32,7 @@ Op_bayer_bilinear_to_RGB24_32::state_after_conversion(const ColorState& input_st
                                              const heif_color_conversion_options_ext& options_ext) const
 {
   if (input_state.colorspace != heif_colorspace_filter_array ||
-      input_state.chroma != heif_chroma_monochrome) {
+      input_state.chroma != heif_chroma_planar) {
     return {};
   }
 

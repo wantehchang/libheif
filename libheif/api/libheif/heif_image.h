@@ -31,10 +31,29 @@ extern "C" {
 #include <stdint.h>
 
 
+// The heif_chroma enum describes pixel layout (planar vs interleaved, and any
+// YUV chroma subsampling). It does NOT describe pixel semantics; the semantic
+// interpretation of the planes comes from heif_colorspace.
+//
+// heif_chroma_planar covers "one or more planar components, no subsampling".
+// It is used for:
+//   - heif_colorspace_monochrome (single luma plane)
+//   - heif_colorspace_filter_array (single CFA mosaic plane)
+//   - heif_colorspace_custom (any number of planar components)
+// For heif_colorspace_RGB the historical name heif_chroma_444 is the
+// canonical form for planar RGB. heif_chroma_planar is accepted as a
+// synonym at the C API boundary and is internally canonicalized to
+// heif_chroma_444 so existing callers and internal code paths keep seeing
+// heif_chroma_444 on read-back. Callers should also accept a returned
+// heif_chroma_planar as a synonym. We might switch to this as the
+// canonical name in the future.
+//
+// The YUV subsampling names (heif_chroma_420 / _422 / _444) are kept for
+// heif_colorspace_YCbCr.
 typedef enum heif_chroma
 {
   heif_chroma_undefined = 99,
-  heif_chroma_monochrome = 0,
+  heif_chroma_planar = 0,
   heif_chroma_420 = 1,
   heif_chroma_422 = 2,
   heif_chroma_444 = 3,
@@ -50,6 +69,11 @@ typedef enum heif_chroma
 #define heif_chroma_interleaved_24bit  heif_chroma_interleaved_RGB
 #define heif_chroma_interleaved_32bit  heif_chroma_interleaved_RGBA
 
+// Legacy alias for heif_chroma_planar. The name "monochrome" was misleading
+// for non-grayscale planar layouts (filter_array, custom); use
+// heif_chroma_planar in new code.
+#define heif_chroma_monochrome heif_chroma_planar
+
 
 typedef enum heif_colorspace
 {
@@ -63,6 +87,8 @@ typedef enum heif_colorspace
 
   // heif_colorspace_RGB should be used with one of these heif_chroma values:
   // * heif_chroma_444 (for planar RGB)
+  // * heif_chroma_planar is accepted as a synonym and is internally canonicalized to heif_chroma_444.
+  //                      It is the preferred, future-proof value.
   // * heif_chroma_interleaved_RGB
   // * heif_chroma_interleaved_RGBA
   // * heif_chroma_interleaved_RRGGBB_BE
@@ -71,14 +97,20 @@ typedef enum heif_colorspace
   // * heif_chroma_interleaved_RRGGBBAA_LE
   heif_colorspace_RGB = 1,
 
-  // heif_colorspace_monochrome should only be used with heif_chroma = heif_chroma_monochrome
+  // heif_colorspace_monochrome should only be used with heif_chroma = heif_chroma_planar.
   heif_colorspace_monochrome = 2,
 
-  // Indicates that this image has no visual channels.
-  heif_colorspace_nonvisual = 3,
+  // Indicates that this image has a special, custom arrangement of components.
+  // For example, it can have several monochrome channels or just a depth component with no color image.
+  // Images of this type are always planar and use heif_chroma_planar.
+  heif_colorspace_custom = 3,
 
+  // Images of this type are filter-array (CFA / Bayer) mosaics. The single
+  // mosaicked plane is described as heif_chroma_planar.
   heif_colorspace_filter_array = 4
 } heif_colorspace;
+
+#define heif_colorspace_nonvisual heif_colorspace_custom
 
 typedef enum heif_channel
 {
@@ -139,6 +171,9 @@ typedef enum heif_omaf_image_projection
 // containing the interleaved R,G,B values.
 
 // Planar RGB images are specified as heif_colorspace_RGB / heif_chroma_444.
+// heif_chroma_planar is accepted as a synonym and is internally canonicalized
+// to heif_chroma_444 so heif_image_get_chroma_format() always returns
+// heif_chroma_444 for planar RGB.
 
 typedef struct heif_image heif_image;
 typedef struct heif_image_handle heif_image_handle;
