@@ -278,7 +278,18 @@ public:
   // HeifPixelImage::ImageComponent::m_component_ids).
   void add_component_description(ComponentDescription desc)
   {
+    // Work around a GCC 14 false positive: the inlined move of
+    // std::optional<std::string>::gimi_content_id triggers
+    // -Wmaybe-uninitialized when the optional is disengaged, even though
+    // _M_construct is guarded by _M_engaged.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
     m_components.push_back(std::move(desc));
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
   }
 
   // Mint a fresh component id (monotonically increasing, starting at 1).
