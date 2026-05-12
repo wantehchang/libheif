@@ -829,7 +829,7 @@ Error ImageItem_Grid::add_image_tile(uint32_t tile_x, uint32_t tile_y,
     }
 
     // add color profile similar to first tile image
-    // TODO: this shouldn't be necessary. The colr profiles should be in the ImageExtraData above.
+    // TODO: this shouldn't be necessary. The colr profiles should be in the ImageDescription above.
     auto colr_boxes = add_color_profile(image, *m_tile_encoding_options,
                                         heif_image_input_class_normal,
                                         m_tile_encoding_options->output_nclx_profile);

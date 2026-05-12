@@ -61,7 +61,7 @@ public:
   void get_tile_size(uint32_t& w, uint32_t& h) const override;
 
   // Walk the cmpd / uncC / cpat property boxes and populate
-  // ImageExtraData::m_components with one ComponentDescription per uncC
+  // ImageDescription::m_components with one ComponentDescription per uncC
   // component plus one (has_data_plane=false) per extra cpat reference
   // component. Called once from ImageItem::set_properties().
   void populate_component_descriptions() override;

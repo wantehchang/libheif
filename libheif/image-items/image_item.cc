@@ -359,8 +359,8 @@ Result<Encoder::CodedImageData> ImageItem::encode_to_bitstream_and_boxes(const s
 
   // --- generate properties for image extra data
 
-  // copy over ImageExtraData into image item
-  *static_cast<ImageExtraData*>(this) = static_cast<ImageExtraData>(*image);
+  // copy over ImageDescription into image item
+  *static_cast<ImageDescription*>(this) = static_cast<ImageDescription>(*image);
 
   auto extra_data_properties = image->generate_property_boxes(false);
   codedImage.properties.insert(codedImage.properties.end(),
@@ -800,42 +800,42 @@ Error ImageItem::transform_requested_tile_position_to_original_tile_position(uin
 
 void ImageItem::set_clli(const heif_content_light_level& clli)
 {
-  ImageExtraData::set_clli(clli);
+  ImageDescription::set_clli(clli);
   add_property(get_clli_box(), false);
 }
 
 
 void ImageItem::set_mdcv(const heif_mastering_display_colour_volume& mdcv)
 {
-  ImageExtraData::set_mdcv(mdcv);
+  ImageDescription::set_mdcv(mdcv);
   add_property(get_mdcv_box(), false);
 }
 
 
 void ImageItem::set_pixel_ratio(uint32_t h, uint32_t v)
 {
-  ImageExtraData::set_pixel_ratio(h, v);
+  ImageDescription::set_pixel_ratio(h, v);
   add_property(get_pasp_box(), false);
 }
 
 
 void ImageItem::set_color_profile_nclx(const nclx_profile& profile)
 {
-  ImageExtraData::set_color_profile_nclx(profile);
+  ImageDescription::set_color_profile_nclx(profile);
   add_property(get_colr_box_nclx(), false);
 }
 
 
 void ImageItem::set_color_profile_icc(const std::shared_ptr<const color_profile_raw>& profile)
 {
-  ImageExtraData::set_color_profile_icc(profile);
+  ImageDescription::set_color_profile_icc(profile);
   add_property(get_colr_box_icc(), false);
 }
 
 #if HEIF_WITH_OMAF
 void ImageItem::set_omaf_image_projection(heif_omaf_image_projection projection)
 {
-  ImageExtraData::set_omaf_image_projection(projection);
+  ImageDescription::set_omaf_image_projection(projection);
   add_property(get_prfr_box(), true);
 }
 #endif

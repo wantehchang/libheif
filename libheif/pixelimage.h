@@ -124,7 +124,7 @@ bool is_integer_multiple_of_chroma_size(uint32_t width,
 std::vector<heif_chroma> get_valid_chroma_values_for_colorspace(heif_colorspace colorspace);
 
 // Per-component description, independent of pixel data.
-// Lives on ImageExtraData so both ImageItem (handle side, before decoding)
+// Lives on ImageDescription so both ImageItem (handle side, before decoding)
 // and HeifPixelImage (decoded side) can carry the same structural view.
 struct ComponentDescription
 {
@@ -148,10 +148,10 @@ struct ComponentDescription
 };
 
 
-class ImageExtraData
+class ImageDescription
 {
 public:
-  virtual ~ImageExtraData();
+  virtual ~ImageDescription();
 
   // TODO: Decide who is responsible for writing the colr boxes.
   //       Currently it is distributed over various places.
@@ -463,7 +463,7 @@ heif_channel map_uncompressed_component_to_channel(uint16_t component_type);
 
 
 class HeifPixelImage : public std::enable_shared_from_this<HeifPixelImage>,
-                       public ImageExtraData,
+                       public ImageDescription,
                        public ErrorBuffer
 {
 public:
@@ -593,10 +593,10 @@ public:
   uint32_t add_component_without_data(uint16_t component_type);
 
   // Decoder path: copy the per-component description from a source
-  // ImageExtraData (typically the ImageItem the decoder is about to populate).
+  // ImageDescription (typically the ImageItem the decoder is about to populate).
   // After this, allocate_buffer_for_component() can be called with each id
   // already present in m_components to allocate its pixel buffer.
-  void clone_component_descriptions_from(const ImageExtraData& src);
+  void clone_component_descriptions_from(const ImageDescription& src);
 
   // Post-decode reconciliation: rebind this image's component descriptions
   // and the m_component_ids on each plane so they match `src` (typically the
@@ -607,7 +607,7 @@ public:
   // Channels present in this image but not in `src` (e.g. alpha-from-aux
   // attached after main decode) are kept under fresh ids that won't collide
   // with `src`. No-op if `src` has no descriptions.
-  void apply_descriptions_from(const ImageExtraData& src);
+  void apply_descriptions_from(const ImageDescription& src);
 
   // Decoder path: allocate a pixel buffer for a component whose description
   // (channel, datatype, bit_depth, width, height) is already in m_components.
@@ -793,11 +793,11 @@ private:
   MemoryHandle m_memory_handle;
 
   // (component_type now lives on each ComponentDescription in
-  //  ImageExtraData::m_components, indexed by component_id.)
+  //  ImageDescription::m_components, indexed by component_id.)
 
   uint32_t m_sample_duration = 0; // duration of a sequence frame
 
-  // m_next_component_id moved to ImageExtraData (inherited).
+  // m_next_component_id moved to ImageDescription (inherited).
 
   std::vector<Error> m_warnings;
 };

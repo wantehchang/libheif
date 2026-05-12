@@ -230,19 +230,19 @@ std::vector<uint32_t> map_cmpd_to_component_ids(const std::vector<uint32_t>& cmp
 }
 
 
-ImageExtraData::~ImageExtraData()
+ImageDescription::~ImageDescription()
 {
   heif_tai_timestamp_packet_release(m_tai_timestamp);
 }
 
 
-bool ImageExtraData::has_nclx_color_profile() const
+bool ImageDescription::has_nclx_color_profile() const
 {
   return m_color_profile_nclx != nclx_profile::undefined();
 }
 
 
-nclx_profile ImageExtraData::get_color_profile_nclx_with_fallback() const
+nclx_profile ImageDescription::get_color_profile_nclx_with_fallback() const
 {
   if (has_nclx_color_profile()) {
     return get_color_profile_nclx();
@@ -253,7 +253,7 @@ nclx_profile ImageExtraData::get_color_profile_nclx_with_fallback() const
 }
 
 
-std::shared_ptr<Box_clli> ImageExtraData::get_clli_box() const
+std::shared_ptr<Box_clli> ImageDescription::get_clli_box() const
 {
   if (!has_clli()) {
     return {};
@@ -266,7 +266,7 @@ std::shared_ptr<Box_clli> ImageExtraData::get_clli_box() const
 }
 
 
-std::shared_ptr<Box_mdcv> ImageExtraData::get_mdcv_box() const
+std::shared_ptr<Box_mdcv> ImageDescription::get_mdcv_box() const
 {
   if (!has_mdcv()) {
     return {};
@@ -279,7 +279,7 @@ std::shared_ptr<Box_mdcv> ImageExtraData::get_mdcv_box() const
 }
 
 
-std::shared_ptr<Box_pasp> ImageExtraData::get_pasp_box() const
+std::shared_ptr<Box_pasp> ImageDescription::get_pasp_box() const
 {
   if (!has_nonsquare_pixel_ratio()) {
     return {};
@@ -293,7 +293,7 @@ std::shared_ptr<Box_pasp> ImageExtraData::get_pasp_box() const
 }
 
 
-std::shared_ptr<Box_colr> ImageExtraData::get_colr_box_nclx() const
+std::shared_ptr<Box_colr> ImageDescription::get_colr_box_nclx() const
 {
   if (!has_nclx_color_profile()) {
     return {};
@@ -305,7 +305,7 @@ std::shared_ptr<Box_colr> ImageExtraData::get_colr_box_nclx() const
 }
 
 
-std::shared_ptr<Box_colr> ImageExtraData::get_colr_box_icc() const
+std::shared_ptr<Box_colr> ImageDescription::get_colr_box_icc() const
 {
   if (!has_icc_color_profile()) {
     return {};
@@ -317,7 +317,7 @@ std::shared_ptr<Box_colr> ImageExtraData::get_colr_box_icc() const
 }
 
 #if HEIF_WITH_OMAF
-std::shared_ptr<Box_prfr> ImageExtraData::get_prfr_box() const
+std::shared_ptr<Box_prfr> ImageDescription::get_prfr_box() const
 {
   if (!has_omaf_image_projection()) {
     return {};
@@ -332,7 +332,7 @@ std::shared_ptr<Box_prfr> ImageExtraData::get_prfr_box() const
 }
 #endif
 
-std::vector<std::shared_ptr<Box>> ImageExtraData::generate_property_boxes(bool generate_colr_boxes) const
+std::vector<std::shared_ptr<Box>> ImageDescription::generate_property_boxes(bool generate_colr_boxes) const
 {
   std::vector<std::shared_ptr<Box>> properties;
 
@@ -549,7 +549,7 @@ HeifPixelImage::ImageComponent HeifPixelImage::new_image_plane_for_channel(heif_
   // ISO 23001-17 component types
   // For interleaved planes, several component types are added to cmpd.
   // Each component gets a freshly-minted id and an entry in the inherited
-  // ImageExtraData::m_components vector. Datatype / bit_depth / width /
+  // ImageDescription::m_components vector. Datatype / bit_depth / width /
   // height fields stay at their defaults; they are filled in after alloc()
   // succeeds, by fill_component_descriptions_after_alloc().
 
@@ -2443,14 +2443,14 @@ uint32_t HeifPixelImage::add_component_without_data(uint16_t component_type)
 }
 
 
-void HeifPixelImage::clone_component_descriptions_from(const ImageExtraData& src)
+void HeifPixelImage::clone_component_descriptions_from(const ImageDescription& src)
 {
   m_components = src.get_component_descriptions();
   m_next_component_id = src.peek_next_component_id();
 }
 
 
-void HeifPixelImage::apply_descriptions_from(const ImageExtraData& src)
+void HeifPixelImage::apply_descriptions_from(const ImageDescription& src)
 {
   const auto& src_descs = src.get_component_descriptions();
   if (src_descs.empty()) {

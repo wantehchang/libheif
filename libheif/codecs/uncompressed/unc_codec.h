@@ -71,11 +71,11 @@ public:
     std::vector<std::shared_ptr<const Box_snuc>> snuc;
     std::shared_ptr<const Box_cloc> cloc;
 
-    // Source ImageExtraData (typically the ImageItem) to clone the
+    // Source ImageDescription (typically the ImageItem) to clone the
     // pre-populated component descriptions from. Owned externally (we hold
     // the shared_ptr to the item via the boxes above keeping the file alive,
     // and the caller passes a stable pointer).
-    const ImageExtraData* source_extra_data = nullptr;
+    const ImageDescription* source_extra_data = nullptr;
 
     void fill_from_image_item(const std::shared_ptr<const ImageItem>&);
   };

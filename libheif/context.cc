@@ -791,7 +791,7 @@ Error HeifContext::interpret_heif_file_images()
 #if HEIF_WITH_OMAF
     // add image projection information
     if (auto prfr = image->get_property<Box_prfr>()) {
-      image->ImageExtraData::set_omaf_image_projection(prfr->get_omaf_image_projection());
+      image->ImageDescription::set_omaf_image_projection(prfr->get_omaf_image_projection());
     }
 #endif
   }

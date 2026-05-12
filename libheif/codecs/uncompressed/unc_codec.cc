@@ -580,7 +580,7 @@ void UncompressedImageCodec::unci_properties::fill_from_image_item(const std::sh
   snuc = image->get_all_properties<Box_snuc>();
   cloc = image->get_property<Box_cloc>();
 
-  // The ImageItem already populated its ImageExtraData::m_components in
+  // The ImageItem already populated its ImageDescription::m_components in
   // ImageItem_uncompressed::populate_component_descriptions(). The decoder
   // clones those descriptions into the new HeifPixelImage instead of minting
   // ids itself.

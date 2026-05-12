@@ -52,7 +52,7 @@ public:
 };
 
 
-class ImageItem : public ImageExtraData,
+class ImageItem : public ImageDescription,
                   public ErrorBuffer
 {
 public:
@@ -106,7 +106,7 @@ public:
     populate_component_descriptions();
   }
 
-  // Populate the inherited ImageExtraData::m_components from the just-set
+  // Populate the inherited ImageDescription::m_components from the just-set
   // property boxes / codec config. The unci subclass overrides this and
   // reads cmpd/uncC directly. The base implementation handles visual codecs
   // (HEVC/AVC/AVIF/JPEG/JPEG2000/VVC) by querying get_coded_image_colorspace()
@@ -318,7 +318,7 @@ public:
 
 
 
-  // --- ImageExtraData
+  // --- ImageDescription
 
   void set_clli(const heif_content_light_level& clli) override;
 
@@ -478,7 +478,7 @@ private:
 
   std::vector<heif_item_id> m_text_item_ids;
 
-  void generate_property_boxes_for_ImageExtraData();
+  void generate_property_boxes_for_ImageDescription();
 
 protected:
   // Result<std::vector<uint8_t>> read_bitstream_configuration_data_override(heif_item_id itemId, heif_compression_format format) const;
