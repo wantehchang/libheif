@@ -1179,6 +1179,14 @@ void HeifPixelImage::zero_region(uint32_t x0, uint32_t y0, uint32_t w, uint32_t 
 
 Result<std::shared_ptr<HeifPixelImage>> HeifPixelImage::rotate_ccw(int angle_degrees, const heif_security_limits* limits)
 {
+  // TODO: Bayer pattern, polarization patterns and sensor maps reference
+  //   image geometry and are currently copied verbatim by
+  //   forward_all_metadata_from(). For 90/270° rotations the layout is
+  //   transposed and for 180° it is flipped, so the copied metadata is no
+  //   longer semantically valid. Either rotate these structures along with
+  //   the pixels, or return an error when such metadata is present and
+  //   rotation would invalidate it.
+
   // --- for some subsampled chroma colorspaces, we have to transform to 4:4:4 before rotation
 
   bool need_conversion = false;
@@ -1233,6 +1241,7 @@ Result<std::shared_ptr<HeifPixelImage>> HeifPixelImage::rotate_ccw(int angle_deg
 
   std::shared_ptr<HeifPixelImage> out_img = std::make_shared<HeifPixelImage>();
   out_img->create(out_width, out_height, m_colorspace, m_chroma);
+  out_img->copy_metadata_from(*this);
 
 
   // --- rotate all channels
@@ -1284,10 +1293,6 @@ Result<std::shared_ptr<HeifPixelImage>> HeifPixelImage::rotate_ccw(int angle_deg
 
     out_img->m_planes.push_back(std::move(out_component));
   }
-  // --- pass the color profiles to the new image
-
-  out_img->set_color_profile_nclx(get_color_profile_nclx());
-  out_img->set_color_profile_icc(get_color_profile_icc());
 
   out_img->add_warnings(get_warnings());
 
@@ -1351,6 +1356,13 @@ void HeifPixelImage::ImageComponent::mirror_inplace(heif_transform_mirror_direct
 Result<std::shared_ptr<HeifPixelImage>> HeifPixelImage::mirror_inplace(heif_transform_mirror_direction direction,
                                                                        const heif_security_limits* limits)
 {
+  // TODO: Bayer pattern, polarization patterns and sensor maps reference
+  //   image geometry. This function mirrors the pixel data in place but
+  //   leaves those structures untouched, so a horizontal/vertical mirror
+  //   leaves them out of sync with the pixel layout. Either mirror these
+  //   structures along with the pixels, or return an error when such
+  //   metadata is present and the mirror would invalidate it.
+
   // --- for some subsampled chroma colorspaces, we have to transform to 4:4:4 before rotation
 
   bool need_conversion = false;
@@ -1419,6 +1431,15 @@ int HeifPixelImage::ImageComponent::get_bytes_per_pixel() const
 Result<std::shared_ptr<HeifPixelImage>> HeifPixelImage::crop(uint32_t left, uint32_t right, uint32_t top, uint32_t bottom,
                                                              const heif_security_limits* limits) const
 {
+  // TODO: Bayer pattern, polarization patterns and sensor maps reference
+  //   image geometry and are currently copied verbatim by
+  //   forward_all_metadata_from(). A crop shifts the (0,0) origin and
+  //   changes the image dimensions, so the copied metadata may no longer
+  //   match the cropped image (e.g. a 2x2 Bayer pattern with an odd
+  //   left/top offset, or a sensor NUC map sized to the original image).
+  //   Either translate / resample these structures to the crop region, or
+  //   return an error when the crop would invalidate them.
+
   // --- for some subsampled chroma colorspaces, we have to transform to 4:4:4 before cropping
 
   bool need_conversion = false;
@@ -1450,6 +1471,7 @@ Result<std::shared_ptr<HeifPixelImage>> HeifPixelImage::crop(uint32_t left, uint
 
   auto out_img = std::make_shared<HeifPixelImage>();
   out_img->create(right - left + 1, bottom - top + 1, m_colorspace, m_chroma);
+  out_img->copy_metadata_from(*this);
 
 
   // --- crop all channels
@@ -1489,11 +1511,6 @@ Result<std::shared_ptr<HeifPixelImage>> HeifPixelImage::crop(uint32_t left, uint
 
     out_img->m_planes.push_back(std::move(out_plane));
   }
-
-  // --- pass the color profiles to the new image
-
-  out_img->set_color_profile_nclx(get_color_profile_nclx());
-  out_img->set_color_profile_icc(get_color_profile_icc());
 
   out_img->add_warnings(get_warnings());
 
@@ -1925,52 +1942,6 @@ Error HeifPixelImage::scale_nearest_neighbor(std::shared_ptr<HeifPixelImage>& ou
 }
 
 
-void HeifPixelImage::forward_all_metadata_from(const std::shared_ptr<const HeifPixelImage>& src_image)
-{
-  // --- pass the color profiles to the new image
-
-  set_color_profile_nclx(src_image->get_color_profile_nclx());
-  set_color_profile_icc(src_image->get_color_profile_icc());
-
-  set_premultiplied_alpha(src_image->is_premultiplied_alpha());
-
-  // pass through HDR information
-  if (src_image->has_clli()) {
-    set_clli(src_image->get_clli());
-  }
-
-  if (src_image->has_mdcv()) {
-    set_mdcv(src_image->get_mdcv());
-  }
-
-  if (src_image->has_nonsquare_pixel_ratio()) {
-    uint32_t h,v;
-    src_image->get_pixel_ratio(&h,&v);
-    set_pixel_ratio(h,v);
-  }
-
-  if (src_image->has_gimi_sample_content_id()) {
-    set_gimi_sample_content_id(src_image->get_gimi_sample_content_id());
-  }
-
-  if (auto* tai = src_image->get_tai_timestamp()) {
-    set_tai_timestamp(tai);
-  }
-
-  set_sample_duration(src_image->get_sample_duration());
-
-#if HEIF_WITH_OMAF
-  set_omaf_image_projection(src_image->get_omaf_image_projection());
-#endif
-
-  // TODO: should we also forward the warnings? It might be better to do that in ImageItem_Grid.
-
-#if HEIF_WITH_OMAF
-  set_omaf_image_projection(src_image->get_omaf_image_projection());
-#endif
-}
-
-
 void HeifPixelImage::debug_dump() const
 {
   auto channels = get_channel_set();
@@ -2015,6 +1986,8 @@ Error HeifPixelImage::create_clone_image_at_new_size(const std::shared_ptr<const
 
   set_component_descriptions(source->get_component_descriptions(),
                              source->peek_next_component_id());
+
+  copy_metadata_from(*source);
 
   return Error::Ok;
 }

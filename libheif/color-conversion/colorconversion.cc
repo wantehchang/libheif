@@ -469,7 +469,7 @@ Result<std::shared_ptr<HeifPixelImage>> ColorConversionPipeline::convert_image(c
     }
 
     // copy metadata over to new image
-    out->forward_all_metadata_from(in);
+    out->copy_metadata_from(*in);
 
     // overwrite color profile nclx from color conversion
     out->set_color_profile_nclx(step.output_state.nclx);

@@ -119,6 +119,42 @@ ImageDescription::~ImageDescription()
 }
 
 
+void ImageDescription::copy_metadata_from(const ImageDescription& other)
+{
+  m_premultiplied_alpha = other.m_premultiplied_alpha;
+  m_color_profile_nclx = other.m_color_profile_nclx;
+  m_color_profile_icc = other.m_color_profile_icc;
+
+  m_PixelAspectRatio_h = other.m_PixelAspectRatio_h;
+  m_PixelAspectRatio_v = other.m_PixelAspectRatio_v;
+
+  m_clli = other.m_clli;
+  m_mdcv = other.m_mdcv;
+
+  heif_tai_timestamp_packet_release(m_tai_timestamp);
+  m_tai_timestamp = nullptr;
+  if (other.m_tai_timestamp) {
+    m_tai_timestamp = heif_tai_timestamp_packet_alloc();
+    heif_tai_timestamp_packet_copy(m_tai_timestamp, other.m_tai_timestamp);
+  }
+
+  m_gimi_sample_content_id = other.m_gimi_sample_content_id;
+
+  m_bayer_pattern = other.m_bayer_pattern;
+  m_polarization_patterns = other.m_polarization_patterns;
+  m_sensor_bad_pixels_maps = other.m_sensor_bad_pixels_maps;
+  m_sensor_nuc = other.m_sensor_nuc;
+
+  m_chroma_location = other.m_chroma_location;
+
+  m_sample_duration = other.m_sample_duration;
+
+#if HEIF_WITH_OMAF
+  m_omaf_image_projection = other.m_omaf_image_projection;
+#endif
+}
+
+
 bool ImageDescription::has_nclx_color_profile() const
 {
   return m_color_profile_nclx != nclx_profile::undefined();

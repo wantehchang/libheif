@@ -396,6 +396,14 @@ public:
   virtual void set_chroma_location(uint8_t loc) { m_chroma_location = loc; }
 
 
+  // --- sample duration (for images that are frames in a sequence)
+  // 0 means "no duration assigned" (the default for still images).
+
+  void set_sample_duration(uint32_t d) { m_sample_duration = d; }
+
+  uint32_t get_sample_duration() const { return m_sample_duration; }
+
+
 #if HEIF_WITH_OMAF
   bool has_omaf_image_projection() const {
     return (m_omaf_image_projection != heif_omaf_image_projection_flat);
@@ -409,6 +417,19 @@ public:
     m_omaf_image_projection = projection;
   }
 #endif
+
+  // Copies all per-image metadata from `other` (color profiles, premultiplied
+  // alpha, pixel aspect ratio, clli, mdcv, tai timestamp, gimi sample content
+  // id, bayer pattern, polarization patterns, sensor maps, sensor nuc, chroma
+  // location, omaf projection). Per-component descriptions
+  // (m_components / m_next_component_id) are intentionally not copied; those
+  // are managed separately by callers (via add_plane / add_component, or
+  // set_component_descriptions on the destination).
+  //
+  // Bayer / polarization / sensor-map metadata refers to image geometry;
+  // transforms that change orientation or position copy them verbatim and
+  // would need separate geometry adjustment to remain semantically correct.
+  void copy_metadata_from(const ImageDescription& other);
 
 private:
   bool m_premultiplied_alpha = false;
@@ -443,6 +464,8 @@ private:
   std::vector<SensorNonUniformityCorrection> m_sensor_nuc;
 
   std::optional<uint8_t> m_chroma_location;
+
+  uint32_t m_sample_duration = 0; // duration of a sequence frame, 0 for stills
 
 #if HEIF_WITH_OMAF
   heif_omaf_image_projection m_omaf_image_projection = heif_omaf_image_projection::heif_omaf_image_projection_flat;

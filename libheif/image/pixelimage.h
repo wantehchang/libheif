@@ -285,7 +285,6 @@ public:
   Error scale_nearest_neighbor(std::shared_ptr<HeifPixelImage>& output, uint32_t width, uint32_t height,
                                const heif_security_limits* limits) const;
 
-  void forward_all_metadata_from(const std::shared_ptr<const HeifPixelImage>& src_image);
 
   void debug_dump() const;
 
@@ -297,12 +296,6 @@ public:
   Result<std::shared_ptr<HeifPixelImage>> extract_image_area(uint32_t x0, uint32_t y0, uint32_t w, uint32_t h,
                                                              const heif_security_limits* limits) const;
 
-
-  // --- sequences
-
-  void set_sample_duration(uint32_t d) { m_sample_duration = d; }
-
-  uint32_t get_sample_duration() const { return m_sample_duration; }
 
   // --- warnings
 
@@ -399,9 +392,8 @@ private:
   // (component_type now lives on each ComponentDescription in
   //  ImageDescription::m_components, indexed by component_id.)
 
-  uint32_t m_sample_duration = 0; // duration of a sequence frame
-
-  // m_next_component_id moved to ImageDescription (inherited).
+  // m_next_component_id and m_sample_duration moved to ImageDescription
+  // (inherited).
 
   std::vector<Error> m_warnings;
 };
