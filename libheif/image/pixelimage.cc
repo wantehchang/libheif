@@ -857,7 +857,7 @@ uint16_t HeifPixelImage::get_visual_image_bits_per_pixel() const
         return get_bits_per_pixel(heif_channel_interleaved);
       }
       break;
-    case heif_colorspace_nonvisual:
+    case heif_colorspace_custom:
       return 0;
       break;
     case heif_colorspace_filter_array:
@@ -871,7 +871,7 @@ uint16_t HeifPixelImage::get_visual_image_bits_per_pixel() const
 }
 
 
-heif_component_datatype HeifPixelImage::get_datatype(enum heif_channel channel) const
+heif_component_datatype HeifPixelImage::get_datatype(heif_channel channel) const
 {
   auto* comp = find_component_for_channel(channel);
   if (!comp) {

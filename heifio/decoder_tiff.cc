@@ -686,7 +686,7 @@ static heif_error readMonoFloat(TIFF* tif, heif_image** image)
     return err;
   }
 
-  err = heif_image_create((int)width, (int)height, heif_colorspace_nonvisual, heif_chroma_undefined, image);
+  err = heif_image_create((int)width, (int)height, heif_colorspace_custom, heif_chroma_planar, image);
   if (err.code != heif_error_Ok) {
     return err;
   }
@@ -733,7 +733,7 @@ static heif_error readMonoSignedInt(TIFF* tif, uint16_t bps, heif_image** image)
     return err;
   }
 
-  err = heif_image_create((int)width, (int)height, heif_colorspace_nonvisual, heif_chroma_undefined, image);
+  err = heif_image_create((int)width, (int)height, heif_colorspace_custom, heif_chroma_planar, image);
   if (err.code != heif_error_Ok) {
     return err;
   }
@@ -1026,7 +1026,7 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
 
   if (isFloat) {
 #if WITH_UNCOMPRESSED_CODEC
-    heif_error err = heif_image_create((int)width, (int)height, heif_colorspace_nonvisual, heif_chroma_undefined, out_image);
+    heif_error err = heif_image_create((int)width, (int)height, heif_colorspace_custom, heif_chroma_planar, out_image);
     if (err.code != heif_error_Ok) return err;
 
     uint32_t component_idx;
@@ -1086,7 +1086,7 @@ static heif_error readTiledContiguous(TIFF* tif, uint32_t width, uint32_t height
 
   if (isSignedInt) {
 #if WITH_UNCOMPRESSED_CODEC
-    heif_error err = heif_image_create((int)width, (int)height, heif_colorspace_nonvisual, heif_chroma_undefined, out_image);
+    heif_error err = heif_image_create((int)width, (int)height, heif_colorspace_custom, heif_chroma_planar, out_image);
     if (err.code != heif_error_Ok) return err;
 
     uint32_t component_idx;
@@ -1632,7 +1632,7 @@ heif_error TiledTiffReader::readTile(uint32_t tx, uint32_t ty, int output_bit_de
 
   if (m_sample_format == SAMPLEFORMAT_IEEEFP) {
 #if WITH_UNCOMPRESSED_CODEC
-    heif_error err = heif_image_create((int)actual_w, (int)actual_h, heif_colorspace_nonvisual, heif_chroma_undefined, out_image);
+    heif_error err = heif_image_create((int)actual_w, (int)actual_h, heif_colorspace_custom, heif_chroma_planar, out_image);
     if (err.code != heif_error_Ok) return err;
 
     uint32_t component_idx;
@@ -1679,7 +1679,7 @@ heif_error TiledTiffReader::readTile(uint32_t tx, uint32_t ty, int output_bit_de
 
   if (m_sample_format == SAMPLEFORMAT_INT) {
 #if WITH_UNCOMPRESSED_CODEC
-    heif_error err = heif_image_create((int)actual_w, (int)actual_h, heif_colorspace_nonvisual, heif_chroma_undefined, out_image);
+    heif_error err = heif_image_create((int)actual_w, (int)actual_h, heif_colorspace_custom, heif_chroma_planar, out_image);
     if (err.code != heif_error_Ok) return err;
 
     uint32_t component_idx;

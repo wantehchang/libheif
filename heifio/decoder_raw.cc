@@ -176,10 +176,10 @@ heif_error loadRAW(const char* filename, const RawImageParameters& params, Input
   }
 
   // Create image with nonvisual colorspace for typed component API
-  struct heif_image* image = nullptr;
+  heif_image* image = nullptr;
   heif_error err = heif_image_create(width, height,
-                                     heif_colorspace_nonvisual,
-                                     heif_chroma_undefined,
+                                     heif_colorspace_custom,
+                                     heif_chroma_planar,
                                      &image);
   if (err.code != heif_error_Ok) {
     return err;

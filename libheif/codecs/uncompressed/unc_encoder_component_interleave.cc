@@ -91,7 +91,7 @@ unc_encoder_component_interleave::unc_encoder_component_interleave(const std::sh
                                                                    const heif_encoding_options& options)
     : unc_encoder(image)
 {
-  bool is_nonvisual = (image->get_colorspace() == heif_colorspace_nonvisual);
+  bool is_custom = (image->get_colorspace() == heif_colorspace_custom);
   //uint32_t num_components = image->get_number_of_used_components();
 
   auto componentIds = image->get_used_planar_component_ids();
@@ -100,7 +100,7 @@ unc_encoder_component_interleave::unc_encoder_component_interleave(const std::sh
     heif_unci_component_type comp_type;
     heif_channel ch = heif_channel_Y; // default for nonvisual
 
-    if (is_nonvisual) {
+    if (is_custom) {
       comp_type = static_cast<heif_unci_component_type>(image->get_component_type(id));
     }
     else {

@@ -553,6 +553,7 @@ EMSCRIPTEN_BINDINGS(libheif) {
     .value("heif_chroma_interleaved_RRGGBBAA_BE", heif_chroma_interleaved_RRGGBBAA_BE)
     .value("heif_chroma_interleaved_RRGGBB_LE", heif_chroma_interleaved_RRGGBB_LE)
     .value("heif_chroma_interleaved_RRGGBBAA_LE", heif_chroma_interleaved_RRGGBBAA_LE)
+    .value("heif_chroma_planar", heif_chroma_planar)
     // Aliases
     .value("heif_chroma_interleaved_24bit", heif_chroma_interleaved_24bit)
     .value("heif_chroma_interleaved_32bit", heif_chroma_interleaved_32bit);
@@ -569,7 +570,7 @@ EMSCRIPTEN_BINDINGS(libheif) {
     .value("heif_colorspace_RGB", heif_colorspace_RGB)
     .value("heif_colorspace_monochrome", heif_colorspace_monochrome)
     .value("heif_colorspace_filter_array", heif_colorspace_filter_array)
-    .value("heif_colorspace_nonvisual", heif_colorspace_nonvisual);
+    .value("heif_colorspace_custom", heif_colorspace_custom);
     emscripten::enum_<heif_channel>("heif_channel")
     .value("heif_channel_Y", heif_channel_Y)
     .value("heif_channel_Cr", heif_channel_Cr)

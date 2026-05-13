@@ -245,7 +245,7 @@ static heif_image* create_and_fill_image(heif_component_datatype datatype, int b
   heif_image* image = nullptr;
   heif_error err;
 
-  err = heif_image_create(kWidth, kHeight, heif_colorspace_nonvisual,
+  err = heif_image_create(kWidth, kHeight, heif_colorspace_custom,
                           heif_chroma_planar, &image);
   REQUIRE(err.code == heif_error_Ok);
   REQUIRE(image != nullptr);
@@ -452,7 +452,7 @@ TEST_CASE("Mixed bpp: 16-bit and 14-bit components")
 
   // Create image
   heif_image* image = nullptr;
-  heif_error err = heif_image_create(kW, kH, heif_colorspace_nonvisual,
+  heif_error err = heif_image_create(kW, kH, heif_colorspace_custom,
                                      heif_chroma_planar, &image);
   REQUIRE(err.code == heif_error_Ok);
 

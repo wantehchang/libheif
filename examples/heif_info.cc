@@ -309,8 +309,8 @@ int main(int argc, char** argv)
       case heif_colorspace_monochrome:
         printf("monochrome");
         break;
-      case heif_colorspace_nonvisual:
-        printf("non-visual");
+      case heif_colorspace_custom:
+        printf("custom");
         break;
       default:
         printf("unknown");

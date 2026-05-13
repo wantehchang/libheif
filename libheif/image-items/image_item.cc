@@ -698,7 +698,7 @@ ImageItem::add_color_profile(const std::shared_ptr<HeifPixelImage>& image,
 
   if (input_class == heif_image_input_class_normal || input_class == heif_image_input_class_thumbnail) {
     // No color profile for non-visual images (e.g. elevation data)
-    if (image->get_colorspace() == heif_colorspace_nonvisual) {
+    if (image->get_colorspace() == heif_colorspace_custom) {
       return colr_boxes;
     }
 

@@ -69,7 +69,6 @@ type Chroma C.enum_heif_chroma
 
 const (
 	ChromaUndefined              = C.heif_chroma_undefined
-	ChromaMonochrome             = C.heif_chroma_monochrome
 	Chroma420                    = C.heif_chroma_420
 	Chroma422                    = C.heif_chroma_422
 	Chroma444                    = C.heif_chroma_444
@@ -79,7 +78,9 @@ const (
 	ChromaInterleavedRRGGBBAA_LE = C.heif_chroma_interleaved_RRGGBBAA_LE
 	ChromaInterleavedRRGGBB_BE   = C.heif_chroma_interleaved_RRGGBB_BE
 	ChromaInterleavedRRGGBB_LE   = C.heif_chroma_interleaved_RRGGBB_LE
+	ChromaPlanar                 = C.heif_chroma_planar
 
+	ChromaMonochrome             = C.heif_chroma_monochrome
 	ChromaInterleaved24Bit = C.heif_chroma_interleaved_24bit
 	ChromaInterleaved32Bit = C.heif_chroma_interleaved_32bit
 )
