@@ -296,7 +296,6 @@ static uint32_t rounded_size(uint32_t s)
 }
 
 void HeifPixelImage::register_plane_descriptions(ImageComponent& plane,
-                                                 heif_channel channel,
                                                  const std::vector<uint16_t>& component_types)
 {
   for (uint16_t type : component_types) {
@@ -305,13 +304,39 @@ void HeifPixelImage::register_plane_descriptions(ImageComponent& plane,
 
     ComponentDescription desc;
     desc.component_id = id;
-    desc.channel = channel;
+    desc.channel = plane.m_channel;
     desc.component_type = type;
     desc.datatype = plane.m_datatype;
     desc.bit_depth = plane.m_bit_depth;
     desc.width = plane.m_width;
     desc.height = plane.m_height;
     desc.has_data_plane = true;
+    add_component_description(std::move(desc));
+  }
+}
+
+
+void HeifPixelImage::register_plane_descriptions(ImageComponent& plane,
+                                                 const std::vector<const ComponentDescription*>& source_descriptions)
+{
+  for (const ComponentDescription* src : source_descriptions) {
+    uint32_t id = mint_component_id();
+    plane.m_component_ids.push_back(id);
+
+    // Start from the source description so per-component metadata
+    // (component_type, gimi_content_id, has_data_plane, ...) is preserved.
+    // If the lookup failed (shouldn't happen on a well-formed source),
+    // fall back to a default-initialized description.
+    ComponentDescription desc;
+    if (src) {
+      desc = *src;
+    }
+    desc.component_id = id;
+    desc.channel = plane.m_channel;
+    desc.datatype = plane.m_datatype;
+    desc.bit_depth = plane.m_bit_depth;
+    desc.width = plane.m_width;
+    desc.height = plane.m_height;
     add_component_description(std::move(desc));
   }
 }
@@ -339,7 +364,7 @@ Error HeifPixelImage::add_plane(heif_channel channel, uint32_t width, uint32_t h
     return err;
   }
 
-  register_plane_descriptions(plane, channel, map_channel_to_component_type(channel, m_chroma));
+  register_plane_descriptions(plane, map_channel_to_component_type(channel, m_chroma));
   m_planes.push_back(std::move(plane));
   return Error::Ok;
 }
@@ -355,7 +380,7 @@ Error HeifPixelImage::add_channel(heif_channel channel, uint32_t width, uint32_t
     return err;
   }
 
-  register_plane_descriptions(plane, channel, map_channel_to_component_type(channel, m_chroma));
+  register_plane_descriptions(plane, map_channel_to_component_type(channel, m_chroma));
   m_planes.push_back(std::move(plane));
   return Error::Ok;
 }
@@ -1213,8 +1238,6 @@ Result<std::shared_ptr<HeifPixelImage>> HeifPixelImage::rotate_ccw(int angle_deg
   // --- rotate all channels
 
   for (const auto &component: m_planes) {
-    heif_channel channel = component.m_channel;
-
     uint32_t out_plane_width = component.m_width;
     uint32_t out_plane_height = component.m_height;
 
@@ -1222,29 +1245,44 @@ Result<std::shared_ptr<HeifPixelImage>> HeifPixelImage::rotate_ccw(int angle_deg
       std::swap(out_plane_width, out_plane_height);
     }
 
-    Error err = out_img->add_channel(channel, out_plane_width, out_plane_height, component.m_datatype, component.m_bit_depth, limits);
-    if (err) {
+    ImageComponent out_component;
+    out_component.m_channel = component.m_channel;
+
+    if (Error err = out_component.alloc(out_plane_width, out_plane_height,
+                                        component.m_datatype, component.m_bit_depth,
+                                        component.m_num_interleaved_components,
+                                        limits, out_img->m_memory_handle)) {
       return err;
     }
 
-    // The output plane is the last one added
-    ImageComponent& out_plane = out_img->m_planes.back();
+    // Clone per-component metadata (component_type, gimi_content_id, ...)
+    // from the source descriptions rather than re-deriving from chroma, so
+    // images built via add_component() preserve their original component
+    // types and content ids.
+    std::vector<const ComponentDescription*> src_descs;
+    src_descs.reserve(component.m_component_ids.size());
+    for (uint32_t cid : component.m_component_ids) {
+      src_descs.push_back(find_component_description(cid));
+    }
+    out_img->register_plane_descriptions(out_component, src_descs);
 
     if (component.m_bit_depth <= 8) {
-      component.rotate_ccw<uint8_t>(angle_degrees, out_plane);
+      component.rotate_ccw<uint8_t>(angle_degrees, out_component);
     }
     else if (component.m_bit_depth <= 16) {
-      component.rotate_ccw<uint16_t>(angle_degrees, out_plane);
+      component.rotate_ccw<uint16_t>(angle_degrees, out_component);
     }
     else if (component.m_bit_depth <= 32) {
-      component.rotate_ccw<uint32_t>(angle_degrees, out_plane);
+      component.rotate_ccw<uint32_t>(angle_degrees, out_component);
     }
     else if (component.m_bit_depth <= 64) {
-      component.rotate_ccw<uint64_t>(angle_degrees, out_plane);
+      component.rotate_ccw<uint64_t>(angle_degrees, out_component);
     }
     else if (component.m_bit_depth <= 128) {
-      component.rotate_ccw<heif_complex64>(angle_degrees, out_plane);
+      component.rotate_ccw<heif_complex64>(angle_degrees, out_component);
     }
+
+    out_img->m_planes.push_back(std::move(out_component));
   }
   // --- pass the color profiles to the new image
 
@@ -1424,21 +1462,32 @@ Result<std::shared_ptr<HeifPixelImage>> HeifPixelImage::crop(uint32_t left, uint
     uint32_t plane_top = get_subsampled_size_v(top, channel, m_chroma, scaling_mode::is_divisible);
     uint32_t plane_bottom = get_subsampled_size_v(bottom, channel, m_chroma, scaling_mode::round_down);
 
-    auto err = out_img->add_channel(channel,
-                                    plane_right - plane_left + 1,
+    ImageComponent out_plane;
+    out_plane.m_channel = channel;
+
+    if (Error err = out_plane.alloc(plane_right - plane_left + 1,
                                     plane_bottom - plane_top + 1,
-                                    component.m_datatype,
-                                    component.m_bit_depth,
-                                    limits);
-    if (err) {
+                                    component.m_datatype, component.m_bit_depth,
+                                    component.m_num_interleaved_components,
+                                    limits, out_img->m_memory_handle)) {
       return err;
     }
 
-    // The output plane is the last one added
-    ImageComponent& out_plane = out_img->m_planes.back();
+    // Clone per-component metadata (component_type, gimi_content_id, ...)
+    // from the source descriptions rather than re-deriving from chroma, so
+    // images built via add_component() preserve their original component
+    // types and content ids.
+    std::vector<const ComponentDescription*> src_descs;
+    src_descs.reserve(component.m_component_ids.size());
+    for (uint32_t cid : component.m_component_ids) {
+      src_descs.push_back(find_component_description(cid));
+    }
+    out_img->register_plane_descriptions(out_plane, src_descs);
 
     int bytes_per_pixel = component.get_bytes_per_pixel();
     component.crop(plane_left, plane_right, plane_top, plane_bottom, bytes_per_pixel, out_plane);
+
+    out_img->m_planes.push_back(std::move(out_plane));
   }
 
   // --- pass the color profiles to the new image
@@ -2135,7 +2184,7 @@ Result<uint32_t> HeifPixelImage::add_component(uint32_t width, uint32_t height,
     return {err};
   }
 
-  register_plane_descriptions(plane, channel, {component_type});
+  register_plane_descriptions(plane, std::vector<uint16_t>{component_type});
   uint32_t component_id = plane.m_component_ids.front();
   m_planes.push_back(std::move(plane));
   return component_id;

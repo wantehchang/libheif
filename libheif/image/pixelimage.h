@@ -371,12 +371,21 @@ private:
 
   // After plane.alloc() has succeeded, mints fresh component ids, appends
   // them to plane.m_component_ids, and pushes fully-populated
-  // ComponentDescription entries for each component_type. Must only be
-  // called once allocation has succeeded so that no descriptions are
-  // registered for a plane that failed to materialize.
+  // ComponentDescription entries for each component_type. Channel, datatype,
+  // bit_depth, width and height are read from `plane`. Must only be called
+  // once allocation has succeeded so that no descriptions are registered for
+  // a plane that failed to materialize.
   void register_plane_descriptions(ImageComponent& plane,
-                                   heif_channel channel,
                                    const std::vector<uint16_t>& component_types);
+
+  // Overload that clones existing ComponentDescriptions (preserving
+  // component_type, gimi_content_id, has_data_plane, and any other per-id
+  // metadata). Geometry/datatype/bit_depth/channel fields are overwritten
+  // from `plane`; component_ids are freshly minted on this image. Use this
+  // when allocating a new plane that mirrors an existing one (e.g.
+  // geometry-preserving transforms like rotation and crop).
+  void register_plane_descriptions(ImageComponent& plane,
+                                   const std::vector<const ComponentDescription*>& source_descriptions);
 
   uint32_t m_width = 0;
   uint32_t m_height = 0;
