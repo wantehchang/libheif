@@ -295,23 +295,11 @@ static uint32_t rounded_size(uint32_t s)
   return s;
 }
 
-HeifPixelImage::ImageComponent HeifPixelImage::new_image_plane_for_channel(heif_channel channel)
+void HeifPixelImage::register_plane_descriptions(ImageComponent& plane,
+                                                 heif_channel channel,
+                                                 const std::vector<uint16_t>& component_types)
 {
-  ImageComponent plane;
-
-  // libheif channel type
-
-  plane.m_channel = channel;
-
-  // ISO 23001-17 component types
-  // For interleaved planes, several component types are added to cmpd.
-  // Each component gets a freshly-minted id and an entry in the inherited
-  // ImageDescription::m_components vector. Datatype / bit_depth / width /
-  // height fields stay at their defaults; they are filled in after alloc()
-  // succeeds, by fill_component_descriptions_after_alloc().
-
-  auto component_types = map_channel_to_component_type(channel, m_chroma);
-  for (auto type : component_types) {
+  for (uint16_t type : component_types) {
     uint32_t id = mint_component_id();
     plane.m_component_ids.push_back(id);
 
@@ -319,21 +307,19 @@ HeifPixelImage::ImageComponent HeifPixelImage::new_image_plane_for_channel(heif_
     desc.component_id = id;
     desc.channel = channel;
     desc.component_type = type;
+    desc.datatype = plane.m_datatype;
+    desc.bit_depth = plane.m_bit_depth;
+    desc.width = plane.m_width;
+    desc.height = plane.m_height;
     desc.has_data_plane = true;
     add_component_description(std::move(desc));
   }
-
-  return plane;
 }
 
 
 Error HeifPixelImage::add_plane(heif_channel channel, uint32_t width, uint32_t height, int bit_depth,
                                 const heif_security_limits* limits)
 {
-  ImageComponent plane = new_image_plane_for_channel(channel);
-
-  int num_interleaved_pixels = num_interleaved_components_per_plane(m_chroma);
-
   // for backwards compatibility, allow for 24/32 bits for RGB/RGBA interleaved chromas
 
   if (m_chroma == heif_chroma_interleaved_RGB && bit_depth == 24) {
@@ -344,49 +330,34 @@ Error HeifPixelImage::add_plane(heif_channel channel, uint32_t width, uint32_t h
     bit_depth = 8;
   }
 
+  int num_interleaved_pixels = num_interleaved_components_per_plane(m_chroma);
+
+  ImageComponent plane;
+  plane.m_channel = channel;
+
   if (auto err = plane.alloc(width, height, heif_component_datatype_unsigned_integer, bit_depth, num_interleaved_pixels, limits, m_memory_handle)) {
     return err;
   }
-  else {
-    fill_component_descriptions_after_alloc(plane, width, height);
-    m_planes.push_back(plane);
-    return Error::Ok;
-  }
+
+  register_plane_descriptions(plane, channel, map_channel_to_component_type(channel, m_chroma));
+  m_planes.push_back(std::move(plane));
+  return Error::Ok;
 }
 
 
 Error HeifPixelImage::add_channel(heif_channel channel, uint32_t width, uint32_t height, heif_component_datatype datatype, int bit_depth,
                                   const heif_security_limits* limits)
 {
-  ImageComponent plane = new_image_plane_for_channel(channel);
+  ImageComponent plane;
+  plane.m_channel = channel;
 
   if (Error err = plane.alloc(width, height, datatype, bit_depth, 1, limits, m_memory_handle)) {
     return err;
   }
-  else {
-    fill_component_descriptions_after_alloc(plane, width, height);
-    m_planes.push_back(plane);
-    return Error::Ok;
-  }
-}
 
-
-// After alloc() has succeeded on `plane`, fill in the per-id fields of the
-// existing ComponentDescription entries (which were pushed at id-mint time
-// in new_image_plane_for_channel or by add_component). id, channel and
-// component_type were already set then; datatype, bit_depth, width and
-// height become known here.
-void HeifPixelImage::fill_component_descriptions_after_alloc(const ImageComponent& plane,
-                                                             uint32_t width, uint32_t height)
-{
-  for (uint32_t cid : plane.m_component_ids) {
-    auto* desc = find_component_description(cid);
-    if (!desc) continue; // shouldn't happen; defensive
-    desc->datatype = plane.m_datatype;
-    desc->bit_depth = plane.m_bit_depth;
-    desc->width = width;
-    desc->height = height;
-  }
+  register_plane_descriptions(plane, channel, map_channel_to_component_type(channel, m_chroma));
+  m_planes.push_back(std::move(plane));
+  return Error::Ok;
 }
 
 
@@ -2155,27 +2126,18 @@ Result<uint32_t> HeifPixelImage::add_component(uint32_t width, uint32_t height,
                                                heif_component_datatype datatype, int bit_depth,
                                                const heif_security_limits* limits)
 {
-  // Auto-generate component_id by appending to the description vector.
-  uint32_t component_id = mint_component_id();
-
-  // Push a partial description now (id, channel, type known); the remaining
-  // fields will be filled in by fill_component_descriptions_after_alloc().
-  ComponentDescription desc;
-  desc.component_id = component_id;
-  desc.channel = map_uncompressed_component_to_channel(component_type);
-  desc.component_type = component_type;
-  desc.has_data_plane = true;
-  add_component_description(std::move(desc));
+  heif_channel channel = map_uncompressed_component_to_channel(component_type);
 
   ImageComponent plane;
-  plane.m_channel = map_uncompressed_component_to_channel(component_type);
-  plane.m_component_ids = std::vector{component_id};
+  plane.m_channel = channel;
+
   if (Error err = plane.alloc(width, height, datatype, bit_depth, 1, limits, m_memory_handle)) {
     return {err};
   }
 
-  fill_component_descriptions_after_alloc(plane, width, height);
-  m_planes.push_back(plane);
+  register_plane_descriptions(plane, channel, {component_type});
+  uint32_t component_id = plane.m_component_ids.front();
+  m_planes.push_back(std::move(plane));
   return component_id;
 }
 

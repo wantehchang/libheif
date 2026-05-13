@@ -369,14 +369,14 @@ private:
   ImageComponent* find_component_by_id(uint32_t component_id);
   const ImageComponent* find_component_by_id(uint32_t component_id) const;
 
-  ImageComponent new_image_plane_for_channel(heif_channel channel);
-
-  // After alloc() succeeds on `plane`, fills in datatype / component_format
-  // / bit_depth / width / height of the matching ComponentDescription
-  // entries (which were already pushed at id-mint time with id, channel,
-  // and component_type populated).
-  void fill_component_descriptions_after_alloc(const ImageComponent& plane,
-                                                uint32_t width, uint32_t height);
+  // After plane.alloc() has succeeded, mints fresh component ids, appends
+  // them to plane.m_component_ids, and pushes fully-populated
+  // ComponentDescription entries for each component_type. Must only be
+  // called once allocation has succeeded so that no descriptions are
+  // registered for a plane that failed to materialize.
+  void register_plane_descriptions(ImageComponent& plane,
+                                   heif_channel channel,
+                                   const std::vector<uint16_t>& component_types);
 
   uint32_t m_width = 0;
   uint32_t m_height = 0;
