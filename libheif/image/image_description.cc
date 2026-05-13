@@ -136,7 +136,7 @@ nclx_profile ImageDescription::get_color_profile_nclx_with_fallback() const
 }
 
 
-std::shared_ptr<Box_clli> ImageDescription::get_clli_box() const
+std::shared_ptr<Box_clli> ImageDescription::create_clli_box() const
 {
   if (!has_clli()) {
     return {};
@@ -149,7 +149,7 @@ std::shared_ptr<Box_clli> ImageDescription::get_clli_box() const
 }
 
 
-std::shared_ptr<Box_mdcv> ImageDescription::get_mdcv_box() const
+std::shared_ptr<Box_mdcv> ImageDescription::create_mdcv_box() const
 {
   if (!has_mdcv()) {
     return {};
@@ -162,7 +162,7 @@ std::shared_ptr<Box_mdcv> ImageDescription::get_mdcv_box() const
 }
 
 
-std::shared_ptr<Box_pasp> ImageDescription::get_pasp_box() const
+std::shared_ptr<Box_pasp> ImageDescription::create_pasp_box() const
 {
   if (!has_nonsquare_pixel_ratio()) {
     return {};
@@ -176,7 +176,7 @@ std::shared_ptr<Box_pasp> ImageDescription::get_pasp_box() const
 }
 
 
-std::shared_ptr<Box_colr> ImageDescription::get_colr_box_nclx() const
+std::shared_ptr<Box_colr> ImageDescription::create_colr_box_nclx() const
 {
   if (!has_nclx_color_profile()) {
     return {};
@@ -188,7 +188,7 @@ std::shared_ptr<Box_colr> ImageDescription::get_colr_box_nclx() const
 }
 
 
-std::shared_ptr<Box_colr> ImageDescription::get_colr_box_icc() const
+std::shared_ptr<Box_colr> ImageDescription::create_colr_box_icc() const
 {
   if (!has_icc_color_profile()) {
     return {};
@@ -200,7 +200,7 @@ std::shared_ptr<Box_colr> ImageDescription::get_colr_box_icc() const
 }
 
 #if HEIF_WITH_OMAF
-std::shared_ptr<Box_prfr> ImageDescription::get_prfr_box() const
+std::shared_ptr<Box_prfr> ImageDescription::create_prfr_box() const
 {
   if (!has_omaf_image_projection()) {
     return {};
@@ -232,7 +232,7 @@ std::vector<std::shared_ptr<Box>> ImageDescription::generate_property_boxes(bool
   // --- write CLLI property
 
   if (has_clli()) {
-    properties.push_back(get_clli_box());
+    properties.push_back(create_clli_box());
   }
 
 
@@ -267,13 +267,13 @@ std::vector<std::shared_ptr<Box>> ImageDescription::generate_property_boxes(bool
     // --- colr (nclx)
 
     if (has_nclx_color_profile()) {
-      properties.push_back(get_colr_box_nclx());
+      properties.push_back(create_colr_box_nclx());
     }
 
     // --- colr (icc)
 
     if (has_icc_color_profile()) {
-      properties.push_back(get_colr_box_icc());
+      properties.push_back(create_colr_box_icc());
     }
   }
 

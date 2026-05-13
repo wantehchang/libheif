@@ -801,42 +801,42 @@ Error ImageItem::transform_requested_tile_position_to_original_tile_position(uin
 void ImageItem::set_clli(const heif_content_light_level& clli)
 {
   ImageDescription::set_clli(clli);
-  add_property(get_clli_box(), false);
+  add_property(create_clli_box(), false);
 }
 
 
 void ImageItem::set_mdcv(const heif_mastering_display_colour_volume& mdcv)
 {
   ImageDescription::set_mdcv(mdcv);
-  add_property(get_mdcv_box(), false);
+  add_property(create_mdcv_box(), false);
 }
 
 
 void ImageItem::set_pixel_ratio(uint32_t h, uint32_t v)
 {
   ImageDescription::set_pixel_ratio(h, v);
-  add_property(get_pasp_box(), false);
+  add_property(create_pasp_box(), false);
 }
 
 
 void ImageItem::set_color_profile_nclx(const nclx_profile& profile)
 {
   ImageDescription::set_color_profile_nclx(profile);
-  add_property(get_colr_box_nclx(), false);
+  add_property(create_colr_box_nclx(), false);
 }
 
 
 void ImageItem::set_color_profile_icc(const std::shared_ptr<const color_profile_raw>& profile)
 {
   ImageDescription::set_color_profile_icc(profile);
-  add_property(get_colr_box_icc(), false);
+  add_property(create_colr_box_icc(), false);
 }
 
 #if HEIF_WITH_OMAF
 void ImageItem::set_omaf_image_projection(heif_omaf_image_projection projection)
 {
   ImageDescription::set_omaf_image_projection(projection);
-  add_property(get_prfr_box(), true);
+  add_property(create_prfr_box(), true);
 }
 #endif
 

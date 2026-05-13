@@ -297,7 +297,7 @@ LIBHEIF_API
 void heif_image_get_used_component_ids(const heif_image*, uint32_t* out_component_ids);
 
 LIBHEIF_API
-enum heif_channel heif_image_get_component_channel(const heif_image*, uint32_t component_idx);
+heif_channel heif_image_get_component_channel(const heif_image*, uint32_t component_idx);
 
 LIBHEIF_API
 uint32_t heif_image_get_component_width(const heif_image*, uint32_t component_idx);

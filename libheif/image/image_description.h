@@ -449,18 +449,18 @@ private:
 #endif
 
 protected:
-  std::shared_ptr<Box_clli> get_clli_box() const;
+  std::shared_ptr<Box_clli> create_clli_box() const;
 
-  std::shared_ptr<Box_mdcv> get_mdcv_box() const;
+  std::shared_ptr<Box_mdcv> create_mdcv_box() const;
 
-  std::shared_ptr<Box_pasp> get_pasp_box() const;
+  std::shared_ptr<Box_pasp> create_pasp_box() const;
 
-  std::shared_ptr<Box_colr> get_colr_box_nclx() const;
+  std::shared_ptr<Box_colr> create_colr_box_nclx() const;
 
-  std::shared_ptr<Box_colr> get_colr_box_icc() const;
+  std::shared_ptr<Box_colr> create_colr_box_icc() const;
 
 #if HEIF_WITH_OMAF
-  std::shared_ptr<Box_prfr> get_prfr_box() const;
+  std::shared_ptr<Box_prfr> create_prfr_box() const;
 #endif
 };
 
