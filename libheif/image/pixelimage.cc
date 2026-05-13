@@ -672,7 +672,7 @@ bool HeifPixelImage::has_alpha() const
 }
 
 
-uint32_t HeifPixelImage::get_width(enum heif_channel channel) const
+uint32_t HeifPixelImage::get_width(heif_channel channel) const
 {
   auto* comp = find_component_for_channel(channel);
   if (!comp) {
@@ -683,7 +683,7 @@ uint32_t HeifPixelImage::get_width(enum heif_channel channel) const
 }
 
 
-uint32_t HeifPixelImage::get_height(enum heif_channel channel) const
+uint32_t HeifPixelImage::get_height(heif_channel channel) const
 {
   auto* comp = find_component_for_channel(channel);
   if (!comp) {
@@ -694,9 +694,9 @@ uint32_t HeifPixelImage::get_height(enum heif_channel channel) const
 }
 
 
-uint32_t HeifPixelImage::get_width(uint32_t component_idx) const
+uint32_t HeifPixelImage::get_width(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_idx);
+  auto* comp = find_component_by_id(component_id);
   if (!comp) {
     return 0;
   }
@@ -705,9 +705,9 @@ uint32_t HeifPixelImage::get_width(uint32_t component_idx) const
 }
 
 
-uint32_t HeifPixelImage::get_height(uint32_t component_idx) const
+uint32_t HeifPixelImage::get_height(uint32_t component_id) const
 {
-  auto* comp = find_component_by_id(component_idx);
+  auto* comp = find_component_by_id(component_id);
   if (!comp) {
     return 0;
   }
@@ -716,7 +716,7 @@ uint32_t HeifPixelImage::get_height(uint32_t component_idx) const
 }
 
 
-uint32_t HeifPixelImage::get_primary_component() const
+uint32_t HeifPixelImage::get_primary_component_id() const
 {
   // first pass: search for a visual channel
 
@@ -763,8 +763,9 @@ uint32_t HeifPixelImage::get_primary_component() const
     return m_planes[0].m_component_ids[0];
   }
 
-  return heif_unci_component_type_UNDEFINED;
+  return 0; // invalid component ID
 }
+
 #if 0
 uint32_t HeifPixelImage::get_primary_width() const
 {
@@ -2373,13 +2374,13 @@ std::vector<uint32_t> HeifPixelImage::get_used_planar_component_ids() const
 }
 
 
-uint8_t* HeifPixelImage::get_component(uint32_t component_idx, size_t* out_stride)
+uint8_t* HeifPixelImage::get_component(uint32_t component_id, size_t* out_stride)
 {
-  return get_component_data<uint8_t>(component_idx, out_stride);
+  return get_component_data<uint8_t>(component_id, out_stride);
 }
 
 
-const uint8_t* HeifPixelImage::get_component(uint32_t component_idx, size_t* out_stride) const
+const uint8_t* HeifPixelImage::get_component(uint32_t component_id, size_t* out_stride) const
 {
-  return get_component_data<uint8_t>(component_idx, out_stride);
+  return get_component_data<uint8_t>(component_id, out_stride);
 }

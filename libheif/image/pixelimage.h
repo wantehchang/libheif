@@ -31,7 +31,7 @@
 #include <utility>
 #include <cassert>
 
-constexpr uint16_t heif_unci_component_type_UNDEFINED = 0xFFFF;
+constexpr uint16_t heif_unci_component_type_UNDEFINED = 0x7FFF;
 
 
 heif_chroma chroma_from_subsampling(int h, int v);
@@ -89,9 +89,9 @@ public:
 
   uint32_t get_height(heif_channel channel) const;
 
-  uint32_t get_width(uint32_t component_idx) const;
+  uint32_t get_width(uint32_t component_id) const;
 
-  uint32_t get_height(uint32_t component_idx) const;
+  uint32_t get_height(uint32_t component_id) const;
 
   bool has_odd_width() const { return !!(m_width & 1); }
 
@@ -103,7 +103,7 @@ public:
   // TODO: currently only defined for colorspace RGB, YCbCr, Monochrome
   //uint32_t get_primary_height() const;
 
-  uint32_t get_primary_component() const;
+  uint32_t get_primary_component_id() const;
 
   heif_chroma get_chroma_format() const { return m_chroma; }
 
@@ -170,7 +170,7 @@ public:
 
   // Look up the component type from the cmpd table. Works for any cmpd index,
   // even those that have no image plane (e.g. bayer reference components).
-  uint16_t get_component_type(uint32_t component_idx) const;
+  uint16_t get_component_type(uint32_t component_id) const;
 
   //std::vector<uint16_t> get_cmpd_component_types() const { return m_cmpd_component_types; }
 
@@ -228,13 +228,13 @@ public:
 
   std::vector<uint32_t> get_used_planar_component_ids() const;
 
-  uint8_t* get_component(uint32_t component_idx, size_t* out_stride);
-  const uint8_t* get_component(uint32_t component_idx, size_t* out_stride) const;
+  uint8_t* get_component(uint32_t component_id, size_t* out_stride);
+  const uint8_t* get_component(uint32_t component_id, size_t* out_stride) const;
 
   template <typename T>
-  T* get_component_data(uint32_t component_idx, size_t* out_stride)
+  T* get_component_data(uint32_t component_id, size_t* out_stride)
   {
-    auto* comp = find_component_by_id(component_idx);
+    auto* comp = find_component_by_id(component_id);
     if (!comp) {
       if (out_stride) *out_stride = 0;
       return nullptr;
@@ -247,9 +247,9 @@ public:
   }
 
   template <typename T>
-  const T* get_component_data(uint32_t component_idx, size_t* out_stride) const
+  const T* get_component_data(uint32_t component_id, size_t* out_stride) const
   {
-    return const_cast<HeifPixelImage*>(this)->get_component_data<T>(component_idx, out_stride);
+    return const_cast<HeifPixelImage*>(this)->get_component_data<T>(component_id, out_stride);
   }
 
   Error copy_new_plane_from(const std::shared_ptr<const HeifPixelImage>& src_image,
