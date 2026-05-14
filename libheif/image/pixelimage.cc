@@ -1617,7 +1617,23 @@ uint32_t negate_negative_int32(int32_t x)
 
 Error HeifPixelImage::overlay(std::shared_ptr<HeifPixelImage>& overlay, int32_t dx, int32_t dy)
 {
-  std::set<enum heif_channel> channels = overlay->get_channel_set();
+  // This function places the overlay using the full-resolution (dx,dy) offset
+  // directly as a per-plane offset. That is only correct when every plane has
+  // the full logical image size, i.e. for non-subsampled chroma formats.
+  // Subsampled chroma (4:2:0 / 4:2:2) would be mis-placed and could even write
+  // outside of the smaller Cb/Cr planes.
+  auto has_subsampled_chroma = [](heif_chroma chroma) {
+    return chroma == heif_chroma_420 || chroma == heif_chroma_422;
+  };
+
+  if (has_subsampled_chroma(get_chroma_format()) ||
+      has_subsampled_chroma(overlay->get_chroma_format())) {
+    return {heif_error_Unsupported_feature,
+            heif_suberror_Unspecified,
+            "Overlaying images with subsampled chroma is not supported"};
+  }
+
+  std::set<heif_channel> channels = overlay->get_channel_set();
 
   bool has_alpha = overlay->has_channel(heif_channel_Alpha);
   //bool has_alpha_me = has_channel(heif_channel_Alpha);
@@ -1648,6 +1664,9 @@ Error HeifPixelImage::overlay(std::shared_ptr<HeifPixelImage>& overlay, int32_t 
 
 
     // --- check whether overlay image overlaps with current image
+    // Note: all components share the logical image size, so if the overlay
+    // image lies completely outside for one component it does so for all of
+    // them -> we can return instead of just skipping the current component.
 
     if (dx > 0 && static_cast<uint32_t>(dx) >= out_w) {
       // the overlay image is completely outside the right border -> skip overlaying
