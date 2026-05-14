@@ -697,87 +697,41 @@ uint32_t HeifPixelImage::get_height(uint32_t component_id) const
 }
 
 
-uint32_t HeifPixelImage::get_primary_component_id() const
+bool HeifPixelImage::primary_planes_have_size(uint32_t width, uint32_t height) const
 {
-  // first pass: search for a visual channel
+  auto channel_has_size = [&](heif_channel channel) {
+    // get_width()/get_height() return 0 for an absent channel -> mismatch.
+    return get_width(channel) == width && get_height(channel) == height;
+  };
 
-  for (uint32_t idx=0; idx<m_storage.size(); idx++) {
-    switch (m_storage[idx].m_channel) {
-      case heif_channel_interleaved:
-      case heif_channel_Y:
-      case heif_channel_R:
-      case heif_channel_G:
-      case heif_channel_B:
-      case heif_channel_filter_array:
-        return m_storage[idx].m_component_ids[0];
-      default:
-        ; // NOP
-    }
-  }
+  switch (m_colorspace) {
+    case heif_colorspace_monochrome:
+    case heif_colorspace_YCbCr:
+      // Cb/Cr may be legitimately subsampled, so only the Y plane is checked.
+      return channel_has_size(heif_channel_Y);
 
-  // second pass: if we have a cmpd table, use component types
+    case heif_colorspace_RGB:
+      if (m_chroma == heif_chroma_444) {
+        // planar RGB: all three planes must be present and have the full size
+        return channel_has_size(heif_channel_R) &&
+               channel_has_size(heif_channel_G) &&
+               channel_has_size(heif_channel_B);
+      }
+      else {
+        return channel_has_size(heif_channel_interleaved);
+      }
 
-  for (const auto& comp : get_component_descriptions()) {
-    switch (comp.component_type) {
-      case heif_unci_component_type_Y:
-      case heif_unci_component_type_monochrome:
-      case heif_unci_component_type_red:
-      case heif_unci_component_type_green:
-      case heif_unci_component_type_blue:
-      case heif_unci_component_type_cyan:
-      case heif_unci_component_type_magenta:
-      case heif_unci_component_type_yellow:
-      case heif_unci_component_type_key_black:
-      case heif_unci_component_type_filter_array:
-      case heif_unci_component_type_palette:
-        return comp.component_id;
+    case heif_colorspace_filter_array:
+      return channel_has_size(heif_channel_filter_array);
 
-      default:
-        ; // NOP
-    }
-  }
-
-  // third pass: allow anything
-
-  if (!m_storage.empty()) {
-    return m_storage[0].m_component_ids[0];
-  }
-
-  return 0; // invalid component ID
-}
-
-#if 0
-uint32_t HeifPixelImage::get_primary_width() const
-{
-  if (m_colorspace == heif_colorspace_RGB) {
-    if (m_chroma == heif_chroma_444) {
-      return get_width(heif_channel_G);
-    }
-    else {
-      return get_width(heif_channel_interleaved);
-    }
-  }
-  else {
-    return get_width(heif_channel_Y);
+    case heif_colorspace_undefined:
+    default:
+      // Multi-component / custom-colorspace images (CMYK, bayer configs, ...)
+      // cannot be checked generically; codec-specific overrides handle these.
+      return true;
   }
 }
 
-
-uint32_t HeifPixelImage::get_primary_height() const
-{
-  if (m_colorspace == heif_colorspace_RGB) {
-    if (m_chroma == heif_chroma_444) {
-      return get_height(heif_channel_G);
-    }
-    else {
-      return get_height(heif_channel_interleaved);
-    }
-  }
-  else {
-    return get_height(heif_channel_Y);
-  }
-}
-#endif
 
 std::set<heif_channel> HeifPixelImage::get_channel_set() const
 {

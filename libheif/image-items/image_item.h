@@ -360,6 +360,16 @@ public:
                                                                           uint32_t tile_y0,
                                                                           std::set<heif_item_id> processed_ids) const;
 
+  // Validate the just-decoded pixel image against the size signaled for this item.
+  // Called by decode_image() right after decode_compressed_image(), BEFORE transforms,
+  // so the reference is the pre-transform coded size (ispe), or the signaled tile size
+  // for a tile decode -- NOT get_width()/get_height() (which are post-transform).
+  // Default impl handles plain coded codecs (HEVC/AVC/VVC/AVIF/JPEG). Subclasses
+  // override where the size source or component layout differs.
+  virtual Error check_decoded_image_size(const HeifPixelImage& img,
+                                         bool decode_tile_only,
+                                         uint32_t tile_x0, uint32_t tile_y0) const;
+
   Result<std::vector<std::shared_ptr<Box>>> get_properties() const;
 
   bool has_essential_property_other_than(const std::set<uint32_t>&) const;

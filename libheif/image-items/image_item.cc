@@ -893,6 +893,12 @@ Result<std::shared_ptr<HeifPixelImage>> ImageItem::decode_image(const heif_decod
     return Error(heif_error_Decoder_plugin_error, heif_suberror_Unspecified);
   }
 
+  // --- validate the decoded image against the signaled size (pre-transform)
+
+  if (Error err = check_decoded_image_size(*img, decode_tile_only, tile_x0, tile_y0)) {
+    return err;
+  }
+
   std::shared_ptr<HeifFile> file = m_heif_context->get_heif_file();
 
 
@@ -1138,6 +1144,38 @@ Result<std::shared_ptr<HeifPixelImage>> ImageItem::decode_compressed_image(const
 
   return decoder->decode_single_frame_from_compressed_data(options,
                                                            get_context()->get_security_limits());
+}
+
+
+Error ImageItem::check_decoded_image_size(const HeifPixelImage& img,
+                                          bool decode_tile_only,
+                                          uint32_t tile_x0, uint32_t tile_y0) const
+{
+  uint32_t expected_w, expected_h;
+
+  if (decode_tile_only) {
+    // The decoded buffer is a single tile, sized to the signaled tile size.
+    get_tile_size(expected_w, expected_h);
+  }
+  else {
+    // Pre-transform coded size from the 'ispe' property.
+    expected_w = get_ispe_width();
+    expected_h = get_ispe_height();
+  }
+
+  // No 'ispe' / no tile size known -> cannot validate (a missing-'ispe' warning is
+  // already emitted upstream). Skip rather than reject.
+  if (expected_w == 0 || expected_h == 0) {
+    return Error::Ok;
+  }
+
+  if (!img.primary_planes_have_size(expected_w, expected_h)) {
+    return Error{heif_error_Invalid_input,
+                 heif_suberror_Invalid_image_size,
+                 "Decoded image does not have the size signaled in the file."};
+  }
+
+  return Error::Ok;
 }
 
 

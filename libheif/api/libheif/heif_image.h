@@ -209,9 +209,10 @@ LIBHEIF_API
 int heif_image_get_height(const heif_image* img, heif_channel channel);
 
 /**
- * Get the width of the main channel.
+ * Get the logical width of the image.
  *
- * This is the Y channel in YCbCr or mono, or any in RGB.
+ * For well-formed images this equals the size of the main channel (the Y channel
+ * in YCbCr or mono, or the RGB channels). Subsampled chroma channels may be smaller.
  *
  * @param img the image to get the primary width for
  * @return the width in pixels
@@ -220,9 +221,10 @@ LIBHEIF_API
 int heif_image_get_primary_width(const heif_image* img);
 
 /**
- * Get the height of the main channel.
+ * Get the logical height of the image.
  *
- * This is the Y channel in YCbCr or mono, or any in RGB.
+ * For well-formed images this equals the size of the main channel (the Y channel
+ * in YCbCr or mono, or the RGB channels). Subsampled chroma channels may be smaller.
  *
  * @param img the image to get the primary height for
  * @return the height in pixels

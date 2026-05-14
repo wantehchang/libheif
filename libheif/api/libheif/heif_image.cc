@@ -68,15 +68,13 @@ int heif_image_get_height(const heif_image* img, heif_channel channel)
 
 int heif_image_get_primary_width(const heif_image* img)
 {
-  uint32_t primary_component = img->image->get_primary_component_id();
-  return uint32_to_int(img->image->get_width(primary_component));
+  return uint32_to_int(img->image->get_width());
 }
 
 
 int heif_image_get_primary_height(const heif_image* img)
 {
-  uint32_t primary_component = img->image->get_primary_component_id();
-  return uint32_to_int(img->image->get_height(primary_component));
+  return uint32_to_int(img->image->get_height());
 }
 
 

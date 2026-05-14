@@ -228,6 +228,12 @@ Result<std::shared_ptr<HeifPixelImage>> ImageItem_Grid::decode_compressed_image(
   }
 }
 
+// Note: ImageItem_Grid does not override check_decoded_image_size(). The composed
+// grid image is built to the grid-header size by construction (decode_and_paste_tile_image
+// creates the canvas at get_grid_spec() size), so checking it against that same size
+// would be tautological. The base default checks the composed image against 'ispe',
+// which is the meaningful cross-check (grid-header size vs signaled size).
+
 #if ENABLE_PARALLEL_TILE_DECODING
 static void wait_for_jobs(std::deque<std::future<Error> >* jobs) {
   if (jobs->empty()) {

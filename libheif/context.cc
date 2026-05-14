@@ -1423,21 +1423,8 @@ Result<std::shared_ptr<HeifPixelImage>> HeifContext::decode_image(heif_item_id I
   // without a populated description list (grid/overlay/iden).
   img->apply_descriptions_from(*imgitem);
 
-
-  // --- check that the decoded image has the claimed size (only check if transformations are applied)
-
-  if (!options.ignore_transformations && !decode_only_tile) {
-    uint32_t primary_component = img->get_primary_component_id();
-
-    if (imgitem->get_width() != img->get_width(primary_component) ||
-        imgitem->get_height() != img->get_height(primary_component)) {
-      return Error{
-        heif_error_Invalid_input,
-        heif_suberror_Invalid_image_size,
-        "Decoded image does not have the claimed size."
-      };
-    }
-  }
+  // Note: the decoded image is validated against the signaled size inside
+  // ImageItem::decode_image() (via the per-item check_decoded_image_size()).
 
   // --- convert to output chroma format
 

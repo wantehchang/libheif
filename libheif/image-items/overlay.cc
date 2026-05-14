@@ -279,6 +279,12 @@ Result<std::shared_ptr<HeifPixelImage>> ImageItem_Overlay::decode_compressed_ima
   return decode_overlay_image(options, processed_ids);
 }
 
+// Note: ImageItem_Overlay does not override check_decoded_image_size(). The overlay
+// canvas is built to the overlay-header size by construction (decode_overlay_image
+// creates it at m_overlay_spec canvas size), so checking it against that same size
+// would be tautological. The base default checks the canvas against 'ispe', which is
+// the meaningful cross-check (overlay-header size vs signaled size).
+
 
 Result<std::shared_ptr<HeifPixelImage>> ImageItem_Overlay::decode_overlay_image(const heif_decoding_options& options,
                                                                                 std::set<heif_item_id> processed_ids) const

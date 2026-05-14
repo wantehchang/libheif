@@ -98,13 +98,14 @@ public:
 
   bool has_odd_height() const { return !!(m_height & 1); }
 
-  // TODO: currently only defined for colorspace RGB, YCbCr, Monochrome
-  //uint32_t get_primary_width() const;
-
-  // TODO: currently only defined for colorspace RGB, YCbCr, Monochrome
-  //uint32_t get_primary_height() const;
-
-  uint32_t get_primary_component_id() const;
+  // Returns true if the "primary" pixel plane(s) have exactly the given size.
+  // Which plane is "primary" depends on the colorspace:
+  //   YCbCr / monochrome  -> the Y plane (Cb/Cr may be legitimately subsampled)
+  //   RGB planar          -> R, G and B planes must all be present and all equal
+  //   RGB interleaved      -> the interleaved plane
+  //   filter_array         -> the filter_array plane
+  //   undefined / custom   -> not checked here; returns true
+  bool primary_planes_have_size(uint32_t width, uint32_t height) const;
 
   heif_chroma get_chroma_format() const { return m_chroma; }
 
