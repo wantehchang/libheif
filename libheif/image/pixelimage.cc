@@ -1813,10 +1813,10 @@ Error HeifPixelImage::scale_nearest_neighbor(std::shared_ptr<HeifPixelImage>& ou
       auto* out_data = out_img->get_channel_memory(heif_channel_interleaved, &out_stride);
 
       for (uint32_t y = 0; y < out_h; y++) {
-        uint32_t iy = y * m_height / height;
+        uint32_t iy = static_cast<uint32_t>(static_cast<uint64_t>(y) * m_height / height);
 
         for (uint32_t x = 0; x < out_w; x++) {
-          uint32_t ix = x * m_width / width;
+          uint32_t ix = static_cast<uint32_t>(static_cast<uint64_t>(x) * m_width / width);
 
           for (int c = 0; c < nInterleaved; c++) {
             out_data[y * out_stride + x * nInterleaved + c] = in_data[iy * in_stride + ix * nInterleaved + c];
@@ -1838,10 +1838,10 @@ Error HeifPixelImage::scale_nearest_neighbor(std::shared_ptr<HeifPixelImage>& ou
       out_stride /= 2;
 
       for (uint32_t y = 0; y < out_h; y++) {
-        uint32_t iy = y * m_height / height;
+        uint32_t iy = static_cast<uint32_t>(static_cast<uint64_t>(y) * m_height / height);
 
         for (uint32_t x = 0; x < out_w; x++) {
-          uint32_t ix = x * m_width / width;
+          uint32_t ix = static_cast<uint32_t>(static_cast<uint64_t>(x) * m_width / width);
 
           for (int c = 0; c < nInterleaved; c++) {
             out_data[y * out_stride + x * nInterleaved + c] = in_data[iy * in_stride + ix * nInterleaved + c];
@@ -1873,10 +1873,10 @@ Error HeifPixelImage::scale_nearest_neighbor(std::shared_ptr<HeifPixelImage>& ou
         auto* out_data = out_img->get_channel_memory(channel, &out_stride);
 
         for (uint32_t y = 0; y < out_h; y++) {
-          uint32_t iy = y * m_height / height;
+          uint32_t iy = static_cast<uint32_t>(static_cast<uint64_t>(y) * m_height / height);
 
           for (uint32_t x = 0; x < out_w; x++) {
-            uint32_t ix = x * m_width / width;
+            uint32_t ix = static_cast<uint32_t>(static_cast<uint64_t>(x) * m_width / width);
 
             out_data[y * out_stride + x] = in_data[iy * in_stride + ix];
           }
@@ -1895,10 +1895,10 @@ Error HeifPixelImage::scale_nearest_neighbor(std::shared_ptr<HeifPixelImage>& ou
         out_stride /= 2;
 
         for (uint32_t y = 0; y < out_h; y++) {
-          uint32_t iy = y * m_height / height;
+          uint32_t iy = static_cast<uint32_t>(static_cast<uint64_t>(y) * m_height / height);
 
           for (uint32_t x = 0; x < out_w; x++) {
-            uint32_t ix = x * m_width / width;
+            uint32_t ix = static_cast<uint32_t>(static_cast<uint64_t>(x) * m_width / width);
 
             out_data[y * out_stride + x] = in_data[iy * in_stride + ix];
           }
