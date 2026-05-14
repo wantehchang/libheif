@@ -536,6 +536,11 @@ Error HeifPixelImage::extend_padding_to_size(uint32_t width, uint32_t height, bo
                component.m_width * bytes_per_pixel);
       }
 
+      // --- release the old plane before replacing it with the reallocated plane
+
+      m_memory_handle.free(component.allocation_size);
+      delete[] component.allocated_mem;
+
       component = newPlane;
     }
 
@@ -622,8 +627,9 @@ Error HeifPixelImage::extend_to_size_with_zero(uint32_t width, uint32_t height, 
                component.m_width * bytes_per_pixel);
       }
 
-      // --- replace existing image plane with reallocated plane
+      // --- release the old plane before replacing it with the reallocated plane
 
+      m_memory_handle.free(component.allocation_size);
       delete[] component.allocated_mem;
 
       component = newPlane;
