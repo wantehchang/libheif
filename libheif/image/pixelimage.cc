@@ -343,7 +343,8 @@ void HeifPixelImage::register_plane_descriptions(ImageComponent& plane,
 
 
 Error HeifPixelImage::add_plane(heif_channel channel, uint32_t width, uint32_t height, int bit_depth,
-                                const heif_security_limits* limits)
+                                const heif_security_limits* limits,
+                                heif_component_datatype datatype)
 {
   // for backwards compatibility, allow for 24/32 bits for RGB/RGBA interleaved chromas
 
@@ -360,23 +361,7 @@ Error HeifPixelImage::add_plane(heif_channel channel, uint32_t width, uint32_t h
   ImageComponent plane;
   plane.m_channel = channel;
 
-  if (auto err = plane.alloc(width, height, heif_component_datatype_unsigned_integer, bit_depth, num_interleaved_pixels, limits, m_memory_handle)) {
-    return err;
-  }
-
-  register_plane_descriptions(plane, map_channel_to_component_type(channel, m_chroma));
-  m_planes.push_back(std::move(plane));
-  return Error::Ok;
-}
-
-
-Error HeifPixelImage::add_channel(heif_channel channel, uint32_t width, uint32_t height, heif_component_datatype datatype, int bit_depth,
-                                  const heif_security_limits* limits)
-{
-  ImageComponent plane;
-  plane.m_channel = channel;
-
-  if (Error err = plane.alloc(width, height, datatype, bit_depth, 1, limits, m_memory_handle)) {
+  if (auto err = plane.alloc(width, height, datatype, bit_depth, num_interleaved_pixels, limits, m_memory_handle)) {
     return err;
   }
 
@@ -904,9 +889,9 @@ Error HeifPixelImage::copy_new_plane_from(const std::shared_ptr<const HeifPixelI
   assert(src_plane_ptr != nullptr);
   const auto& src_plane = *src_plane_ptr;
 
-  auto err = add_channel(dst_channel, width, height,
-                         src_plane.m_datatype,
-                         src_image->get_bits_per_pixel(src_channel), limits);
+  auto err = add_plane(dst_channel, width, height,
+                       src_image->get_bits_per_pixel(src_channel), limits,
+                       src_plane.m_datatype);
   if (err) {
     return err;
   }

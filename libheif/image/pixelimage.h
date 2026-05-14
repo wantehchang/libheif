@@ -71,10 +71,9 @@ public:
   Error create_clone_image_at_new_size(const std::shared_ptr<const HeifPixelImage>& source, uint32_t w, uint32_t h,
                                        const heif_security_limits* limits);
 
-  Error add_plane(heif_channel channel, uint32_t width, uint32_t height, int bit_depth, const heif_security_limits* limits);
-
-  Error add_channel(heif_channel channel, uint32_t width, uint32_t height, heif_component_datatype datatype, int bit_depth,
-                    const heif_security_limits* limits);
+  Error add_plane(heif_channel channel, uint32_t width, uint32_t height, int bit_depth,
+                  const heif_security_limits* limits,
+                  heif_component_datatype datatype = heif_component_datatype_unsigned_integer);
 
   bool has_channel(heif_channel channel) const;
 
