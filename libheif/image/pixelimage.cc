@@ -1069,6 +1069,13 @@ Error HeifPixelImage::copy_image_to(const std::shared_ptr<const HeifPixelImage>&
 
   for (heif_channel channel : channels) {
 
+    // The source channel set may contain channels that this image does not
+    // have. get_channel_memory() would return nullptr for those, so skip them
+    // instead of dereferencing a null pointer.
+    if (!has_channel(channel)) {
+      continue;
+    }
+
     size_t tile_stride;
     const uint8_t* tile_data = source->get_channel_memory(channel, &tile_stride);
 
