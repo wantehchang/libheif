@@ -1960,6 +1960,15 @@ Result<std::shared_ptr<HeifPixelImage>>
 HeifPixelImage::extract_image_area(uint32_t x0, uint32_t y0, uint32_t w, uint32_t h,
                                    const heif_security_limits* limits) const
 {
+  // The top-left corner must lie inside the image. Without this check,
+  // get_width() - x0 (and the per-channel offsets derived from x0/y0) would
+  // underflow and the copy loop below would read far outside the source planes.
+  if (x0 >= get_width() || y0 >= get_height()) {
+    return Error{heif_error_Usage_error,
+                 heif_suberror_Invalid_parameter_value,
+                 "extract_image_area: top-left position is outside the image"};
+  }
+
   uint32_t minW = std::min(w, get_width() - x0);
   uint32_t minH = std::min(h, get_height() - y0);
 
