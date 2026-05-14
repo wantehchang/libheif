@@ -855,8 +855,8 @@ Error HeifPixelImage::copy_new_channel_from(const std::shared_ptr<const HeifPixe
   const uint8_t* src;
   size_t src_stride = 0;
 
-  src = src_image->get_channel(src_channel, &src_stride);
-  dst = get_channel(dst_channel, &dst_stride);
+  src = src_image->get_channel_memory(src_channel, &src_stride);
+  dst = get_channel_memory(dst_channel, &dst_stride);
 
   uint32_t bpl = width * (src_image->get_storage_bits_per_pixel(src_channel) / 8);
 
@@ -884,8 +884,8 @@ Error HeifPixelImage::extract_alpha_from_RGBA(const std::shared_ptr<const HeifPi
   const uint8_t* src;
   size_t src_stride = 0;
 
-  src = src_image->get_channel(heif_channel_interleaved, &src_stride);
-  dst = get_channel(heif_channel_Y, &dst_stride);
+  src = src_image->get_channel_memory(heif_channel_interleaved, &src_stride);
+  dst = get_channel_memory(heif_channel_Y, &dst_stride);
 
   //int bpl = width * (src_image->get_storage_bits_per_pixel(src_channel) / 8);
 
@@ -923,7 +923,7 @@ void HeifPixelImage::fill_channel(heif_channel dst_channel, uint16_t value)
   if (bpp <= 8) {
     uint8_t* dst;
     size_t dst_stride = 0;
-    dst = get_channel(dst_channel, &dst_stride);
+    dst = get_channel_memory(dst_channel, &dst_stride);
     uint32_t width_bytes = width * num_interleaved;
 
     for (uint32_t y = 0; y < height; y++) {
@@ -933,7 +933,7 @@ void HeifPixelImage::fill_channel(heif_channel dst_channel, uint16_t value)
   else {
     uint16_t* dst;
     size_t dst_stride = 0;
-    dst = get_channel<uint16_t>(dst_channel, &dst_stride);
+    dst = get_channel_memory<uint16_t>(dst_channel, &dst_stride);
     dst_stride /= sizeof(uint16_t);
 
     for (uint32_t y = 0; y < height; y++) {
@@ -1039,10 +1039,10 @@ Error HeifPixelImage::copy_image_to(const std::shared_ptr<const HeifPixelImage>&
   for (heif_channel channel : channels) {
 
     size_t tile_stride;
-    const uint8_t* tile_data = source->get_channel(channel, &tile_stride);
+    const uint8_t* tile_data = source->get_channel_memory(channel, &tile_stride);
 
     size_t out_stride;
-    uint8_t* out_data = get_channel(channel, &out_stride);
+    uint8_t* out_data = get_channel_memory(channel, &out_stride);
 
     if (w <= x0 || h <= y0) {
       return {heif_error_Invalid_input,
@@ -1104,7 +1104,7 @@ void HeifPixelImage::zero_region(uint32_t x0, uint32_t y0, uint32_t w, uint32_t 
     ch = std::min(ch, plane_h - cy0);
 
     size_t stride = 0;
-    uint8_t* data = get_channel(channel, &stride);
+    uint8_t* data = get_channel_memory(channel, &stride);
     uint32_t bytes_per_pixel = get_storage_bits_per_pixel(channel) / 8;
     uint32_t width_bytes = cw * bytes_per_pixel;
 
@@ -1570,7 +1570,7 @@ Error HeifPixelImage::overlay(std::shared_ptr<HeifPixelImage>& overlay, int32_t 
 
   size_t alpha_stride = 0;
   uint8_t* alpha_p;
-  alpha_p = overlay->get_channel(heif_channel_Alpha, &alpha_stride);
+  alpha_p = overlay->get_channel_memory(heif_channel_Alpha, &alpha_stride);
 
   for (heif_channel channel : channels) {
     if (!has_channel(channel)) {
@@ -1583,8 +1583,8 @@ Error HeifPixelImage::overlay(std::shared_ptr<HeifPixelImage>& overlay, int32_t 
     size_t out_stride = 0;
     uint8_t* out_p;
 
-    in_p = overlay->get_channel(channel, &in_stride);
-    out_p = get_channel(channel, &out_stride);
+    in_p = overlay->get_channel_memory(channel, &in_stride);
+    out_p = get_channel_memory(channel, &out_stride);
 
     uint32_t in_w = overlay->get_width(channel);
     uint32_t in_h = overlay->get_height(channel);
@@ -1779,7 +1779,7 @@ Error HeifPixelImage::scale_nearest_neighbor(std::shared_ptr<HeifPixelImage>& ou
       const auto* in_data = static_cast<const uint8_t*>(plane.mem);
 
       size_t out_stride = 0;
-      auto* out_data = out_img->get_channel(heif_channel_interleaved, &out_stride);
+      auto* out_data = out_img->get_channel_memory(heif_channel_interleaved, &out_stride);
 
       for (uint32_t y = 0; y < out_h; y++) {
         uint32_t iy = y * m_height / height;
@@ -1801,7 +1801,7 @@ Error HeifPixelImage::scale_nearest_neighbor(std::shared_ptr<HeifPixelImage>& ou
       const uint16_t* in_data = static_cast<const uint16_t*>(plane.mem);
 
       size_t out_stride = 0;
-      uint16_t* out_data = out_img->get_channel<uint16_t>(heif_channel_interleaved, &out_stride);
+      uint16_t* out_data = out_img->get_channel_memory<uint16_t>(heif_channel_interleaved, &out_stride);
 
       in_stride /= 2;
       out_stride /= 2;
@@ -1839,7 +1839,7 @@ Error HeifPixelImage::scale_nearest_neighbor(std::shared_ptr<HeifPixelImage>& ou
         const auto* in_data = static_cast<const uint8_t*>(plane.mem);
 
         size_t out_stride = 0;
-        auto* out_data = out_img->get_channel(channel, &out_stride);
+        auto* out_data = out_img->get_channel_memory(channel, &out_stride);
 
         for (uint32_t y = 0; y < out_h; y++) {
           uint32_t iy = y * m_height / height;
@@ -1858,7 +1858,7 @@ Error HeifPixelImage::scale_nearest_neighbor(std::shared_ptr<HeifPixelImage>& ou
         const uint16_t* in_data = static_cast<const uint16_t*>(plane.mem);
 
         size_t out_stride = 0;
-        uint16_t* out_data = out_img->get_channel<uint16_t>(channel, &out_stride);
+        uint16_t* out_data = out_img->get_channel_memory<uint16_t>(channel, &out_stride);
 
         in_stride /= 2;
         out_stride /= 2;
@@ -1885,7 +1885,7 @@ void HeifPixelImage::debug_dump() const
   auto channels = get_channel_set();
   for (auto c : channels) {
     size_t stride = 0;
-    const uint8_t* p = get_channel(c, &stride);
+    const uint8_t* p = get_channel_memory(c, &stride);
 
     for (int y = 0; y < 8; y++) {
       for (int x = 0; x < 8; x++) {
@@ -1950,10 +1950,10 @@ HeifPixelImage::extract_image_area(uint32_t x0, uint32_t y0, uint32_t w, uint32_
   for (heif_channel channel : channels) {
 
     size_t src_stride;
-    const uint8_t* src_data = get_channel(channel, &src_stride);
+    const uint8_t* src_data = get_channel_memory(channel, &src_stride);
 
     size_t out_stride;
-    uint8_t* out_data = areaImg->get_channel(channel, &out_stride);
+    uint8_t* out_data = areaImg->get_channel_memory(channel, &out_stride);
 
     if (areaImg->get_bits_per_pixel(channel) != get_bits_per_pixel(channel)) {
       return Error{

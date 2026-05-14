@@ -93,7 +93,7 @@ Error unc_decoder_block_pixel_interleave::decode_tile(const std::vector<uint8_t>
     heif_channel channel;
     comp[i].use = map_uncompressed_component_to_channel(m_cmpd, c, &channel);
     if (comp[i].use) {
-      comp[i].dst_plane = img->get_channel(channel, &comp[i].dst_plane_stride);
+      comp[i].dst_plane = img->get_channel_memory(channel, &comp[i].dst_plane_stride);
     }
     else {
       comp[i].dst_plane = nullptr;

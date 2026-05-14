@@ -149,12 +149,12 @@ Op_YCbCr444_to_YCbCr420_average<Pixel>::convert_colorspace(const std::shared_ptr
   Pixel* out_y, * out_cb, * out_cr;
   size_t out_y_stride = 0, out_cb_stride = 0, out_cr_stride = 0, out_a_stride = 0;
 
-  in_y = (const Pixel*) input->get_channel(heif_channel_Y, &in_y_stride);
-  in_cb = (const Pixel*) input->get_channel(heif_channel_Cb, &in_cb_stride);
-  in_cr = (const Pixel*) input->get_channel(heif_channel_Cr, &in_cr_stride);
-  out_y = (Pixel*) outimg->get_channel(heif_channel_Y, &out_y_stride);
-  out_cb = (Pixel*) outimg->get_channel(heif_channel_Cb, &out_cb_stride);
-  out_cr = (Pixel*) outimg->get_channel(heif_channel_Cr, &out_cr_stride);
+  in_y = (const Pixel*) input->get_channel_memory(heif_channel_Y, &in_y_stride);
+  in_cb = (const Pixel*) input->get_channel_memory(heif_channel_Cb, &in_cb_stride);
+  in_cr = (const Pixel*) input->get_channel_memory(heif_channel_Cr, &in_cr_stride);
+  out_y = (Pixel*) outimg->get_channel_memory(heif_channel_Y, &out_y_stride);
+  out_cb = (Pixel*) outimg->get_channel_memory(heif_channel_Cb, &out_cb_stride);
+  out_cr = (Pixel*) outimg->get_channel_memory(heif_channel_Cr, &out_cr_stride);
 
   if (hdr) {
     in_y_stride /= 2;
@@ -171,8 +171,8 @@ Op_YCbCr444_to_YCbCr420_average<Pixel>::convert_colorspace(const std::shared_ptr
   uint8_t* out_a;
 
   if (has_alpha) {
-    in_a = input->get_channel(heif_channel_Alpha, &in_a_stride);
-    out_a = outimg->get_channel(heif_channel_Alpha, &out_a_stride);
+    in_a = input->get_channel_memory(heif_channel_Alpha, &in_a_stride);
+    out_a = outimg->get_channel_memory(heif_channel_Alpha, &out_a_stride);
   }
   else {
     in_a = nullptr;
@@ -373,19 +373,19 @@ Op_YCbCr444_to_YCbCr422_average<Pixel>::convert_colorspace(const std::shared_ptr
   Pixel* out_y, * out_cb, * out_cr;
   size_t out_y_stride = 0, out_cb_stride = 0, out_cr_stride = 0, out_a_stride = 0;
 
-  in_y = (const Pixel*) input->get_channel(heif_channel_Y, &in_y_stride);
-  in_cb = (const Pixel*) input->get_channel(heif_channel_Cb, &in_cb_stride);
-  in_cr = (const Pixel*) input->get_channel(heif_channel_Cr, &in_cr_stride);
-  out_y = (Pixel*) outimg->get_channel(heif_channel_Y, &out_y_stride);
-  out_cb = (Pixel*) outimg->get_channel(heif_channel_Cb, &out_cb_stride);
-  out_cr = (Pixel*) outimg->get_channel(heif_channel_Cr, &out_cr_stride);
+  in_y = (const Pixel*) input->get_channel_memory(heif_channel_Y, &in_y_stride);
+  in_cb = (const Pixel*) input->get_channel_memory(heif_channel_Cb, &in_cb_stride);
+  in_cr = (const Pixel*) input->get_channel_memory(heif_channel_Cr, &in_cr_stride);
+  out_y = (Pixel*) outimg->get_channel_memory(heif_channel_Y, &out_y_stride);
+  out_cb = (Pixel*) outimg->get_channel_memory(heif_channel_Cb, &out_cb_stride);
+  out_cr = (Pixel*) outimg->get_channel_memory(heif_channel_Cr, &out_cr_stride);
 
   const uint8_t* in_a;
   uint8_t* out_a;
 
   if (has_alpha) {
-    in_a = input->get_channel(heif_channel_Alpha, &in_a_stride);
-    out_a = outimg->get_channel(heif_channel_Alpha, &out_a_stride);
+    in_a = input->get_channel_memory(heif_channel_Alpha, &in_a_stride);
+    out_a = outimg->get_channel_memory(heif_channel_Alpha, &out_a_stride);
   }
   else {
     in_a = nullptr;
@@ -568,19 +568,19 @@ Op_YCbCr420_bilinear_to_YCbCr444<Pixel>::convert_colorspace(const std::shared_pt
   Pixel* out_y, * out_cb, * out_cr;
   size_t out_y_stride = 0, out_cb_stride = 0, out_cr_stride = 0, out_a_stride = 0;
 
-  in_y = (const Pixel*) input->get_channel(heif_channel_Y, &in_y_stride);
-  in_cb = (const Pixel*) input->get_channel(heif_channel_Cb, &in_cb_stride);
-  in_cr = (const Pixel*) input->get_channel(heif_channel_Cr, &in_cr_stride);
-  out_y = (Pixel*) outimg->get_channel(heif_channel_Y, &out_y_stride);
-  out_cb = (Pixel*) outimg->get_channel(heif_channel_Cb, &out_cb_stride);
-  out_cr = (Pixel*) outimg->get_channel(heif_channel_Cr, &out_cr_stride);
+  in_y = (const Pixel*) input->get_channel_memory(heif_channel_Y, &in_y_stride);
+  in_cb = (const Pixel*) input->get_channel_memory(heif_channel_Cb, &in_cb_stride);
+  in_cr = (const Pixel*) input->get_channel_memory(heif_channel_Cr, &in_cr_stride);
+  out_y = (Pixel*) outimg->get_channel_memory(heif_channel_Y, &out_y_stride);
+  out_cb = (Pixel*) outimg->get_channel_memory(heif_channel_Cb, &out_cb_stride);
+  out_cr = (Pixel*) outimg->get_channel_memory(heif_channel_Cr, &out_cr_stride);
 
   const uint8_t* in_a;
   uint8_t* out_a;
 
   if (has_alpha) {
-    in_a = input->get_channel(heif_channel_Alpha, &in_a_stride);
-    out_a = outimg->get_channel(heif_channel_Alpha, &out_a_stride);
+    in_a = input->get_channel_memory(heif_channel_Alpha, &in_a_stride);
+    out_a = outimg->get_channel_memory(heif_channel_Alpha, &out_a_stride);
   }
   else {
     in_a = nullptr;
@@ -849,19 +849,19 @@ Op_YCbCr422_bilinear_to_YCbCr444<Pixel>::convert_colorspace(const std::shared_pt
   Pixel* out_y, * out_cb, * out_cr;
   size_t out_y_stride = 0, out_cb_stride = 0, out_cr_stride = 0, out_a_stride = 0;
 
-  in_y = (const Pixel*) input->get_channel(heif_channel_Y, &in_y_stride);
-  in_cb = (const Pixel*) input->get_channel(heif_channel_Cb, &in_cb_stride);
-  in_cr = (const Pixel*) input->get_channel(heif_channel_Cr, &in_cr_stride);
-  out_y = (Pixel*) outimg->get_channel(heif_channel_Y, &out_y_stride);
-  out_cb = (Pixel*) outimg->get_channel(heif_channel_Cb, &out_cb_stride);
-  out_cr = (Pixel*) outimg->get_channel(heif_channel_Cr, &out_cr_stride);
+  in_y = (const Pixel*) input->get_channel_memory(heif_channel_Y, &in_y_stride);
+  in_cb = (const Pixel*) input->get_channel_memory(heif_channel_Cb, &in_cb_stride);
+  in_cr = (const Pixel*) input->get_channel_memory(heif_channel_Cr, &in_cr_stride);
+  out_y = (Pixel*) outimg->get_channel_memory(heif_channel_Y, &out_y_stride);
+  out_cb = (Pixel*) outimg->get_channel_memory(heif_channel_Cb, &out_cb_stride);
+  out_cr = (Pixel*) outimg->get_channel_memory(heif_channel_Cr, &out_cr_stride);
 
   const uint8_t* in_a;
   uint8_t* out_a;
 
   if (has_alpha) {
-    in_a = input->get_channel(heif_channel_Alpha, &in_a_stride);
-    out_a = outimg->get_channel(heif_channel_Alpha, &out_a_stride);
+    in_a = input->get_channel_memory(heif_channel_Alpha, &in_a_stride);
+    out_a = outimg->get_channel_memory(heif_channel_Alpha, &out_a_stride);
   }
   else {
     in_a = nullptr;

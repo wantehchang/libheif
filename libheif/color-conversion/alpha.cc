@@ -186,17 +186,17 @@ Op_flatten_alpha_plane<Pixel>::convert_colorspace(const std::shared_ptr<const He
 
     const Pixel* p_alpha;
     size_t stride_alpha;
-    p_alpha = (const Pixel*)input->get_channel(heif_channel_Alpha, &stride_alpha);
+    p_alpha = (const Pixel*)input->get_channel_memory(heif_channel_Alpha, &stride_alpha);
     int bpp_alpha = input->get_bits_per_pixel(heif_channel_Alpha);
     Pixel alpha_max = (Pixel)((1 << bpp_alpha) - 1);
 
     const Pixel* p_in;
     size_t stride_in;
-    p_in = (const Pixel*)input->get_channel(channel, &stride_in);
+    p_in = (const Pixel*)input->get_channel_memory(channel, &stride_in);
 
     Pixel* p_out;
     size_t stride_out;
-    p_out = (Pixel*)outimg->get_channel(channel, &stride_out);
+    p_out = (Pixel*)outimg->get_channel_memory(channel, &stride_out);
 
     if (sizeof(Pixel) == 2) {
       stride_alpha /= 2;
@@ -362,11 +362,11 @@ Op_adjust_alpha_bit_depth::convert_colorspace(const std::shared_ptr<const HeifPi
     // Upscale: 8-bit alpha -> HDR using pattern replication
     const uint8_t* p_in;
     size_t stride_in;
-    p_in = input->get_channel(heif_channel_Alpha, &stride_in);
+    p_in = input->get_channel_memory(heif_channel_Alpha, &stride_in);
 
     uint16_t* p_out;
     size_t stride_out;
-    p_out = (uint16_t*) outimg->get_channel(heif_channel_Alpha, &stride_out);
+    p_out = (uint16_t*) outimg->get_channel_memory(heif_channel_Alpha, &stride_out);
     stride_out /= 2;
 
     int shift1 = target_bpp - input_alpha_bpp;
@@ -382,12 +382,12 @@ Op_adjust_alpha_bit_depth::convert_colorspace(const std::shared_ptr<const HeifPi
     // Downscale: HDR alpha -> 8-bit
     const uint16_t* p_in;
     size_t stride_in;
-    p_in = (const uint16_t*) input->get_channel(heif_channel_Alpha, &stride_in);
+    p_in = (const uint16_t*) input->get_channel_memory(heif_channel_Alpha, &stride_in);
     stride_in /= 2;
 
     uint8_t* p_out;
     size_t stride_out;
-    p_out = outimg->get_channel(heif_channel_Alpha, &stride_out);
+    p_out = outimg->get_channel_memory(heif_channel_Alpha, &stride_out);
 
     int shift = input_alpha_bpp - 8;
 
@@ -400,12 +400,12 @@ Op_adjust_alpha_bit_depth::convert_colorspace(const std::shared_ptr<const HeifPi
     // HDR alpha -> different HDR: rescale within uint16_t
     const uint16_t* p_in;
     size_t stride_in;
-    p_in = (const uint16_t*) input->get_channel(heif_channel_Alpha, &stride_in);
+    p_in = (const uint16_t*) input->get_channel_memory(heif_channel_Alpha, &stride_in);
     stride_in /= 2;
 
     uint16_t* p_out;
     size_t stride_out;
-    p_out = (uint16_t*) outimg->get_channel(heif_channel_Alpha, &stride_out);
+    p_out = (uint16_t*) outimg->get_channel_memory(heif_channel_Alpha, &stride_out);
     stride_out /= 2;
 
     if (target_bpp > input_alpha_bpp) {
@@ -429,11 +429,11 @@ Op_adjust_alpha_bit_depth::convert_colorspace(const std::shared_ptr<const HeifPi
     // SDR alpha -> different SDR (both <= 8)
     const uint8_t* p_in;
     size_t stride_in;
-    p_in = input->get_channel(heif_channel_Alpha, &stride_in);
+    p_in = input->get_channel_memory(heif_channel_Alpha, &stride_in);
 
     uint8_t* p_out;
     size_t stride_out;
-    p_out = outimg->get_channel(heif_channel_Alpha, &stride_out);
+    p_out = outimg->get_channel_memory(heif_channel_Alpha, &stride_out);
 
     if (target_bpp > input_alpha_bpp) {
       int shift1 = target_bpp - input_alpha_bpp;

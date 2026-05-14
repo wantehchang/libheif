@@ -100,7 +100,7 @@ std::vector<uint8_t> unc_encoder_rgb_pixel_interleave::encode_tile(const std::sh
   std::vector<uint8_t> data;
 
   size_t src_stride;
-  const uint8_t* src_data = src_image->get_channel(heif_channel_interleaved, &src_stride);
+  const uint8_t* src_data = src_image->get_channel_memory(heif_channel_interleaved, &src_stride);
 
   uint64_t out_size = static_cast<uint64_t>(src_image->get_height()) * src_image->get_width() * m_bytes_per_pixel;
   data.resize(out_size);

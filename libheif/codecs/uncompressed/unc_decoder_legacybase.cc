@@ -156,10 +156,10 @@ unc_decoder_legacybase::ChannelListEntry unc_decoder_legacybase::buildChannelLis
       entry.tile_height /= 2;
     }
     if (entry.channel == heif_channel_Cb) {
-      entry.other_chroma_dst_plane = img->get_channel(heif_channel_Cr, &(entry.other_chroma_dst_plane_stride));
+      entry.other_chroma_dst_plane = img->get_channel_memory(heif_channel_Cr, &(entry.other_chroma_dst_plane_stride));
     }
     else if (entry.channel == heif_channel_Cr) {
-      entry.other_chroma_dst_plane = img->get_channel(heif_channel_Cb, &(entry.other_chroma_dst_plane_stride));
+      entry.other_chroma_dst_plane = img->get_channel_memory(heif_channel_Cb, &(entry.other_chroma_dst_plane_stride));
     }
   }
   entry.bits_per_component_sample = component.component_bit_depth;

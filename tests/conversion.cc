@@ -76,7 +76,7 @@ std::string PrintChannel(const HeifPixelImage& image, heif_channel channel) {
   uint32_t width = std::min(image.get_width(channel), max_cols);
   uint32_t height = std::min(image.get_height(channel), max_rows);
   size_t stride;
-  const T* p = (T*)image.get_channel(channel, &stride);
+  const T* p = (T*)image.get_channel_memory(channel, &stride);
   stride /= (int)sizeof(T);
   int bpp = image.get_bits_per_pixel(channel);
   int digits = (int)std::ceil(std::log10(1 << bpp)) + 1;
@@ -129,8 +129,8 @@ double GetPsnr(const HeifPixelImage& original, const HeifPixelImage& compressed,
 
   size_t orig_stride;
   size_t compressed_stride;
-  const T* orig_p = (T*)original.get_channel(channel, &orig_stride);
-  const T* compressed_p = (T*)compressed.get_channel(channel, &compressed_stride);
+  const T* orig_p = (T*)original.get_channel_memory(channel, &orig_stride);
+  const T* compressed_p = (T*)compressed.get_channel_memory(channel, &compressed_stride);
   orig_stride /= (int)sizeof(T);
   compressed_stride /= (int)sizeof(T);
   double mse = 0.0;
@@ -324,7 +324,7 @@ void TestConversion(const std::string& test_name, ColorState input_state,
   for (const Plane& plane : GetPlanes(target_state, width, height)) {
     INFO("Channel: " << plane.channel);
     size_t stride;
-    CHECK(out_image->get_channel(plane.channel, &stride) != nullptr);
+    CHECK(out_image->get_channel_memory(plane.channel, &stride) != nullptr);
     CHECK(out_image->get_bits_per_pixel(plane.channel) ==
           target_state.bits_per_pixel);
     // If an alpha plane was created from nothing, check that it's filled
@@ -653,7 +653,7 @@ static void fill_plane(std::shared_ptr<HeifPixelImage>& img, heif_channel channe
   REQUIRE(!error);
 
   size_t stride;
-  uint8_t* p = img->get_channel(channel, &stride);
+  uint8_t* p = img->get_channel_memory(channel, &stride);
 
   for (int y = 0; y < h; y++) {
     for (int x = 0; x < w; x++) {
@@ -670,7 +670,7 @@ static void assert_plane(std::shared_ptr<HeifPixelImage>& img, heif_channel chan
   uint32_t h = img->get_height(channel);
 
   size_t stride;
-  uint8_t* p = img->get_channel(channel, &stride);
+  uint8_t* p = img->get_channel_memory(channel, &stride);
 
   for (uint32_t y = 0; y < h; y++) {
     INFO("row: " << y);
@@ -746,7 +746,7 @@ TEST_CASE("RGB 5-6-5 to RGB")
   uint8_t v = 1;
   for (heif_channel plane: {heif_channel_R, heif_channel_G, heif_channel_B}) {
     size_t dst_stride = 0;
-    uint8_t *dst = img->get_channel(plane, &dst_stride);
+    uint8_t *dst = img->get_channel_memory(plane, &dst_stride);
     for (uint32_t y = 0; y < height; y++) {
       for (uint32_t x = 0; x < width; x++) {
         dst[y * dst_stride + x] = v;
@@ -848,7 +848,7 @@ TEST_CASE("Mismatched alpha bit depth - conversion correctness") {
 
     // Verify the output has correct interleaved pixel values
     size_t stride;
-    const uint8_t* p = out->get_channel(heif_channel_interleaved, &stride);
+    const uint8_t* p = out->get_channel_memory(heif_channel_interleaved, &stride);
     REQUIRE(p != nullptr);
 
     // Check first pixel: R=512>>2=128, G=256>>2=64, B=768>>2=192, A=200
@@ -885,7 +885,7 @@ TEST_CASE("Mismatched alpha bit depth - conversion correctness") {
     CHECK(out->get_chroma_format() == heif_chroma_interleaved_RGBA);
 
     size_t stride;
-    const uint8_t* p = out->get_channel(heif_channel_interleaved, &stride);
+    const uint8_t* p = out->get_channel_memory(heif_channel_interleaved, &stride);
     REQUIRE(p != nullptr);
 
     CHECK(p[0] == 128);  // R (unchanged)

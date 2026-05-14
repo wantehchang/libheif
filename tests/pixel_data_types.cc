@@ -36,7 +36,7 @@ TEST_CASE( "uint32_t" )
   image.add_channel(heif_channel_Y, 3,2, 32, limits, heif_component_datatype_unsigned_integer);
 
   size_t stride;
-  uint32_t* data = image.get_channel<uint32_t>(heif_channel_Y, &stride);
+  uint32_t* data = image.get_channel_memory<uint32_t>(heif_channel_Y, &stride);
   stride /= sizeof(uint32_t);
 
   REQUIRE(stride >= 3);
@@ -63,7 +63,7 @@ TEST_CASE( "uint32_t" )
   REQUIRE(rotationResult.error().error_code == heif_error_Ok);
   rot = *rotationResult;
 
-  data = rot->get_channel<uint32_t>(heif_channel_Y, &stride);
+  data = rot->get_channel_memory<uint32_t>(heif_channel_Y, &stride);
   stride /= sizeof(uint32_t);
 
   REQUIRE(data[0*stride + 0] == 1000);
@@ -103,7 +103,7 @@ TEST_CASE( "uint32_t" )
   REQUIRE(crop->get_width(heif_channel_Y) == 2);
   REQUIRE(crop->get_height(heif_channel_Y) == 1);
 
-  data = crop->get_channel<uint32_t>(heif_channel_Y, &stride);
+  data = crop->get_channel_memory<uint32_t>(heif_channel_Y, &stride);
   stride /= sizeof(uint32_t);
 
   REQUIRE(data[0*stride + 0] == 0);
@@ -116,7 +116,7 @@ TEST_CASE( "uint32_t" )
   REQUIRE(crop->get_width(heif_channel_Y) == 2);
   REQUIRE(crop->get_height(heif_channel_Y) == 2);
 
-  data = crop->get_channel<uint32_t>(heif_channel_Y, &stride);
+  data = crop->get_channel_memory<uint32_t>(heif_channel_Y, &stride);
   stride /= sizeof(uint32_t);
 
   REQUIRE(data[0*stride + 0] == 0);
@@ -135,7 +135,7 @@ TEST_CASE( "complex64_t" )
   image.add_channel(heif_channel_Y, 3,2, 128, limits, heif_component_datatype_complex_number);
 
   size_t stride;
-  heif_complex64* data = image.get_channel<heif_complex64>(heif_channel_Y, &stride);
+  heif_complex64* data = image.get_channel_memory<heif_complex64>(heif_channel_Y, &stride);
   stride /= sizeof(heif_complex64);
 
   REQUIRE(stride >= 3);

@@ -155,7 +155,7 @@ const uint8_t* heif_image_get_plane_readonly(const heif_image* image,
   }
 
   size_t stride;
-  const auto* p = image->image->get_channel(channel, &stride);
+  const auto* p = image->image->get_channel_memory(channel, &stride);
 
   // TODO: use C++20 std::cmp_greater()
   if (stride > static_cast<uint32_t>(std::numeric_limits<int>::max())) {
@@ -181,7 +181,7 @@ uint8_t* heif_image_get_plane(heif_image* image,
   }
 
   size_t stride;
-  uint8_t* p = image->image->get_channel(channel, &stride);
+  uint8_t* p = image->image->get_channel_memory(channel, &stride);
 
   // TODO: use C++20 std::cmp_greater()
   if (stride > static_cast<uint32_t>(std::numeric_limits<int>::max())) {
@@ -206,7 +206,7 @@ const uint8_t* heif_image_get_plane_readonly2(const heif_image* image,
     return nullptr;
   }
 
-  return image->image->get_channel(channel, out_stride);
+  return image->image->get_channel_memory(channel, out_stride);
 }
 
 
@@ -223,7 +223,7 @@ uint8_t* heif_image_get_plane2(heif_image* image,
     return nullptr;
   }
 
-  return image->image->get_channel(channel, out_stride);
+  return image->image->get_channel_memory(channel, out_stride);
 }
 
 

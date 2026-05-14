@@ -114,10 +114,10 @@ Op_bayer_bilinear_to_RGB24_32::convert_colorspace(const std::shared_ptr<const He
   }
 
   size_t in_stride = 0;
-  const uint8_t* in_p = input->get_channel(heif_channel_filter_array, &in_stride);
+  const uint8_t* in_p = input->get_channel_memory(heif_channel_filter_array, &in_stride);
 
   size_t out_stride = 0;
-  uint8_t* out_p = outimg->get_channel(heif_channel_interleaved, &out_stride);
+  uint8_t* out_p = outimg->get_channel_memory(heif_channel_interleaved, &out_stride);
 
   // Build a lookup table: for each pattern position, which RGB channel (0=R,1=G,2=B) does it provide?
   std::vector<int> pattern_channel(pw * ph);

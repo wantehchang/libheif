@@ -102,9 +102,9 @@ public:
   // Which plane is "primary" depends on the colorspace:
   //   YCbCr / monochrome  -> the Y plane (Cb/Cr may be legitimately subsampled)
   //   RGB planar          -> R, G and B planes must all be present and all equal
-  //   RGB interleaved      -> the interleaved plane
-  //   filter_array         -> the filter_array plane
-  //   undefined / custom   -> not checked here; returns true
+  //   RGB interleaved     -> the interleaved plane
+  //   filter_array        -> the filter_array plane
+  //   undefined / custom  -> not checked here; returns true
   bool primary_planes_have_size(uint32_t width, uint32_t height) const;
 
   heif_chroma get_chroma_format() const { return m_chroma; }
@@ -127,12 +127,12 @@ public:
   // Note: we are using size_t as stride type since the stride is usually involved in a multiplication with the line number.
   //       For very large images (e.g. >2 GB), this can result in an integer overflow and corresponding illegal memory access.
   //       (see https://github.com/strukturag/libheif/issues/1419)
-  uint8_t* get_channel(heif_channel channel, size_t* out_stride) { return get_channel<uint8_t>(channel, out_stride); }
+  uint8_t* get_channel_memory(heif_channel channel, size_t* out_stride) { return get_channel_memory<uint8_t>(channel, out_stride); }
 
-  const uint8_t* get_channel(heif_channel channel, size_t* out_stride) const { return get_channel<uint8_t>(channel, out_stride); }
+  const uint8_t* get_channel_memory(heif_channel channel, size_t* out_stride) const { return get_channel_memory<uint8_t>(channel, out_stride); }
 
   template <typename T>
-  T* get_channel(heif_channel channel, size_t* out_stride)
+  T* get_channel_memory(heif_channel channel, size_t* out_stride)
   {
     auto* comp = find_storage_for_channel(channel);
     if (!comp) {
@@ -150,9 +150,9 @@ public:
   }
 
   template <typename T>
-  const T* get_channel(heif_channel channel, size_t* out_stride) const
+  const T* get_channel_memory(heif_channel channel, size_t* out_stride) const
   {
-    return const_cast<HeifPixelImage*>(this)->get_channel<T>(channel, out_stride);
+    return const_cast<HeifPixelImage*>(this)->get_channel_memory<T>(channel, out_stride);
   }
 
 

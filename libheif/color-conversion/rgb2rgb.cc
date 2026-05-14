@@ -107,13 +107,13 @@ Op_RGB_to_RGB24_32::convert_colorspace(const std::shared_ptr<const HeifPixelImag
   uint8_t* out_p;
   size_t out_p_stride = 0;
 
-  in_r = input->get_channel(heif_channel_R, &in_r_stride);
-  in_g = input->get_channel(heif_channel_G, &in_g_stride);
-  in_b = input->get_channel(heif_channel_B, &in_b_stride);
-  out_p = outimg->get_channel(heif_channel_interleaved, &out_p_stride);
+  in_r = input->get_channel_memory(heif_channel_R, &in_r_stride);
+  in_g = input->get_channel_memory(heif_channel_G, &in_g_stride);
+  in_b = input->get_channel_memory(heif_channel_B, &in_b_stride);
+  out_p = outimg->get_channel_memory(heif_channel_interleaved, &out_p_stride);
 
   if (has_alpha) {
-    in_a = input->get_channel(heif_channel_Alpha, &in_a_stride);
+    in_a = input->get_channel_memory(heif_channel_Alpha, &in_a_stride);
   }
 
   uint32_t x, y;
@@ -245,13 +245,13 @@ Op_RGB_HDR_to_RRGGBBaa_BE::convert_colorspace(const std::shared_ptr<const HeifPi
   uint8_t* out_p;
   size_t out_p_stride = 0;
 
-  in_r = (uint16_t*) input->get_channel(heif_channel_R, &in_r_stride);
-  in_g = (uint16_t*) input->get_channel(heif_channel_G, &in_g_stride);
-  in_b = (uint16_t*) input->get_channel(heif_channel_B, &in_b_stride);
-  out_p = outimg->get_channel(heif_channel_interleaved, &out_p_stride);
+  in_r = (uint16_t*) input->get_channel_memory(heif_channel_R, &in_r_stride);
+  in_g = (uint16_t*) input->get_channel_memory(heif_channel_G, &in_g_stride);
+  in_b = (uint16_t*) input->get_channel_memory(heif_channel_B, &in_b_stride);
+  out_p = outimg->get_channel_memory(heif_channel_interleaved, &out_p_stride);
 
   if (input_has_alpha) {
-    in_a = (uint16_t*) input->get_channel(heif_channel_Alpha, &in_a_stride);
+    in_a = (uint16_t*) input->get_channel_memory(heif_channel_Alpha, &in_a_stride);
     assert(in_a != nullptr);
 
     // should never happen, but makes clang-tidy happy
@@ -380,13 +380,13 @@ Op_RGB_to_RRGGBBaa_BE::convert_colorspace(const std::shared_ptr<const HeifPixelI
   uint8_t* out_p;
   size_t out_p_stride = 0;
 
-  in_r = input->get_channel(heif_channel_R, &in_r_stride);
-  in_g = input->get_channel(heif_channel_G, &in_g_stride);
-  in_b = input->get_channel(heif_channel_B, &in_b_stride);
-  out_p = outimg->get_channel(heif_channel_interleaved, &out_p_stride);
+  in_r = input->get_channel_memory(heif_channel_R, &in_r_stride);
+  in_g = input->get_channel_memory(heif_channel_G, &in_g_stride);
+  in_b = input->get_channel_memory(heif_channel_B, &in_b_stride);
+  out_p = outimg->get_channel_memory(heif_channel_interleaved, &out_p_stride);
 
   if (input_has_alpha) {
-    in_a = input->get_channel(heif_channel_Alpha, &in_a_stride);
+    in_a = input->get_channel_memory(heif_channel_Alpha, &in_a_stride);
   }
 
   const int pixelsize = (output_has_alpha ? 8 : 6);
@@ -499,14 +499,14 @@ Op_RRGGBBaa_BE_to_RGB_HDR::convert_colorspace(const std::shared_ptr<const HeifPi
   uint16_t* out_r, * out_g, * out_b, * out_a = nullptr;
   size_t out_r_stride = 0, out_g_stride = 0, out_b_stride = 0, out_a_stride = 0;
 
-  in_p = input->get_channel(heif_channel_interleaved, &in_p_stride);
+  in_p = input->get_channel_memory(heif_channel_interleaved, &in_p_stride);
 
-  out_r = (uint16_t*) outimg->get_channel(heif_channel_R, &out_r_stride);
-  out_g = (uint16_t*) outimg->get_channel(heif_channel_G, &out_g_stride);
-  out_b = (uint16_t*) outimg->get_channel(heif_channel_B, &out_b_stride);
+  out_r = (uint16_t*) outimg->get_channel_memory(heif_channel_R, &out_r_stride);
+  out_g = (uint16_t*) outimg->get_channel_memory(heif_channel_G, &out_g_stride);
+  out_b = (uint16_t*) outimg->get_channel_memory(heif_channel_B, &out_b_stride);
 
   if (want_alpha) {
-    out_a = (uint16_t*) outimg->get_channel(heif_channel_Alpha, &out_a_stride);
+    out_a = (uint16_t*) outimg->get_channel_memory(heif_channel_Alpha, &out_a_stride);
   }
 
   out_r_stride /= 2;
@@ -614,14 +614,14 @@ Op_RGB24_32_to_RGB::convert_colorspace(const std::shared_ptr<const HeifPixelImag
   uint8_t* out_r, * out_g, * out_b, * out_a = nullptr;
   size_t out_r_stride = 0, out_g_stride = 0, out_b_stride = 0, out_a_stride = 0;
 
-  in_p = input->get_channel(heif_channel_interleaved, &in_p_stride);
+  in_p = input->get_channel_memory(heif_channel_interleaved, &in_p_stride);
 
-  out_r = outimg->get_channel(heif_channel_R, &out_r_stride);
-  out_g = outimg->get_channel(heif_channel_G, &out_g_stride);
-  out_b = outimg->get_channel(heif_channel_B, &out_b_stride);
+  out_r = outimg->get_channel_memory(heif_channel_R, &out_r_stride);
+  out_g = outimg->get_channel_memory(heif_channel_G, &out_g_stride);
+  out_b = outimg->get_channel_memory(heif_channel_B, &out_b_stride);
 
   if (want_alpha) {
-    out_a = outimg->get_channel(heif_channel_Alpha, &out_a_stride);
+    out_a = outimg->get_channel_memory(heif_channel_Alpha, &out_a_stride);
   }
 
   uint32_t x, y;
@@ -747,8 +747,8 @@ Op_RRGGBBaa_swap_endianness::convert_colorspace(const std::shared_ptr<const Heif
   uint8_t* out_p;
   size_t out_p_stride = 0;
 
-  in_p = input->get_channel(heif_channel_interleaved, &in_p_stride);
-  out_p = outimg->get_channel(heif_channel_interleaved, &out_p_stride);
+  in_p = input->get_channel_memory(heif_channel_interleaved, &in_p_stride);
+  out_p = outimg->get_channel_memory(heif_channel_interleaved, &out_p_stride);
 
   size_t n_bytes = std::min(in_p_stride, out_p_stride);
 

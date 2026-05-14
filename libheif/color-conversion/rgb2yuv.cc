@@ -148,19 +148,19 @@ Op_RGB_to_YCbCr<Pixel>::convert_colorspace(const std::shared_ptr<const HeifPixel
   Pixel* out_y, * out_cb, * out_cr;
   size_t out_y_stride = 0, out_cb_stride = 0, out_cr_stride = 0, out_a_stride = 0;
 
-  in_r = (const Pixel*) input->get_channel(heif_channel_R, &in_r_stride);
-  in_g = (const Pixel*) input->get_channel(heif_channel_G, &in_g_stride);
-  in_b = (const Pixel*) input->get_channel(heif_channel_B, &in_b_stride);
-  out_y = (Pixel*) outimg->get_channel(heif_channel_Y, &out_y_stride);
-  out_cb = (Pixel*) outimg->get_channel(heif_channel_Cb, &out_cb_stride);
-  out_cr = (Pixel*) outimg->get_channel(heif_channel_Cr, &out_cr_stride);
+  in_r = (const Pixel*) input->get_channel_memory(heif_channel_R, &in_r_stride);
+  in_g = (const Pixel*) input->get_channel_memory(heif_channel_G, &in_g_stride);
+  in_b = (const Pixel*) input->get_channel_memory(heif_channel_B, &in_b_stride);
+  out_y = (Pixel*) outimg->get_channel_memory(heif_channel_Y, &out_y_stride);
+  out_cb = (Pixel*) outimg->get_channel_memory(heif_channel_Cb, &out_cb_stride);
+  out_cr = (Pixel*) outimg->get_channel_memory(heif_channel_Cr, &out_cr_stride);
 
   const uint8_t* in_a;
   uint8_t* out_a;
 
   if (has_alpha) {
-    in_a = input->get_channel(heif_channel_Alpha, &in_a_stride);
-    out_a = outimg->get_channel(heif_channel_Alpha, &out_a_stride);
+    in_a = input->get_channel_memory(heif_channel_Alpha, &in_a_stride);
+    out_a = outimg->get_channel_memory(heif_channel_Alpha, &out_a_stride);
   }
   else {
     in_a = nullptr;
@@ -403,13 +403,13 @@ Op_RRGGBBxx_HDR_to_YCbCr420::convert_colorspace(const std::shared_ptr<const Heif
   uint16_t* out_y, * out_cb, * out_cr, * out_a = nullptr;
   size_t out_y_stride = 0, out_cb_stride = 0, out_cr_stride = 0, out_a_stride = 0;
 
-  in_p = input->get_channel(heif_channel_interleaved, &in_p_stride);
-  out_y = (uint16_t*) outimg->get_channel(heif_channel_Y, &out_y_stride);
-  out_cb = (uint16_t*) outimg->get_channel(heif_channel_Cb, &out_cb_stride);
-  out_cr = (uint16_t*) outimg->get_channel(heif_channel_Cr, &out_cr_stride);
+  in_p = input->get_channel_memory(heif_channel_interleaved, &in_p_stride);
+  out_y = (uint16_t*) outimg->get_channel_memory(heif_channel_Y, &out_y_stride);
+  out_cb = (uint16_t*) outimg->get_channel_memory(heif_channel_Cb, &out_cb_stride);
+  out_cr = (uint16_t*) outimg->get_channel_memory(heif_channel_Cr, &out_cr_stride);
 
   if (has_alpha) {
-    out_a = (uint16_t*) outimg->get_channel(heif_channel_Alpha, &out_a_stride);
+    out_a = (uint16_t*) outimg->get_channel_memory(heif_channel_Alpha, &out_a_stride);
   }
 
 
@@ -612,14 +612,14 @@ Op_RGB24_32_to_YCbCr::convert_colorspace(const std::shared_ptr<const HeifPixelIm
   const uint8_t* in_p;
   size_t in_stride = 0;
 
-  in_p = input->get_channel(heif_channel_interleaved, &in_stride);
+  in_p = input->get_channel_memory(heif_channel_interleaved, &in_stride);
 
-  out_y = outimg->get_channel(heif_channel_Y, &out_y_stride);
-  out_cb = outimg->get_channel(heif_channel_Cb, &out_cb_stride);
-  out_cr = outimg->get_channel(heif_channel_Cr, &out_cr_stride);
+  out_y = outimg->get_channel_memory(heif_channel_Y, &out_y_stride);
+  out_cb = outimg->get_channel_memory(heif_channel_Cb, &out_cb_stride);
+  out_cr = outimg->get_channel_memory(heif_channel_Cr, &out_cr_stride);
 
   if (want_alpha) {
-    out_a = outimg->get_channel(heif_channel_Alpha, &out_a_stride);
+    out_a = outimg->get_channel_memory(heif_channel_Alpha, &out_a_stride);
   }
   else {
     out_a = nullptr;
@@ -880,14 +880,14 @@ Op_RGB24_32_to_YCbCr444_GBR::convert_colorspace(const std::shared_ptr<const Heif
   const uint8_t* in_p;
   size_t in_stride = 0;
 
-  in_p = input->get_channel(heif_channel_interleaved, &in_stride);
+  in_p = input->get_channel_memory(heif_channel_interleaved, &in_stride);
 
-  out_y = outimg->get_channel(heif_channel_Y, &out_y_stride);
-  out_cb = outimg->get_channel(heif_channel_Cb, &out_cb_stride);
-  out_cr = outimg->get_channel(heif_channel_Cr, &out_cr_stride);
+  out_y = outimg->get_channel_memory(heif_channel_Y, &out_y_stride);
+  out_cb = outimg->get_channel_memory(heif_channel_Cb, &out_cb_stride);
+  out_cr = outimg->get_channel_memory(heif_channel_Cr, &out_cr_stride);
 
   if (want_alpha) {
-    out_a = outimg->get_channel(heif_channel_Alpha, &out_a_stride);
+    out_a = outimg->get_channel_memory(heif_channel_Alpha, &out_a_stride);
   }
 
 
