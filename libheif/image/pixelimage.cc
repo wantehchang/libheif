@@ -1964,8 +1964,12 @@ void HeifPixelImage::debug_dump() const
     size_t stride = 0;
     const uint8_t* p = get_channel_memory(c, &stride);
 
-    for (int y = 0; y < 8; y++) {
-      for (int x = 0; x < 8; x++) {
+    // clamp the dump region to the actual plane size to avoid reading past it
+    uint32_t dump_w = std::min(get_width(c), 8u);
+    uint32_t dump_h = std::min(get_height(c), 8u);
+
+    for (uint32_t y = 0; y < dump_h; y++) {
+      for (uint32_t x = 0; x < dump_w; x++) {
         printf("%02x ", p[y * stride + x]);
       }
       printf("\n");
