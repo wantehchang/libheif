@@ -28,6 +28,7 @@
 #include <utility>
 #include <limits>
 #include <algorithm>
+#include <map>
 #include <color-conversion/colorconversion.h>
 
 #include "codecs/uncompressed/unc_types.h"
