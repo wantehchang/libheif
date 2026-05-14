@@ -225,7 +225,10 @@ public:
 
   //const std::vector<uint16_t>& get_cmpd_component_types() { return m_cmpd_component_types; }
 
-  // Returns the sorted list of component_indices of all planes that have pixel data.
+  // Returns the component ids of all components, in component-description
+  // order. This includes reference components that have no pixel plane
+  // (has_data_plane == false); the result size always equals
+  // get_number_of_used_components().
   std::vector<uint32_t> get_used_component_ids() const;
 
   std::vector<uint32_t> get_used_planar_component_ids() const;
