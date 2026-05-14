@@ -80,8 +80,10 @@ public:
   // Has alpha information either as a separate channel or in the interleaved format.
   bool has_alpha() const;
 
+  // Get logical image size. Individual components may vary.
   uint32_t get_width() const { return m_width; }
 
+  // Get logical image size. Individual components may vary.
   uint32_t get_height() const { return m_height; }
 
   uint32_t get_width(heif_channel channel) const;
@@ -332,7 +334,7 @@ private:
     // bytes_per_component * m_num_interleaved_components.
     uint8_t m_bytes_per_pixel = 0;
 
-    // the "visible" area of the plane
+    // the "visible" area of the component
     uint32_t m_width = 0;
     uint32_t m_height = 0;
 

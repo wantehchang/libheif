@@ -717,9 +717,8 @@ uint32_t HeifPixelImage::get_primary_component_id() const
 
   // second pass: if we have a cmpd table, use component types
 
-  for (uint32_t idx = 0; idx < m_storage.size(); idx++) {
-    uint16_t comp_type = get_component_type(m_storage[idx].m_component_ids[0]);
-    switch (comp_type) {
+  for (const auto& comp : get_component_descriptions()) {
+    switch (comp.component_type) {
       case heif_unci_component_type_Y:
       case heif_unci_component_type_monochrome:
       case heif_unci_component_type_red:
@@ -731,7 +730,7 @@ uint32_t HeifPixelImage::get_primary_component_id() const
       case heif_unci_component_type_key_black:
       case heif_unci_component_type_filter_array:
       case heif_unci_component_type_palette:
-        return m_storage[idx].m_component_ids[0];
+        return comp.component_id;
 
       default:
         ; // NOP

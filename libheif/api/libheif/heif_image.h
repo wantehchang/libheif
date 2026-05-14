@@ -196,7 +196,7 @@ enum heif_chroma heif_image_get_chroma_format(const heif_image*);
  * @return the width of the channel in pixels, or -1 the channel does not exist in the image
  */
 LIBHEIF_API
-int heif_image_get_width(const heif_image* img, enum heif_channel channel);
+int heif_image_get_width(const heif_image* img, heif_channel channel);
 
 /**
  * Get the height of a specified image channel.
@@ -206,7 +206,7 @@ int heif_image_get_width(const heif_image* img, enum heif_channel channel);
  * @return the height of the channel in pixels, or -1 the channel does not exist in the image
  */
 LIBHEIF_API
-int heif_image_get_height(const heif_image* img, enum heif_channel channel);
+int heif_image_get_height(const heif_image* img, heif_channel channel);
 
 /**
  * Get the width of the main channel.
