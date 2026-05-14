@@ -2298,11 +2298,11 @@ std::vector<uint32_t> HeifPixelImage::get_used_planar_component_ids() const
 
 uint8_t* HeifPixelImage::get_component(uint32_t component_id, size_t* out_stride)
 {
-  return get_component_data<uint8_t>(component_id, out_stride);
+  return get_component_memory<uint8_t>(component_id, out_stride);
 }
 
 
 const uint8_t* HeifPixelImage::get_component(uint32_t component_id, size_t* out_stride) const
 {
-  return get_component_data<uint8_t>(component_id, out_stride);
+  return get_component_memory<uint8_t>(component_id, out_stride);
 }

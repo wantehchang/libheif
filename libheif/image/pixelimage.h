@@ -234,7 +234,7 @@ public:
   const uint8_t* get_component(uint32_t component_id, size_t* out_stride) const;
 
   template <typename T>
-  T* get_component_data(uint32_t component_id, size_t* out_stride)
+  T* get_component_memory(uint32_t component_id, size_t* out_stride)
   {
     auto* comp = find_storage_for_component(component_id);
     if (!comp) {
@@ -249,9 +249,9 @@ public:
   }
 
   template <typename T>
-  const T* get_component_data(uint32_t component_id, size_t* out_stride) const
+  const T* get_component_memory(uint32_t component_id, size_t* out_stride) const
   {
-    return const_cast<HeifPixelImage*>(this)->get_component_data<T>(component_id, out_stride);
+    return const_cast<HeifPixelImage*>(this)->get_component_memory<T>(component_id, out_stride);
   }
 
   Error copy_new_channel_from(const std::shared_ptr<const HeifPixelImage>& src_image,

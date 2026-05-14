@@ -753,7 +753,7 @@ const type* heif_image_get_component_ ## name ## _readonly(const struct heif_ima
     if (out_stride) *out_stride = 0;                         \
     return nullptr;                                          \
   }                                                          \
-  return image->image->get_component_data<type>(component_idx, out_stride); \
+  return image->image->get_component_memory<type>(component_idx, out_stride); \
 }                                                            \
                                                              \
 type* heif_image_get_component_ ## name (struct heif_image* image, \
@@ -764,7 +764,7 @@ type* heif_image_get_component_ ## name (struct heif_image* image, \
     if (out_stride) *out_stride = 0;                         \
     return nullptr;                                          \
   }                                                          \
-  return image->image->get_component_data<type>(component_idx, out_stride); \
+  return image->image->get_component_memory<type>(component_idx, out_stride); \
 }
 
 heif_image_get_component_X(uint16, uint16_t)
