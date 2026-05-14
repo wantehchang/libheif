@@ -297,7 +297,7 @@ Result<std::shared_ptr<HeifPixelImage> > Track_Visual::decode_next_image_sample(
     }
 
     auto alphaImage = *alphaResult;
-    image->transfer_plane_from_image_as(alphaImage, heif_channel_Y, heif_channel_Alpha);
+    image->transfer_channel_from_image_as(alphaImage, heif_channel_Y, heif_channel_Alpha);
   }
 
 

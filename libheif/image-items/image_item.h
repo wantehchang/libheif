@@ -115,7 +115,7 @@ public:
   // Idempotent: skips work if m_components is already populated.
   // Alpha-from-aux (separate alpha item linked via auxl) is *not* emitted
   // here; the alpha plane is attached at decode time via
-  // transfer_plane_from_image_as, which mints its own component on the
+  // transfer_channel_from_image_as, which mints its own component on the
   // destination.
   virtual void populate_component_descriptions();
 

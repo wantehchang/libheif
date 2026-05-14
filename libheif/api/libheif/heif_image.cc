@@ -157,7 +157,7 @@ const uint8_t* heif_image_get_plane_readonly(const heif_image* image,
   }
 
   size_t stride;
-  const auto* p = image->image->get_plane(channel, &stride);
+  const auto* p = image->image->get_channel(channel, &stride);
 
   // TODO: use C++20 std::cmp_greater()
   if (stride > static_cast<uint32_t>(std::numeric_limits<int>::max())) {
@@ -183,7 +183,7 @@ uint8_t* heif_image_get_plane(heif_image* image,
   }
 
   size_t stride;
-  uint8_t* p = image->image->get_plane(channel, &stride);
+  uint8_t* p = image->image->get_channel(channel, &stride);
 
   // TODO: use C++20 std::cmp_greater()
   if (stride > static_cast<uint32_t>(std::numeric_limits<int>::max())) {
@@ -208,7 +208,7 @@ const uint8_t* heif_image_get_plane_readonly2(const heif_image* image,
     return nullptr;
   }
 
-  return image->image->get_plane(channel, out_stride);
+  return image->image->get_channel(channel, out_stride);
 }
 
 
@@ -225,7 +225,7 @@ uint8_t* heif_image_get_plane2(heif_image* image,
     return nullptr;
   }
 
-  return image->image->get_plane(channel, out_stride);
+  return image->image->get_channel(channel, out_stride);
 }
 
 
@@ -359,7 +359,7 @@ heif_error heif_image_add_plane(heif_image* image,
                                 heif_channel channel, int width, int height, int bit_depth)
 {
   // Note: no security limit, because this is explicitly requested by the user.
-  if (auto err = image->image->add_plane(channel, width, height, bit_depth, nullptr)) {
+  if (auto err = image->image->add_channel(channel, width, height, bit_depth, nullptr)) {
     return err.error_struct(image->image.get());
   }
   else {
@@ -372,7 +372,7 @@ heif_error heif_image_add_plane_safe(heif_image* image,
                                      heif_channel channel, int width, int height, int bit_depth,
                                      const heif_security_limits* limits)
 {
-  if (auto err = image->image->add_plane(channel, width, height, bit_depth, limits)) {
+  if (auto err = image->image->add_channel(channel, width, height, bit_depth, limits)) {
     return err.error_struct(image->image.get());
   }
   else {

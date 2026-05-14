@@ -82,7 +82,7 @@ Op_drop_alpha_plane::convert_colorspace(const std::shared_ptr<const HeifPixelIma
                                heif_channel_G,
                                heif_channel_B}) {
     if (input->has_channel(channel)) {
-      outimg->copy_new_plane_from(input, channel, channel, limits);
+      outimg->copy_new_channel_from(input, channel, channel, limits);
     }
   }
 
@@ -182,21 +182,21 @@ Op_flatten_alpha_plane<Pixel>::convert_colorspace(const std::shared_ptr<const He
   for (heif_channel channel : {heif_channel_R,
                                heif_channel_G,
                                heif_channel_B}) {
-    outimg->add_plane(channel, width, height, target_state.bits_per_pixel, limits);
+    outimg->add_channel(channel, width, height, target_state.bits_per_pixel, limits);
 
     const Pixel* p_alpha;
     size_t stride_alpha;
-    p_alpha = (const Pixel*)input->get_plane(heif_channel_Alpha, &stride_alpha);
+    p_alpha = (const Pixel*)input->get_channel(heif_channel_Alpha, &stride_alpha);
     int bpp_alpha = input->get_bits_per_pixel(heif_channel_Alpha);
     Pixel alpha_max = (Pixel)((1 << bpp_alpha) - 1);
 
     const Pixel* p_in;
     size_t stride_in;
-    p_in = (const Pixel*)input->get_plane(channel, &stride_in);
+    p_in = (const Pixel*)input->get_channel(channel, &stride_in);
 
     Pixel* p_out;
     size_t stride_out;
-    p_out = (Pixel*)outimg->get_plane(channel, &stride_out);
+    p_out = (Pixel*)outimg->get_channel(channel, &stride_out);
 
     if (sizeof(Pixel) == 2) {
       stride_alpha /= 2;
@@ -340,7 +340,7 @@ Op_adjust_alpha_bit_depth::convert_colorspace(const std::shared_ptr<const HeifPi
   for (heif_channel channel : {heif_channel_Y, heif_channel_Cb, heif_channel_Cr,
                                 heif_channel_R, heif_channel_G, heif_channel_B}) {
     if (input->has_channel(channel)) {
-      outimg->copy_new_plane_from(input, channel, channel, limits);
+      outimg->copy_new_channel_from(input, channel, channel, limits);
     }
   }
 
@@ -354,7 +354,7 @@ Op_adjust_alpha_bit_depth::convert_colorspace(const std::shared_ptr<const HeifPi
   uint32_t alpha_width = input->get_width(heif_channel_Alpha);
   uint32_t alpha_height = input->get_height(heif_channel_Alpha);
 
-  if (auto err = outimg->add_plane(heif_channel_Alpha, alpha_width, alpha_height, target_bpp, limits)) {
+  if (auto err = outimg->add_channel(heif_channel_Alpha, alpha_width, alpha_height, target_bpp, limits)) {
     return err;
   }
 
@@ -362,11 +362,11 @@ Op_adjust_alpha_bit_depth::convert_colorspace(const std::shared_ptr<const HeifPi
     // Upscale: 8-bit alpha -> HDR using pattern replication
     const uint8_t* p_in;
     size_t stride_in;
-    p_in = input->get_plane(heif_channel_Alpha, &stride_in);
+    p_in = input->get_channel(heif_channel_Alpha, &stride_in);
 
     uint16_t* p_out;
     size_t stride_out;
-    p_out = (uint16_t*) outimg->get_plane(heif_channel_Alpha, &stride_out);
+    p_out = (uint16_t*) outimg->get_channel(heif_channel_Alpha, &stride_out);
     stride_out /= 2;
 
     int shift1 = target_bpp - input_alpha_bpp;
@@ -382,12 +382,12 @@ Op_adjust_alpha_bit_depth::convert_colorspace(const std::shared_ptr<const HeifPi
     // Downscale: HDR alpha -> 8-bit
     const uint16_t* p_in;
     size_t stride_in;
-    p_in = (const uint16_t*) input->get_plane(heif_channel_Alpha, &stride_in);
+    p_in = (const uint16_t*) input->get_channel(heif_channel_Alpha, &stride_in);
     stride_in /= 2;
 
     uint8_t* p_out;
     size_t stride_out;
-    p_out = outimg->get_plane(heif_channel_Alpha, &stride_out);
+    p_out = outimg->get_channel(heif_channel_Alpha, &stride_out);
 
     int shift = input_alpha_bpp - 8;
 
@@ -400,12 +400,12 @@ Op_adjust_alpha_bit_depth::convert_colorspace(const std::shared_ptr<const HeifPi
     // HDR alpha -> different HDR: rescale within uint16_t
     const uint16_t* p_in;
     size_t stride_in;
-    p_in = (const uint16_t*) input->get_plane(heif_channel_Alpha, &stride_in);
+    p_in = (const uint16_t*) input->get_channel(heif_channel_Alpha, &stride_in);
     stride_in /= 2;
 
     uint16_t* p_out;
     size_t stride_out;
-    p_out = (uint16_t*) outimg->get_plane(heif_channel_Alpha, &stride_out);
+    p_out = (uint16_t*) outimg->get_channel(heif_channel_Alpha, &stride_out);
     stride_out /= 2;
 
     if (target_bpp > input_alpha_bpp) {
@@ -429,11 +429,11 @@ Op_adjust_alpha_bit_depth::convert_colorspace(const std::shared_ptr<const HeifPi
     // SDR alpha -> different SDR (both <= 8)
     const uint8_t* p_in;
     size_t stride_in;
-    p_in = input->get_plane(heif_channel_Alpha, &stride_in);
+    p_in = input->get_channel(heif_channel_Alpha, &stride_in);
 
     uint8_t* p_out;
     size_t stride_out;
-    p_out = outimg->get_plane(heif_channel_Alpha, &stride_out);
+    p_out = outimg->get_channel(heif_channel_Alpha, &stride_out);
 
     if (target_bpp > input_alpha_bpp) {
       int shift1 = target_bpp - input_alpha_bpp;

@@ -131,7 +131,7 @@ heif_channel map_uncompressed_component_to_channel(uint16_t component_type);
 // and HeifPixelImage (decoded side) can carry the same structural view.
 struct ComponentDescription
 {
-  uint32_t component_id = 0;             // stable id, matches HeifPixelImage::m_planes ids
+  uint32_t component_id = 0;             // stable id, matches HeifPixelImage::m_storage ids
 
   heif_channel channel = heif_channel_unknown;
   uint16_t component_type = 0;           // heif_unci_component_type_*
@@ -289,7 +289,7 @@ public:
   // Append a ComponentDescription. The caller is expected to have set
   // component_id, either from a fresh mint_component_id() call or by
   // matching an id already used by a parallel structure (e.g.
-  // HeifPixelImage::ImageComponent::m_component_ids).
+  // HeifPixelImage::ComponentStorage::m_component_ids).
   void add_component_description(ComponentDescription desc)
   {
     m_components.push_back(std::move(desc));
@@ -423,7 +423,7 @@ public:
   // id, bayer pattern, polarization patterns, sensor maps, sensor nuc, chroma
   // location, omaf projection). Per-component descriptions
   // (m_components / m_next_component_id) are intentionally not copied; those
-  // are managed separately by callers (via add_plane / add_component, or
+  // are managed separately by callers (via add_channel / add_component, or
   // set_component_descriptions on the destination).
   //
   // Bayer / polarization / sensor-map metadata refers to image geometry;

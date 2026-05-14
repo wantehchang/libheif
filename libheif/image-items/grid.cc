@@ -552,7 +552,7 @@ Error ImageItem_Grid::decode_and_paste_tile_image(heif_item_id tileID, uint32_t 
         assert(alpha_bpp <= 16);
 
         auto alpha_default_value = static_cast<uint16_t>((1UL << alpha_bpp) - 1UL);
-        grid_image->fill_plane(heif_channel_Alpha, alpha_default_value);
+        grid_image->fill_channel(heif_channel_Alpha, alpha_default_value);
       }
 
       grid_image->copy_metadata_from(*tile_img);

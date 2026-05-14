@@ -1550,7 +1550,7 @@ create_alpha_image_from_image_alpha_channel(const std::shared_ptr<HeifPixelImage
                       heif_colorspace_monochrome, heif_chroma_monochrome);
 
   if (image->has_channel(heif_channel_Alpha)) {
-    alpha_image->copy_new_plane_from(image, heif_channel_Alpha, heif_channel_Y, limits);
+    alpha_image->copy_new_channel_from(image, heif_channel_Alpha, heif_channel_Y, limits);
   }
   else if (image->get_chroma_format() == heif_chroma_interleaved_RGBA) {
     if (auto err = alpha_image->extract_alpha_from_RGBA(image, limits)) {

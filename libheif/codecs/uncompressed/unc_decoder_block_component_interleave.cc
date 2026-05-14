@@ -104,7 +104,7 @@ Error unc_decoder_block_component_interleave::decode_tile(const std::vector<uint
     heif_channel channel;
     comp[i].use = map_uncompressed_component_to_channel(m_cmpd, c, &channel);
     if (comp[i].use) {
-      comp[i].dst_plane = img->get_plane(channel, &comp[i].dst_plane_stride);
+      comp[i].dst_plane = img->get_channel(channel, &comp[i].dst_plane_stride);
     }
     else {
       comp[i].dst_plane = nullptr;

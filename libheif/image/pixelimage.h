@@ -71,7 +71,7 @@ public:
   Error create_clone_image_at_new_size(const std::shared_ptr<const HeifPixelImage>& source, uint32_t w, uint32_t h,
                                        const heif_security_limits* limits);
 
-  Error add_plane(heif_channel channel, uint32_t width, uint32_t height, int bit_depth,
+  Error add_channel(heif_channel channel, uint32_t width, uint32_t height, int bit_depth,
                   const heif_security_limits* limits,
                   heif_component_datatype datatype = heif_component_datatype_unsigned_integer);
 
@@ -124,14 +124,14 @@ public:
   // Note: we are using size_t as stride type since the stride is usually involved in a multiplication with the line number.
   //       For very large images (e.g. >2 GB), this can result in an integer overflow and corresponding illegal memory access.
   //       (see https://github.com/strukturag/libheif/issues/1419)
-  uint8_t* get_plane(heif_channel channel, size_t* out_stride) { return get_channel<uint8_t>(channel, out_stride); }
+  uint8_t* get_channel(heif_channel channel, size_t* out_stride) { return get_channel<uint8_t>(channel, out_stride); }
 
-  const uint8_t* get_plane(heif_channel channel, size_t* out_stride) const { return get_channel<uint8_t>(channel, out_stride); }
+  const uint8_t* get_channel(heif_channel channel, size_t* out_stride) const { return get_channel<uint8_t>(channel, out_stride); }
 
   template <typename T>
   T* get_channel(heif_channel channel, size_t* out_stride)
   {
-    auto* comp = find_component_for_channel(channel);
+    auto* comp = find_storage_for_channel(channel);
     if (!comp) {
       if (out_stride)
         *out_stride = 0;
@@ -233,7 +233,7 @@ public:
   template <typename T>
   T* get_component_data(uint32_t component_id, size_t* out_stride)
   {
-    auto* comp = find_component_by_id(component_id);
+    auto* comp = find_storage_for_component(component_id);
     if (!comp) {
       if (out_stride) *out_stride = 0;
       return nullptr;
@@ -251,18 +251,18 @@ public:
     return const_cast<HeifPixelImage*>(this)->get_component_data<T>(component_id, out_stride);
   }
 
-  Error copy_new_plane_from(const std::shared_ptr<const HeifPixelImage>& src_image,
+  Error copy_new_channel_from(const std::shared_ptr<const HeifPixelImage>& src_image,
                             heif_channel src_channel,
                             heif_channel dst_channel,
                             const heif_security_limits* limits);
 
   Error extract_alpha_from_RGBA(const std::shared_ptr<const HeifPixelImage>& srcimage, const heif_security_limits* limits);
 
-  void fill_plane(heif_channel dst_channel, uint16_t value);
+  void fill_channel(heif_channel dst_channel, uint16_t value);
 
-  Error fill_new_plane(heif_channel dst_channel, uint16_t value, int width, int height, int bpp, const heif_security_limits* limits);
+  Error fill_new_channel(heif_channel dst_channel, uint16_t value, int width, int height, int bpp, const heif_security_limits* limits);
 
-  void transfer_plane_from_image_as(const std::shared_ptr<HeifPixelImage>& source,
+  void transfer_channel_from_image_as(const std::shared_ptr<HeifPixelImage>& source,
                                     heif_channel src_channel,
                                     heif_channel dst_channel);
 
@@ -305,7 +305,7 @@ public:
   const std::vector<Error>& get_warnings() const { return m_warnings; }
 
 private:
-  struct ImageComponent
+  struct ComponentStorage
   {
     heif_channel m_channel = heif_channel_Y;
 
@@ -350,16 +350,16 @@ private:
     template <typename T> void mirror_inplace(heif_transform_mirror_direction);
 
     template<typename T>
-    void rotate_ccw(int angle_degrees, ImageComponent& out_plane) const;
+    void rotate_ccw(int angle_degrees, ComponentStorage& out_plane) const;
 
-    void crop(uint32_t left, uint32_t right, uint32_t top, uint32_t bottom, int bytes_per_pixel, ImageComponent& out_plane) const;
+    void crop(uint32_t left, uint32_t right, uint32_t top, uint32_t bottom, int bytes_per_pixel, ComponentStorage& out_plane) const;
   };
 
-  ImageComponent* find_component_for_channel(heif_channel channel);
-  const ImageComponent* find_component_for_channel(heif_channel channel) const;
+  ComponentStorage* find_storage_for_channel(heif_channel channel);
+  const ComponentStorage* find_storage_for_channel(heif_channel channel) const;
 
-  ImageComponent* find_component_by_id(uint32_t component_id);
-  const ImageComponent* find_component_by_id(uint32_t component_id) const;
+  ComponentStorage* find_storage_for_component(uint32_t component_id);
+  const ComponentStorage* find_storage_for_component(uint32_t component_id) const;
 
   // After plane.alloc() has succeeded, mints fresh component ids, appends
   // them to plane.m_component_ids, and pushes fully-populated
@@ -367,7 +367,7 @@ private:
   // bit_depth, width and height are read from `plane`. Must only be called
   // once allocation has succeeded so that no descriptions are registered for
   // a plane that failed to materialize.
-  void register_plane_descriptions(ImageComponent& plane,
+  void register_component_descriptions(ComponentStorage& plane,
                                    const std::vector<uint16_t>& component_types);
 
   // Overload that clones existing ComponentDescriptions (preserving
@@ -376,7 +376,7 @@ private:
   // from `plane`; component_ids are freshly minted on this image. Use this
   // when allocating a new plane that mirrors an existing one (e.g.
   // geometry-preserving transforms like rotation and crop).
-  void register_plane_descriptions(ImageComponent& plane,
+  void register_component_descriptions(ComponentStorage& plane,
                                    const std::vector<const ComponentDescription*>& source_descriptions);
 
   uint32_t m_width = 0;
@@ -384,7 +384,7 @@ private:
   heif_colorspace m_colorspace = heif_colorspace_undefined;
   heif_chroma m_chroma = heif_chroma_undefined;
 
-  std::vector<ImageComponent> m_planes;
+  std::vector<ComponentStorage> m_storage;
   //std::vector<uint16_t> m_cmpd_component_types;  // indexed by cmpd index
   MemoryHandle m_memory_handle;
 

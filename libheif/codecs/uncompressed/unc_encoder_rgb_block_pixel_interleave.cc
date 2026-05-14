@@ -93,7 +93,7 @@ std::vector<uint8_t> unc_encoder_rgb_block_pixel_interleave::encode_tile(const s
   uint16_t bpp = src_image->get_bits_per_pixel(heif_channel_interleaved);
 
   size_t src_stride;
-  const auto* src_data = reinterpret_cast<const uint16_t*>(src_image->get_plane(heif_channel_interleaved, &src_stride));
+  const auto* src_data = reinterpret_cast<const uint16_t*>(src_image->get_channel(heif_channel_interleaved, &src_stride));
   src_stride /= 2;
 
   uint64_t out_size = static_cast<uint64_t>(src_image->get_height()) * src_image->get_width() * m_bytes_per_pixel;

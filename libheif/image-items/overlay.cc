@@ -307,13 +307,13 @@ Result<std::shared_ptr<HeifPixelImage>> ImageItem_Overlay::decode_overlay_image(
   img->create(w, h,
               heif_colorspace_RGB,
               heif_chroma_444);
-  if (auto error = img->add_plane(heif_channel_R, w, h, 8, get_context()->get_security_limits())) { // TODO: other bit depths
+  if (auto error = img->add_channel(heif_channel_R, w, h, 8, get_context()->get_security_limits())) { // TODO: other bit depths
     return error;
   }
-  if (auto error = img->add_plane(heif_channel_G, w, h, 8, get_context()->get_security_limits())) { // TODO: other bit depths
+  if (auto error = img->add_channel(heif_channel_G, w, h, 8, get_context()->get_security_limits())) { // TODO: other bit depths
     return error;
   }
-  if (auto error = img->add_plane(heif_channel_B, w, h, 8, get_context()->get_security_limits())) { // TODO: other bit depths
+  if (auto error = img->add_channel(heif_channel_B, w, h, 8, get_context()->get_security_limits())) { // TODO: other bit depths
     return error;
   }
 

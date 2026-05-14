@@ -33,7 +33,7 @@ TEST_CASE( "uint32_t" )
 
   auto* limits = heif_get_global_security_limits();
   image.create(3,2, heif_colorspace_custom, heif_chroma_planar);
-  image.add_plane(heif_channel_Y, 3,2, 32, limits, heif_component_datatype_unsigned_integer);
+  image.add_channel(heif_channel_Y, 3,2, 32, limits, heif_component_datatype_unsigned_integer);
 
   size_t stride;
   uint32_t* data = image.get_channel<uint32_t>(heif_channel_Y, &stride);
@@ -132,7 +132,7 @@ TEST_CASE( "complex64_t" )
 
   auto* limits = heif_get_global_security_limits();
   image.create(3,2, heif_colorspace_custom, heif_chroma_planar);
-  image.add_plane(heif_channel_Y, 3,2, 128, limits, heif_component_datatype_complex_number);
+  image.add_channel(heif_channel_Y, 3,2, 128, limits, heif_component_datatype_complex_number);
 
   size_t stride;
   heif_complex64* data = image.get_channel<heif_complex64>(heif_channel_Y, &stride);
@@ -187,13 +187,13 @@ TEST_CASE( "image datatype through public API" )
 
 // Verify that an interleaved RGB plane produces THREE ComponentDescription
 // entries (one per cmpd component: red, green, blue) all sharing
-// channel=heif_channel_interleaved, while m_planes has a single buffer.
+// channel=heif_channel_interleaved, while m_storage has a single buffer.
 TEST_CASE( "interleaved RGB component descriptions" )
 {
   HeifPixelImage image;
   auto* limits = heif_get_global_security_limits();
   image.create(100, 100, heif_colorspace_RGB, heif_chroma_interleaved_RGB);
-  REQUIRE(image.add_plane(heif_channel_interleaved, 100, 100, 8, limits).error_code == heif_error_Ok);
+  REQUIRE(image.add_channel(heif_channel_interleaved, 100, 100, 8, limits).error_code == heif_error_Ok);
 
   REQUIRE(image.get_number_of_used_components() == 3);
 
@@ -232,7 +232,7 @@ TEST_CASE( "interleaved RGBA component descriptions" )
   HeifPixelImage image;
   auto* limits = heif_get_global_security_limits();
   image.create(50, 50, heif_colorspace_RGB, heif_chroma_interleaved_RGBA);
-  REQUIRE(image.add_plane(heif_channel_interleaved, 50, 50, 8, limits).error_code == heif_error_Ok);
+  REQUIRE(image.add_channel(heif_channel_interleaved, 50, 50, 8, limits).error_code == heif_error_Ok);
 
   REQUIRE(image.get_number_of_used_components() == 4);
   auto ids = image.get_used_component_ids();
