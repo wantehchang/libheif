@@ -905,6 +905,15 @@ Error HeifPixelImage::extract_alpha_from_RGBA(const std::shared_ptr<const HeifPi
   uint32_t width = src_image->get_width();
   uint32_t height = src_image->get_height();
 
+  // The copy loop below assumes 8-bit interleaved RGBA (4 bytes per pixel,
+  // alpha at byte offset 3). 16-bit interleaved formats (RRGGBBAA_*) have a
+  // different layout and would be read/written incorrectly.
+  if (src_image->get_bits_per_pixel(heif_channel_interleaved) != 8) {
+    return {heif_error_Unsupported_feature,
+            heif_suberror_Unspecified,
+            "extract_alpha_from_RGBA only supports 8-bit interleaved RGBA"};
+  }
+
   if (Error err = add_channel(heif_channel_Y, width, height, src_image->get_bits_per_pixel(heif_channel_interleaved), limits)) {
     return err;
   }
