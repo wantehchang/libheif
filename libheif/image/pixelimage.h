@@ -371,7 +371,7 @@ private:
   // once allocation has succeeded so that no descriptions are registered for
   // a plane that failed to materialize.
   void register_component_descriptions(ComponentStorage& plane,
-                                   const std::vector<uint16_t>& component_types);
+                                       const std::vector<uint16_t>& component_types);
 
   // Overload that clones existing ComponentDescriptions (preserving
   // component_type, gimi_content_id, has_data_plane, and any other per-id
@@ -380,7 +380,7 @@ private:
   // when allocating a new plane that mirrors an existing one (e.g.
   // geometry-preserving transforms like rotation and crop).
   void register_component_descriptions(ComponentStorage& plane,
-                                   const std::vector<const ComponentDescription*>& source_descriptions);
+                                       const std::vector<const ComponentDescription*>& source_descriptions);
 
   uint32_t m_width = 0;
   uint32_t m_height = 0;
@@ -388,14 +388,7 @@ private:
   heif_chroma m_chroma = heif_chroma_undefined;
 
   std::vector<ComponentStorage> m_storage;
-  //std::vector<uint16_t> m_cmpd_component_types;  // indexed by cmpd index
   MemoryHandle m_memory_handle;
-
-  // (component_type now lives on each ComponentDescription in
-  //  ImageDescription::m_components, indexed by component_id.)
-
-  // m_next_component_id and m_sample_duration moved to ImageDescription
-  // (inherited).
 
   std::vector<Error> m_warnings;
 };

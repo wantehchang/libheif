@@ -488,6 +488,19 @@ Error HeifPixelImage::extend_padding_to_size(uint32_t width, uint32_t height, bo
                                              const heif_security_limits* limits)
 {
   for (auto& component : m_storage) {
+    // get_subsampled_size() only adjusts the size for Cb/Cr; for every other
+    // channel it assumes the component has the full logical image size. We
+    // cannot compute a correct padded size for a non-Cb/Cr component that does
+    // not follow that assumption (e.g. multi-component ISO 23001-17 images).
+    if ((component.m_width != m_width ||
+         component.m_height != m_height) &&
+        (component.m_channel != heif_channel_Cb &&
+         component.m_channel != heif_channel_Cr)) {
+      return Error{heif_error_Unsupported_feature,
+                   heif_suberror_Unspecified,
+                   "Cannot extend padding for an image with non-uniform component sizes."};
+    }
+
     uint32_t subsampled_width, subsampled_height;
     get_subsampled_size(width, height, component.m_channel, m_chroma,
                         &subsampled_width, &subsampled_height);
@@ -565,6 +578,18 @@ Error HeifPixelImage::extend_padding_to_size(uint32_t width, uint32_t height, bo
 Error HeifPixelImage::extend_to_size_with_zero(uint32_t width, uint32_t height, const heif_security_limits* limits)
 {
   for (auto& component : m_storage) {
+    // See extend_padding_to_size(): get_subsampled_size() assumes a non-Cb/Cr
+    // component has the full logical image size, so we cannot compute a correct
+    // target size for a component that does not follow that assumption.
+    if ((component.m_width != m_width ||
+         component.m_height != m_height) &&
+        (component.m_channel != heif_channel_Cb &&
+         component.m_channel != heif_channel_Cr)) {
+      return Error{heif_error_Unsupported_feature,
+                   heif_suberror_Unspecified,
+                   "Cannot extend an image with non-uniform component sizes."};
+    }
+
     uint32_t subsampled_width, subsampled_height;
     get_subsampled_size(width, height, component.m_channel, m_chroma,
                         &subsampled_width, &subsampled_height);
