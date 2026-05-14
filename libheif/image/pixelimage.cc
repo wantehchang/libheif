@@ -1275,6 +1275,13 @@ Result<std::shared_ptr<HeifPixelImage>> HeifPixelImage::rotate_ccw(int angle_deg
     else if (component.m_bit_depth <= 128) {
       component.rotate_ccw<heif_complex64>(angle_degrees, out_component);
     }
+    else {
+      std::stringstream sstr;
+      sstr << "Cannot rotate images with " << component.m_bit_depth << " bits per pixel";
+      return Error{heif_error_Unsupported_feature,
+                   heif_suberror_Unspecified,
+                   sstr.str()};
+    }
 
     out_img->m_storage.push_back(std::move(out_component));
   }
