@@ -125,13 +125,19 @@ heif_error heif_image_extract_area(const heif_image* srcimg,
 
 int heif_image_get_bits_per_pixel(const heif_image* img, heif_channel channel)
 {
-  return img->image->get_storage_bits_per_pixel(channel);
+  // get_storage_bits_per_pixel() returns 0 for a non-existing channel;
+  // the public API documents -1 for that case.
+  uint16_t bpp = img->image->get_storage_bits_per_pixel(channel);
+  return bpp == 0 ? -1 : bpp;
 }
 
 
 int heif_image_get_bits_per_pixel_range(const heif_image* img, heif_channel channel)
 {
-  return img->image->get_bits_per_pixel(channel);
+  // get_bits_per_pixel() returns 0 for a non-existing channel;
+  // keep the public API's -1 result for that case.
+  uint16_t bpp = img->image->get_bits_per_pixel(channel);
+  return bpp == 0 ? -1 : bpp;
 }
 
 

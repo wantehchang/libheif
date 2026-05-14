@@ -780,7 +780,10 @@ uint16_t HeifPixelImage::get_storage_bits_per_pixel(enum heif_channel channel) c
 {
   auto* comp = find_storage_for_channel(channel);
   if (!comp) {
-    return -1;
+    // Channel not present. The return type is unsigned, so the historical
+    // `return -1` actually yielded 65535; use 0 as an unambiguous
+    // "not present" value (no real channel has 0 bits per pixel).
+    return 0;
   }
 
   uint32_t bpp = comp->get_bytes_per_pixel() * 8;
@@ -793,7 +796,8 @@ uint16_t HeifPixelImage::get_bits_per_pixel(enum heif_channel channel) const
 {
   auto* comp = find_storage_for_channel(channel);
   if (!comp) {
-    return -1;
+    // Channel not present -- see get_storage_bits_per_pixel().
+    return 0;
   }
 
   return comp->m_bit_depth;
