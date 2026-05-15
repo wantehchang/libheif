@@ -969,7 +969,7 @@ void HeifPixelImage::fill_channel(heif_channel dst_channel, uint16_t value)
     uint8_t* dst;
     size_t dst_stride = 0;
     dst = get_channel_memory(dst_channel, &dst_stride);
-    uint32_t width_bytes = width * num_interleaved;
+    size_t width_bytes = static_cast<size_t>(width) * num_interleaved;
 
     for (uint32_t y = 0; y < height; y++) {
       memset(dst + y * dst_stride, value, width_bytes);
@@ -981,8 +981,9 @@ void HeifPixelImage::fill_channel(heif_channel dst_channel, uint16_t value)
     dst = get_channel_memory<uint16_t>(dst_channel, &dst_stride);
     dst_stride /= sizeof(uint16_t);
 
+    size_t row_size = static_cast<size_t>(width) * num_interleaved;
     for (uint32_t y = 0; y < height; y++) {
-      for (uint32_t x = 0; x < width * num_interleaved; x++) {
+      for (size_t x = 0; x < row_size; x++) {
         dst[y * dst_stride + x] = value;
       }
     }
