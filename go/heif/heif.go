@@ -762,25 +762,25 @@ func (img *Image) GetChromaFormat() Chroma {
 }
 
 func (img *Image) GetWidth(channel Channel) int {
-	i := int(C.heif_image_get_width(img.image, uint32(channel)))
+	i := int(C.heif_image_get_width(img.image, C.enum_heif_channel(channel)))
 	runtime.KeepAlive(img)
 	return i
 }
 
 func (img *Image) GetHeight(channel Channel) int {
-	i := int(C.heif_image_get_height(img.image, uint32(channel)))
+	i := int(C.heif_image_get_height(img.image, C.enum_heif_channel(channel)))
 	runtime.KeepAlive(img)
 	return i
 }
 
 func (img *Image) GetBitsPerPixel(channel Channel) int {
-	i := int(C.heif_image_get_bits_per_pixel(img.image, uint32(channel)))
+	i := int(C.heif_image_get_bits_per_pixel(img.image, C.enum_heif_channel(channel)))
 	runtime.KeepAlive(img)
 	return i
 }
 
 func (img *Image) GetBitsPerPixelRange(channel Channel) int {
-	i := int(C.heif_image_get_bits_per_pixel_range(img.image, uint32(channel)))
+	i := int(C.heif_image_get_bits_per_pixel_range(img.image, C.enum_heif_channel(channel)))
 	runtime.KeepAlive(img)
 	return i
 }
@@ -1168,14 +1168,14 @@ func (i *ImageAccess) setData(data []byte, stride int) {
 }
 
 func (img *Image) GetPlane(channel Channel) (*ImageAccess, error) {
-	height := C.heif_image_get_height(img.image, uint32(channel))
+	height := C.heif_image_get_height(img.image, C.enum_heif_channel(channel))
 	runtime.KeepAlive(img)
 	if height == -1 {
 		return nil, fmt.Errorf("No such channel %v", channel)
 	}
 
 	var stride C.int
-	plane := C.heif_image_get_plane(img.image, uint32(channel), &stride)
+	plane := C.heif_image_get_plane(img.image, C.enum_heif_channel(channel), &stride)
 	runtime.KeepAlive(img)
 	if plane == nil {
 		return nil, fmt.Errorf("No such channel %v", channel)
@@ -1194,7 +1194,7 @@ func (img *Image) GetPlane(channel Channel) (*ImageAccess, error) {
 }
 
 func (img *Image) NewPlane(channel Channel, width, height, depth int) (*ImageAccess, error) {
-	err := C.heif_image_add_plane(img.image, uint32(channel), C.int(width), C.int(height), C.int(depth))
+	err := C.heif_image_add_plane(img.image, C.enum_heif_channel(channel), C.int(width), C.int(height), C.int(depth))
 	runtime.KeepAlive(img)
 	if err := convertHeifError(err); err != nil {
 		return nil, err
