@@ -93,6 +93,7 @@ struct encoder_struct_aom
 #endif
 
   aom_tune_metric tune;
+  bool tune_auto = true;
 
   heif_chroma chroma = heif_chroma_420;
 
@@ -193,7 +194,7 @@ static const char* const kParam_chroma_valid_values[] = {
 
 static const char* kParam_tune = "tune";
 static const char* const kParam_tune_valid_values[] = {
-    "psnr", "ssim", "iq", nullptr
+    "auto", "psnr", "ssim", "iq", nullptr
 };
 
 static const int AOM_PLUGIN_PRIORITY = 60;
@@ -310,7 +311,7 @@ static void aom_init_parameters()
   p->version = 2;
   p->name = kParam_tune;
   p->type = heif_encoder_parameter_type_string;
-  p->string.default_value = "ssim";
+  p->string.default_value = "auto";
   p->has_default = true;
   p->string.valid_values = kParam_tune_valid_values;
   d[i++] = p++;
@@ -663,17 +664,24 @@ heif_error aom_set_parameter_string(void* encoder_raw, const char* name, const c
   }
 
   if (strcmp(name, kParam_tune) == 0) {
-    if (strcmp(value, "psnr") == 0) {
+    if (strcmp(value, "auto") == 0) {
+      encoder->tune_auto = true;
+      return heif_error_ok;
+    }
+    else if (strcmp(value, "psnr") == 0) {
       encoder->tune = AOM_TUNE_PSNR;
+      encoder->tune_auto = false;
       return heif_error_ok;
     }
     else if (strcmp(value, "ssim") == 0) {
       encoder->tune = AOM_TUNE_SSIM;
+      encoder->tune_auto = false;
       return heif_error_ok;
     }
 #if defined(AOM_HAVE_TUNE_IQ)
     else if (strcmp(value, "iq") == 0) {
       encoder->tune = AOM_TUNE_IQ;
+      encoder->tune_auto = false;
       return heif_error_ok;
     }
 #endif
@@ -723,6 +731,10 @@ heif_error aom_get_parameter_string(void* encoder_raw, const char* name,
     return heif_error_ok;
   }
   else if (strcmp(name, kParam_tune) == 0) {
+    if (encoder->tune_auto) {
+      save_strcpy(value, value_size, "auto");
+      return heif_error_ok;
+    }
     switch (encoder->tune) {
       case AOM_TUNE_PSNR:
         save_strcpy(value, value_size, "psnr");
@@ -1077,7 +1089,37 @@ static heif_error aom_start_sequence_encoding_intern(void* encoder_raw, const he
     aom_error = aom_codec_control(&codec, AV1E_SET_TRANSFER_CHARACTERISTICS, nclx->transfer_characteristics); CHECK_ERROR;
        }
 
-  aom_error = aom_codec_control(&codec, AOME_SET_TUNING, encoder->tune); CHECK_ERROR;
+  aom_tune_metric effective_tune = encoder->tune;
+  if (encoder->tune_auto) {
+    if (input_class == heif_image_input_class_alpha) {
+      // AOM_TUNE_SSIM causes ringing on alpha; PSNR avoids that.
+      effective_tune = AOM_TUNE_PSNR;
+    }
+    else {
+      effective_tune = AOM_TUNE_SSIM;
+#if defined(AOM_HAVE_TUNE_IQ)
+      // AOM_TUNE_IQ is tuned for the YCbCr family of color spaces (and other YUV-like
+      // spaces such as YCgCo, ICtCp, including monochrome). It does NOT generalize to
+      // GBR samples (matrix_coefficients = IDENTITY), so we keep SSIM for that case.
+      // AOM_TUNE_IQ stabilized in libaom v3.13.0 (all-intra only); v3.14.0 added
+      // support for the good-quality and realtime inter-frame modes.
+
+      static const int aom_version_3_13_0 = (3 << 16) | (13 << 8);
+      static const int aom_version_3_14_0 = (3 << 16) | (14 << 8);
+
+      bool is_identity_matrix = nclx && (nclx->matrix_coefficients == heif_matrix_coefficients_RGB_GBR);
+      int aom_version = aom_codec_version();
+      bool iq_supports_inter = (aom_version >= aom_version_3_14_0);
+
+      if (!is_identity_matrix &&
+          (cfg.g_usage == AOM_USAGE_ALL_INTRA || iq_supports_inter) &&
+          aom_version >= aom_version_3_13_0) {
+        effective_tune = AOM_TUNE_IQ;
+      }
+#endif
+    }
+  }
+  aom_error = aom_codec_control(&codec, AOME_SET_TUNING, effective_tune); CHECK_ERROR;
 
   if (encoder->lossless || (input_class == heif_image_input_class_alpha && encoder->lossless_alpha)) {
     aom_error = aom_codec_control(&codec, AV1E_SET_LOSSLESS, 1); CHECK_ERROR;
