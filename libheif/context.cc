@@ -614,6 +614,11 @@ Error HeifContext::interpret_heif_file_images()
       imageItem = std::make_shared<ImageItem_Error>(imageItem->get_infe_type(), id, err);
       imageItem->set_properties(properties);
     } else {
+      // The decoder's input data extent must be set before any codec-config
+      // query: some decoders (e.g. JPEG, whose jpgC box is optional) read the
+      // actual bitstream to answer colorspace/bit-depth queries.
+      imageItem->set_decoder_input_data();
+
       // After initialize_decoder, codec-config queries (colorspace, bit depth)
       // are available, so visual-codec items can now populate their component
       // descriptions. Idempotent for items already populated by set_properties
@@ -631,8 +636,6 @@ Error HeifContext::interpret_heif_file_images()
 
       m_top_level_images.push_back(imageItem);
     }
-
-    imageItem->set_decoder_input_data();
   }
 
   if (!m_primary_image) {
