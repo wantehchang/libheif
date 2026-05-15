@@ -1161,7 +1161,7 @@ void HeifPixelImage::zero_region(uint32_t x0, uint32_t y0, uint32_t w, uint32_t 
     size_t width_bytes = static_cast<size_t>(cw) * bytes_per_pixel;
 
     for (uint32_t y = 0; y < ch; y++) {
-      memset(data + cx0 * bytes_per_pixel + (cy0 + y) * stride, 0, width_bytes);
+      memset(data + static_cast<size_t>(cx0) * bytes_per_pixel + (cy0 + y) * stride, 0, width_bytes);
     }
   }
 }
