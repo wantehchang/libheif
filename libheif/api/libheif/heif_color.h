@@ -55,8 +55,8 @@ typedef struct heif_color_conversion_options
 
   // --- version 1 options
 
-  enum heif_chroma_downsampling_algorithm preferred_chroma_downsampling_algorithm;
-  enum heif_chroma_upsampling_algorithm preferred_chroma_upsampling_algorithm;
+  heif_chroma_downsampling_algorithm preferred_chroma_downsampling_algorithm;
+  heif_chroma_upsampling_algorithm preferred_chroma_upsampling_algorithm;
 
   // When set to 'false' libheif may also use a different algorithm if the preferred one is not available
   // or using a different algorithm is computationally less complex. Note that currently (v1.17.0) this
@@ -85,7 +85,7 @@ typedef struct heif_color_conversion_options_ext
 
   // --- version 1 options
 
-  enum heif_alpha_composition_mode alpha_composition_mode;
+  heif_alpha_composition_mode alpha_composition_mode;
 
   // color values should be specified in the range [0, 65535]
   uint16_t background_red, background_green, background_blue;
@@ -126,7 +126,7 @@ typedef enum heif_color_profile_type
 //       However, you can still use heif_image_handle_get_raw_color_profile() and
 //       heif_image_handle_get_nclx_color_profile() to access both profiles.
 LIBHEIF_API
-enum heif_color_profile_type heif_image_handle_get_color_profile_type(const heif_image_handle* handle);
+heif_color_profile_type heif_image_handle_get_color_profile_type(const heif_image_handle* handle);
 
 LIBHEIF_API
 size_t heif_image_handle_get_raw_color_profile_size(const heif_image_handle* handle);
@@ -198,9 +198,9 @@ typedef struct heif_color_profile_nclx
 
   uint8_t version;
 
-  enum heif_color_primaries color_primaries;
-  enum heif_transfer_characteristics transfer_characteristics;
-  enum heif_matrix_coefficients matrix_coefficients;
+  heif_color_primaries color_primaries;
+  heif_transfer_characteristics transfer_characteristics;
+  heif_matrix_coefficients matrix_coefficients;
   uint8_t full_range_flag;
 
   // --- decoded values (not used when saving nclx)
@@ -240,7 +240,7 @@ void heif_nclx_color_profile_free(heif_color_profile_nclx* nclx_profile);
 // This function will now return ICC if one is present and NCLX only if there is no ICC.
 // You may better avoid this function and simply query for NCLX and ICC directly.
 LIBHEIF_API
-enum heif_color_profile_type heif_image_get_color_profile_type(const heif_image* image);
+heif_color_profile_type heif_image_get_color_profile_type(const heif_image* image);
 
 // Returns the size of the ICC profile if one is assigned to the image. Otherwise, it returns 0.
 LIBHEIF_API

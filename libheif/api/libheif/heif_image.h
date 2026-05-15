@@ -182,11 +182,11 @@ typedef struct heif_security_limits heif_security_limits;
 
 // Get the colorspace format of the image.
 LIBHEIF_API
-enum heif_colorspace heif_image_get_colorspace(const heif_image*);
+heif_colorspace heif_image_get_colorspace(const heif_image*);
 
 // Get the chroma format of the image.
 LIBHEIF_API
-enum heif_chroma heif_image_get_chroma_format(const heif_image*);
+heif_chroma heif_image_get_chroma_format(const heif_image*);
 
 /**
  * Get the width of a specified image channel.
@@ -249,7 +249,7 @@ heif_error heif_image_extract_area(const heif_image*,
 // Especially for HDR images, this is probably not what you want. Have a look at
 // heif_image_get_bits_per_pixel_range() instead.
 LIBHEIF_API
-int heif_image_get_bits_per_pixel(const heif_image*, enum heif_channel channel);
+int heif_image_get_bits_per_pixel(const heif_image*, heif_channel channel);
 
 // Get the number of bits per pixel in the given image channel. This function returns
 // the number of bits used for representing the pixel value, which might be smaller
@@ -258,10 +258,10 @@ int heif_image_get_bits_per_pixel(const heif_image*, enum heif_channel channel);
 // are reserved for storage. For interleaved RGBA with 12 bit, this function also returns
 // '12', not '48' or '64' (heif_image_get_bits_per_pixel returns 64 in this case).
 LIBHEIF_API
-int heif_image_get_bits_per_pixel_range(const heif_image*, enum heif_channel channel);
+int heif_image_get_bits_per_pixel_range(const heif_image*, heif_channel channel);
 
 LIBHEIF_API
-int heif_image_has_channel(const heif_image*, enum heif_channel channel);
+int heif_image_has_channel(const heif_image*, heif_channel channel);
 
 // Get a pointer to the actual pixel data.
 // The 'out_stride' is returned as "bytes per line".
@@ -270,13 +270,13 @@ int heif_image_has_channel(const heif_image*, enum heif_channel channel);
 // Deprecated, use the safer version heif_image_get_plane_readonly2() instead.
 LIBHEIF_API
 const uint8_t* heif_image_get_plane_readonly(const heif_image*,
-                                             enum heif_channel channel,
+                                             heif_channel channel,
                                              int* out_stride);
 
 // Deprecated, use the safer version heif_image_get_plane2() instead.
 LIBHEIF_API
 uint8_t* heif_image_get_plane(heif_image*,
-                              enum heif_channel channel,
+                              heif_channel channel,
                               int* out_stride);
 
 // These are safer variants of the two functions above.
@@ -285,12 +285,12 @@ uint8_t* heif_image_get_plane(heif_image*,
 // The changed 'stride' parameter type eliminates this common error.
 LIBHEIF_API
 const uint8_t* heif_image_get_plane_readonly2(const heif_image*,
-                                              enum heif_channel channel,
+                                              heif_channel channel,
                                               size_t* out_stride);
 
 LIBHEIF_API
 uint8_t* heif_image_get_plane2(heif_image*,
-                               enum heif_channel channel,
+                               heif_channel channel,
                                size_t* out_stride);
 
 
@@ -364,8 +364,8 @@ void heif_image_set_omaf_image_projection(const heif_image*, heif_omaf_image_pro
 */
 LIBHEIF_API
 heif_error heif_image_create(int width, int height,
-                             enum heif_colorspace colorspace,
-                             enum heif_chroma chroma,
+                             heif_colorspace colorspace,
+                             heif_chroma chroma,
                              heif_image** out_image);
 
 /**
@@ -398,7 +398,7 @@ heif_error heif_image_create(int width, int height,
  */
 LIBHEIF_API
 heif_error heif_image_add_plane(heif_image* image,
-                                enum heif_channel channel,
+                                heif_channel channel,
                                 int width, int height, int bit_depth);
 
 /*
@@ -407,7 +407,7 @@ heif_error heif_image_add_plane(heif_image* image,
  */
 LIBHEIF_API
 heif_error heif_image_add_plane_safe(heif_image* image,
-                                     enum heif_channel channel,
+                                     heif_channel channel,
                                      int width, int height, int bit_depth,
                                      const heif_security_limits* limits);
 

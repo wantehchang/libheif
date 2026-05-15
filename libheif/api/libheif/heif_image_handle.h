@@ -91,8 +91,8 @@ int heif_image_handle_get_chroma_bits_per_pixel(const heif_image_handle*);
 // You can still request the output in your preferred colorspace, but this may involve an internal conversion.
 LIBHEIF_API
 heif_error heif_image_handle_get_preferred_decoding_colorspace(const heif_image_handle* image_handle,
-                                                               enum heif_colorspace* out_colorspace,
-                                                               enum heif_chroma* out_chroma);
+                                                               heif_colorspace* out_colorspace,
+                                                               heif_chroma* out_chroma);
 
 // Get the image width from the 'ispe' box. This is the original image size without
 // any transformations applied to it. Do not use this unless you know exactly what

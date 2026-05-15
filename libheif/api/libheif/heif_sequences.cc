@@ -520,9 +520,9 @@ heif_error heif_track_encode_sequence_image(heif_track* track,
 
         encoding_options->output_nclx_profile = &nclx;
         nclx.version = 1;
-        nclx.color_primaries = (enum heif_color_primaries) input_nclx.get_colour_primaries();
-        nclx.transfer_characteristics = (enum heif_transfer_characteristics) input_nclx.get_transfer_characteristics();
-        nclx.matrix_coefficients = (enum heif_matrix_coefficients) input_nclx.get_matrix_coefficients();
+        nclx.color_primaries = (heif_color_primaries) input_nclx.get_colour_primaries();
+        nclx.transfer_characteristics = (heif_transfer_characteristics) input_nclx.get_transfer_characteristics();
+        nclx.matrix_coefficients = (heif_matrix_coefficients) input_nclx.get_matrix_coefficients();
         nclx.full_range_flag = input_nclx.get_full_range_flag();
       }
     }

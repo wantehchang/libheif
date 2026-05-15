@@ -49,7 +49,7 @@ func GetVersion() string {
 	return C.GoString(C.heif_get_version())
 }
 
-type Compression C.enum_heif_compression_format
+type Compression C.heif_compression_format
 
 const (
 	CompressionUndefined    = C.heif_compression_undefined
@@ -65,7 +65,7 @@ const (
 	CompressionHTJ2K        = C.heif_compression_HTJ2K
 )
 
-type Chroma C.enum_heif_chroma
+type Chroma C.heif_chroma
 
 const (
 	ChromaUndefined              = C.heif_chroma_undefined
@@ -85,7 +85,7 @@ const (
 	ChromaInterleaved32Bit = C.heif_chroma_interleaved_32bit
 )
 
-type ChromaDownsamplingAlgorithm C.enum_heif_chroma_downsampling_algorithm
+type ChromaDownsamplingAlgorithm C.heif_chroma_downsampling_algorithm
 
 const (
 	ChromaDownsamplingAverage         = C.heif_chroma_downsampling_average
@@ -93,14 +93,14 @@ const (
 	ChromaDownsamplingSharpYUV        = C.heif_chroma_downsampling_sharp_yuv
 )
 
-type ChromaUpsamplingAlgorithm C.enum_heif_chroma_upsampling_algorithm
+type ChromaUpsamplingAlgorithm C.heif_chroma_upsampling_algorithm
 
 const (
 	ChromaUpsamplingNearestNeighbor = C.heif_chroma_upsampling_nearest_neighbor
 	ChromaUpsamplingBilinear        = C.heif_chroma_upsampling_bilinear
 )
 
-type Colorspace C.enum_heif_colorspace
+type Colorspace C.heif_colorspace
 
 const (
 	ColorspaceUndefined   = C.heif_colorspace_undefined
@@ -112,7 +112,7 @@ const (
 	ColorspaceNonvisual   = C.heif_colorspace_nonvisual
 )
 
-type Channel C.enum_heif_channel
+type Channel C.heif_channel
 
 const (
 	ChannelY           = C.heif_channel_Y
@@ -129,7 +129,7 @@ const (
 	ChannelUnknown     = C.heif_channel_unknown
 )
 
-type ProgressStep C.enum_heif_progress_step
+type ProgressStep C.heif_progress_step
 
 const (
 	ProgressStepTotal    = C.heif_progress_step_total
@@ -154,7 +154,7 @@ const (
 
 // --- HeifError
 
-type ErrorCode C.enum_heif_error_code
+type ErrorCode C.heif_error_code
 
 const (
 	ErrorOK = C.heif_error_Ok
@@ -196,7 +196,7 @@ const (
 	ErrorCanceled = C.heif_error_Canceled
 )
 
-type ErrorSubcode C.enum_heif_suberror_code
+type ErrorSubcode C.heif_suberror_code
 
 const (
 	// no further information available
@@ -517,7 +517,7 @@ func (c *Context) convertEncoderDescriptor(d *C.struct_heif_encoder_descriptor) 
 func (c *Context) NewEncoder(compression Compression) (*Encoder, error) {
 	const max = 1
 	descriptors := make([]*C.struct_heif_encoder_descriptor, max)
-	num := int(C.heif_context_get_encoder_descriptors(c.context, uint32(compression), nil, &descriptors[0], C.int(max)))
+	num := int(C.heif_context_get_encoder_descriptors(c.context, C.heif_compression_format(compression), nil, &descriptors[0], C.int(max)))
 	runtime.KeepAlive(c)
 	if num == 0 {
 		return nil, fmt.Errorf("no encoder for compression %v", compression)
@@ -718,7 +718,7 @@ type Image struct {
 
 func NewImage(width, height int, colorspace Colorspace, chroma Chroma) (*Image, error) {
 	var image Image
-	err := C.heif_image_create(C.int(width), C.int(height), uint32(colorspace), uint32(chroma), &image.image)
+	err := C.heif_image_create(C.int(width), C.int(height), C.heif_colorspace(colorspace), C.heif_chroma(chroma), &image.image)
 	if err := convertHeifError(err); err != nil {
 		return nil, err
 	}
@@ -739,7 +739,7 @@ func (h *ImageHandle) DecodeImage(colorspace Colorspace, chroma Chroma, options 
 		opt = options.options
 	}
 
-	err := C.heif_decode_image(h.handle, &image.image, uint32(colorspace), uint32(chroma), opt)
+	err := C.heif_decode_image(h.handle, &image.image, C.heif_colorspace(colorspace), C.heif_chroma(chroma), opt)
 	runtime.KeepAlive(h)
 	if err := convertHeifError(err); err != nil {
 		return nil, err
@@ -762,25 +762,25 @@ func (img *Image) GetChromaFormat() Chroma {
 }
 
 func (img *Image) GetWidth(channel Channel) int {
-	i := int(C.heif_image_get_width(img.image, C.enum_heif_channel(channel)))
+	i := int(C.heif_image_get_width(img.image, C.heif_channel(channel)))
 	runtime.KeepAlive(img)
 	return i
 }
 
 func (img *Image) GetHeight(channel Channel) int {
-	i := int(C.heif_image_get_height(img.image, C.enum_heif_channel(channel)))
+	i := int(C.heif_image_get_height(img.image, C.heif_channel(channel)))
 	runtime.KeepAlive(img)
 	return i
 }
 
 func (img *Image) GetBitsPerPixel(channel Channel) int {
-	i := int(C.heif_image_get_bits_per_pixel(img.image, C.enum_heif_channel(channel)))
+	i := int(C.heif_image_get_bits_per_pixel(img.image, C.heif_channel(channel)))
 	runtime.KeepAlive(img)
 	return i
 }
 
 func (img *Image) GetBitsPerPixelRange(channel Channel) int {
-	i := int(C.heif_image_get_bits_per_pixel_range(img.image, C.enum_heif_channel(channel)))
+	i := int(C.heif_image_get_bits_per_pixel_range(img.image, C.heif_channel(channel)))
 	runtime.KeepAlive(img)
 	return i
 }
@@ -1168,14 +1168,14 @@ func (i *ImageAccess) setData(data []byte, stride int) {
 }
 
 func (img *Image) GetPlane(channel Channel) (*ImageAccess, error) {
-	height := C.heif_image_get_height(img.image, C.enum_heif_channel(channel))
+	height := C.heif_image_get_height(img.image, C.heif_channel(channel))
 	runtime.KeepAlive(img)
 	if height == -1 {
 		return nil, fmt.Errorf("No such channel %v", channel)
 	}
 
 	var stride C.int
-	plane := C.heif_image_get_plane(img.image, C.enum_heif_channel(channel), &stride)
+	plane := C.heif_image_get_plane(img.image, C.heif_channel(channel), &stride)
 	runtime.KeepAlive(img)
 	if plane == nil {
 		return nil, fmt.Errorf("No such channel %v", channel)
@@ -1194,7 +1194,7 @@ func (img *Image) GetPlane(channel Channel) (*ImageAccess, error) {
 }
 
 func (img *Image) NewPlane(channel Channel, width, height, depth int) (*ImageAccess, error) {
-	err := C.heif_image_add_plane(img.image, C.enum_heif_channel(channel), C.int(width), C.int(height), C.int(depth))
+	err := C.heif_image_add_plane(img.image, C.heif_channel(channel), C.int(width), C.int(height), C.int(depth))
 	runtime.KeepAlive(img)
 	if err := convertHeifError(err); err != nil {
 		return nil, err

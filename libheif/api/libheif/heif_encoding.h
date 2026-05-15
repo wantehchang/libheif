@@ -56,7 +56,7 @@ typedef struct heif_encoder_parameter heif_encoder_parameter;
 // Note that the encoder may be limited to a certain subset of features (e.g. only 8 bit, only lossy).
 // You will have to query the specific capabilities further.
 LIBHEIF_API
-int heif_have_encoder_for_format(enum heif_compression_format format);
+int heif_have_encoder_for_format(heif_compression_format format);
 
 // Get a list of available encoders. You can filter the encoders by compression format and name.
 // Use format_filter==heif_compression_undefined and name_filter==NULL as wildcards.
@@ -65,7 +65,7 @@ int heif_have_encoder_for_format(enum heif_compression_format format);
 // By setting out_encoders==nullptr, you can query the number of encoders, 'count' is ignored.
 // Note: to get the actual encoder from the descriptors returned here, use heif_context_get_encoder().
 LIBHEIF_API
-int heif_get_encoder_descriptors(enum heif_compression_format format_filter,
+int heif_get_encoder_descriptors(heif_compression_format format_filter,
                                  const char* name_filter,
                                  const heif_encoder_descriptor** out_encoders,
                                  int count);
@@ -80,7 +80,7 @@ LIBHEIF_API
 const char* heif_encoder_descriptor_get_id_name(const heif_encoder_descriptor*);
 
 LIBHEIF_API
-enum heif_compression_format
+heif_compression_format
 heif_encoder_descriptor_get_compression_format(const heif_encoder_descriptor*);
 
 LIBHEIF_API
@@ -100,7 +100,7 @@ heif_error heif_context_get_encoder(heif_context* context,
 // for this format, the encoder with the highest plugin priority will be returned.
 LIBHEIF_API
 heif_error heif_context_get_encoder_for_format(heif_context* context,
-                                               enum heif_compression_format format,
+                                               heif_compression_format format,
                                                heif_encoder**);
 
 /**
@@ -407,7 +407,7 @@ int heif_encoder_descriptor_supportes_lossless_compression(const heif_encoder_de
 // Note: to get the actual encoder from the descriptors returned here, use heif_context_get_encoder().
 LIBHEIF_API
 int heif_context_get_encoder_descriptors(heif_context*, // TODO: why do we need this parameter?
-                                         enum heif_compression_format format_filter,
+                                         heif_compression_format format_filter,
                                          const char* name_filter,
                                          const heif_encoder_descriptor** out_encoders,
                                          int count);

@@ -284,10 +284,10 @@ typedef enum heif_suberror_code
 typedef struct heif_error
 {
   // main error category
-  enum heif_error_code code;
+  heif_error_code code;
 
   // more detailed error code
-  enum heif_suberror_code subcode;
+  heif_suberror_code subcode;
 
   // textual error message (is always defined, you do not have to check for NULL)
   const char* message;

@@ -182,8 +182,8 @@ heif_error heif_track_get_image_resolution(const heif_track*, uint16_t* out_widt
 LIBHEIF_API
 heif_error heif_track_decode_next_image(heif_track* track,
                                         heif_image** out_img,
-                                        enum heif_colorspace colorspace,
-                                        enum heif_chroma chroma,
+                                        heif_colorspace colorspace,
+                                        heif_chroma chroma,
                                         const heif_decoding_options* options);
 
 /**

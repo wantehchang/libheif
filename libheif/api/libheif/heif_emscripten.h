@@ -222,7 +222,7 @@ static int round_odd(int v) {
 }
 
 static emscripten::val heif_js_decode_image(struct heif_image_handle* handle,
-                                            enum heif_colorspace colorspace, enum heif_chroma chroma)
+                                            heif_colorspace colorspace, heif_chroma chroma)
 {
   emscripten::val result = emscripten::val::object();
   if (!handle) {
@@ -323,7 +323,7 @@ static emscripten::val heif_js_decode_image(struct heif_image_handle* handle,
  * This image has to be released after the image data has been read (copied) with heif_image_release().
  */
 static emscripten::val heif_js_decode_image2(struct heif_image_handle* handle,
-                                             enum heif_colorspace colorspace, enum heif_chroma chroma)
+                                             heif_colorspace colorspace, heif_chroma chroma)
 {
   emscripten::val result = emscripten::val::object();
   if (!handle) {
