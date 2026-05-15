@@ -217,6 +217,19 @@ Result<std::shared_ptr<HeifPixelImage>> UncompressedImageCodec::create_image(con
   // what makes component IDs stable across the handle and decoded image.
   if (properties.source_extra_data) {
     img->clone_component_descriptions_from(*properties.source_extra_data);
+
+    // Source descriptions carry the full-ispe plane sizes populated at parse
+    // time. When this call is for a single tile, width/height are smaller, so
+    // recompute the per-plane sizes from the actual target dimensions before
+    // allocate_buffer_for_component() reads desc->width/height.
+    for (const auto& desc_view : img->get_component_descriptions()) {
+      if (!desc_view.has_data_plane) {
+        continue;
+      }
+      ComponentDescription* desc = img->find_component_description(desc_view.component_id);
+      desc->width = channel_width(width, chroma, desc->channel);
+      desc->height = channel_height(height, chroma, desc->channel);
+    }
   }
 
   // Remember which components reference which cmpd indices.
