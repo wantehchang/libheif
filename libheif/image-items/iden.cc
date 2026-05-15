@@ -99,13 +99,12 @@ Result<std::shared_ptr<HeifPixelImage>> ImageItem_iden::decode_compressed_image(
 
 Error ImageItem_iden::get_coded_image_colorspace(heif_colorspace* out_colorspace, heif_chroma* out_chroma) const
 {
-  heif_item_id child;
-  Error err = get_context()->get_id_of_non_virtual_child_image(get_id(), child);
-  if (err) {
-    return err;
+  auto child_result = get_context()->find_first_coded_image_id(get_id());
+  if (child_result.is_error()) {
+    return child_result.error();
   }
 
-  auto image = get_context()->get_image(child, true);
+  auto image = get_context()->get_image(*child_result, true);
   if (!image) {
     return Error{heif_error_Invalid_input,
                  heif_suberror_Nonexisting_item_referenced};
@@ -117,13 +116,12 @@ Error ImageItem_iden::get_coded_image_colorspace(heif_colorspace* out_colorspace
 
 int ImageItem_iden::get_luma_bits_per_pixel() const
 {
-  heif_item_id child;
-  Error err = get_context()->get_id_of_non_virtual_child_image(get_id(), child);
-  if (err) {
+  auto child_result = get_context()->find_first_coded_image_id(get_id());
+  if (child_result.is_error()) {
     return -1;
   }
 
-  auto image = get_context()->get_image(child, true);
+  auto image = get_context()->get_image(*child_result, true);
   if (!image) {
     return -1;
   }
@@ -134,13 +132,12 @@ int ImageItem_iden::get_luma_bits_per_pixel() const
 
 int ImageItem_iden::get_chroma_bits_per_pixel() const
 {
-  heif_item_id child;
-  Error err = get_context()->get_id_of_non_virtual_child_image(get_id(), child);
-  if (err) {
+  auto child_result = get_context()->find_first_coded_image_id(get_id());
+  if (child_result.is_error()) {
     return -1;
   }
 
-  auto image = get_context()->get_image(child, true);
+  auto image = get_context()->get_image(*child_result, true);
   if (!image) {
     return -1;
   }
@@ -161,13 +158,12 @@ void ImageItem_iden::populate_component_descriptions()
     return;
   }
 
-  heif_item_id child_id;
-  Error err = get_context()->get_id_of_non_virtual_child_image(get_id(), child_id);
-  if (err) {
+  auto child_result = get_context()->find_first_coded_image_id(get_id());
+  if (child_result.is_error()) {
     return;
   }
 
-  auto child = get_context()->get_image(child_id, true);
+  auto child = get_context()->get_image(*child_result, true);
   if (!child) {
     return;
   }

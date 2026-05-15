@@ -31,6 +31,7 @@
 #include <limits>
 #include <cmath>
 #include <deque>
+#include <set>
 #include "image-items/image_item.h"
 #include <codecs/hevc_boxes.h>
 #include "sequences/track.h"
@@ -1347,47 +1348,54 @@ bool HeifContext::has_alpha(heif_item_id ID) const
 }
 
 
-Error HeifContext::get_id_of_non_virtual_child_image(heif_item_id id, heif_item_id& out) const
+Result<heif_item_id> HeifContext::find_first_coded_image_id(heif_item_id id) const
 {
-  uint32_t image_type = m_heif_file->get_item_type_4cc(id);
-  if (image_type == fourcc("grid") ||
-      image_type == fourcc("iden") ||
-      image_type == fourcc("iovl")) {
-    auto iref_box = m_heif_file->get_iref_box();
-    if (!iref_box) {
+  std::set<heif_item_id> visited;
+
+  for (;;) {
+    if (!visited.insert(id).second) {
       return Error(heif_error_Invalid_input,
                    heif_suberror_No_item_data,
-                   "Derived image does not reference any other image items");
+                   "Derived image references form a cycle");
     }
 
-    std::vector<heif_item_id> image_references = iref_box->get_references(id, fourcc("dimg"));
+    uint32_t image_type = m_heif_file->get_item_type_4cc(id);
+    if (image_type == fourcc("grid") ||
+        image_type == fourcc("iden") ||
+        image_type == fourcc("iovl")) {
+      auto iref_box = m_heif_file->get_iref_box();
+      if (!iref_box) {
+        return Error(heif_error_Invalid_input,
+                     heif_suberror_No_item_data,
+                     "Derived image does not reference any other image items");
+      }
 
-    // TODO: check whether this really can be recursive (e.g. overlay of grid images)
+      std::vector<heif_item_id> image_references = iref_box->get_references(id, fourcc("dimg"));
 
-    if (image_references.empty() || image_references[0] == id) {
-      return Error(heif_error_Invalid_input,
-                   heif_suberror_No_item_data,
-                   "Derived image does not reference any other image items");
+      if (image_references.empty()) {
+        return Error(heif_error_Invalid_input,
+                     heif_suberror_No_item_data,
+                     "Derived image does not reference any other image items");
+      }
+
+      // follow the first reference
+      id = image_references[0];
     }
     else {
-      return get_id_of_non_virtual_child_image(image_references[0], out);
-    }
-  }
-  else {
-    if (!m_all_images.contains(id)) {
-      std::stringstream sstr;
-      sstr << "Image item " << id << " referenced, but it does not exist\n";
+      if (!m_all_images.contains(id)) {
+        std::stringstream sstr;
+        sstr << "Image item " << id << " referenced, but it does not exist\n";
 
-      return Error(heif_error_Invalid_input,
-        heif_suberror_Nonexisting_item_referenced,
-        sstr.str());
-    }
-    else if (dynamic_cast<ImageItem_Error*>(m_all_images.find(id)->second.get())) {
-      // Should er return an error here or leave it to the follow-up code to detect that?
-    }
+        return Error(heif_error_Invalid_input,
+          heif_suberror_Nonexisting_item_referenced,
+          sstr.str());
+      }
+      else if (dynamic_cast<ImageItem_Error*>(m_all_images.find(id)->second.get())) {
+        // Should we return an error here or leave it to the follow-up code to detect that?
+      }
 
-    out = id;
-    return Error::Ok;
+      return id;
+    }
   }
 }
 

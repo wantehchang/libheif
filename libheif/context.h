@@ -131,7 +131,7 @@ public:
                                                                        heif_chroma out_chroma,
                                                                        const heif_decoding_options& options) const;
 
-  Error get_id_of_non_virtual_child_image(heif_item_id in, heif_item_id& out) const;
+  Result<heif_item_id> find_first_coded_image_id(heif_item_id in) const;
 
   std::string debug_dump_boxes() const;
 
