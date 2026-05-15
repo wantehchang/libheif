@@ -82,7 +82,7 @@ typedef struct heif_decoder_plugin_options
 } heif_decoder_plugin_options;
 
 
-typedef struct bheif_decoder_plugin
+typedef struct heif_decoder_plugin
 {
   // API version supported by this plugin (see table above for supported versions)
   int plugin_api_version;
