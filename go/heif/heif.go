@@ -106,6 +106,7 @@ const (
 	ColorspaceUndefined   = C.heif_colorspace_undefined
 	ColorspaceYCbCr       = C.heif_colorspace_YCbCr
 	ColorspaceRGB         = C.heif_colorspace_RGB
+	ColorspaceCustom      = C.heif_colorspace_custom
 	ColorspaceMonochrome  = C.heif_colorspace_monochrome
 	ColorspaceFilterArray = C.heif_colorspace_filter_array
 	ColorspaceNonvisual   = C.heif_colorspace_nonvisual
