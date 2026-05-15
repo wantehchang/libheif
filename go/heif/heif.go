@@ -78,7 +78,7 @@ const (
 	ChromaInterleavedRRGGBBAA_LE = C.heif_chroma_interleaved_RRGGBBAA_LE
 	ChromaInterleavedRRGGBB_BE   = C.heif_chroma_interleaved_RRGGBB_BE
 	ChromaInterleavedRRGGBB_LE   = C.heif_chroma_interleaved_RRGGBB_LE
-	ChromaPlanar           = C.heif_chroma_planar
+	ChromaPlanar                 = C.heif_chroma_planar
 
 	ChromaMonochrome       = C.heif_chroma_monochrome
 	ChromaInterleaved24Bit = C.heif_chroma_interleaved_24bit
