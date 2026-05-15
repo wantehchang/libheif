@@ -45,8 +45,9 @@ extern "C" {
 //  1.15         3         3          2
 //  1.20         4         3          2
 //  1.21         5         4          2
+//  1.22         6         4          2
 
-#define heif_decoder_plugin_latest_version 5
+#define heif_decoder_plugin_latest_version 6
 #define heif_encoder_plugin_latest_version 4
 
 // The minimum plugin versions that can be used with this libheif version.
@@ -72,10 +73,16 @@ typedef struct heif_decoder_plugin_options
   int strict_decoding; // bool
   int num_threads; // 0 - undefined, use decoder default
 
+  // --- added in plugin_api_version 6 ---
+  // Security limits the plugin must enforce for image allocations during decoding.
+  // The pointee must outlive the decoder instance (typically the context's limits).
+  // Only read by plugins reporting plugin_api_version >= 6.
+  const heif_security_limits* limits;
+
 } heif_decoder_plugin_options;
 
 
-typedef struct heif_decoder_plugin
+typedef struct bheif_decoder_plugin
 {
   // API version supported by this plugin (see table above for supported versions)
   int plugin_api_version;

@@ -103,7 +103,7 @@ heif_error jpeg_new_decoder2(void** dec, const heif_decoder_plugin_options* opti
 
 heif_error jpeg_new_decoder(void** dec)
 {
-  heif_decoder_plugin_options options;
+  heif_decoder_plugin_options options{};
   options.format = heif_compression_JPEG;
   options.num_threads = 0;
   options.strict_decoding = false;

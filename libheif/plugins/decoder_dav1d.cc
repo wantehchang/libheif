@@ -99,11 +99,12 @@ heif_error dav1d_new_decoder2(void** dec, const heif_decoder_plugin_options* opt
 
   dav1d_default_settings(&decoder->settings);
 
-  if (heif_get_global_security_limits()->max_image_size_pixels > std::numeric_limits<unsigned int>::max()) {
+  const heif_security_limits* limits = options->limits ? options->limits : heif_get_global_security_limits();
+  if (limits->max_image_size_pixels > std::numeric_limits<unsigned int>::max()) {
     decoder->settings.frame_size_limit = 0;
   }
   else {
-    decoder->settings.frame_size_limit = static_cast<unsigned int>(heif_get_global_security_limits()->max_image_size_pixels);
+    decoder->settings.frame_size_limit = static_cast<unsigned int>(limits->max_image_size_pixels);
   }
 
   decoder->settings.all_layers = 0;
@@ -124,7 +125,7 @@ heif_error dav1d_new_decoder2(void** dec, const heif_decoder_plugin_options* opt
 
 heif_error dav1d_new_decoder(void** dec)
 {
-  struct heif_decoder_plugin_options options;
+  struct heif_decoder_plugin_options options{};
   options.format = heif_compression_AV1;
   options.strict_decoding = false;
   options.num_threads = 0;
@@ -420,7 +421,7 @@ heif_error dav1d_flush_data(void* decoder_raw)
 
 static const heif_decoder_plugin decoder_dav1d
     {
-        5,
+        6,
         dav1d_plugin_name,
         dav1d_init_plugin,
         dav1d_deinit_plugin,
@@ -432,7 +433,7 @@ static const heif_decoder_plugin decoder_dav1d
         dav1d_set_strict_decoding,
         "dav1d",
         dav1d_decode_next_image,
-        /* minimum_required_libheif_version */ LIBHEIF_MAKE_VERSION(1,21,0),
+        /* minimum_required_libheif_version */ LIBHEIF_MAKE_VERSION(1,22,0),
         dav1d_does_support_format2,
         dav1d_new_decoder2,
         dav1d_push_data2,

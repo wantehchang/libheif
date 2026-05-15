@@ -132,7 +132,7 @@ heif_error vvdec_new_decoder2(void** dec, const heif_decoder_plugin_options* opt
 
 heif_error vvdec_new_decoder(void** dec)
 {
-  heif_decoder_plugin_options options;
+  heif_decoder_plugin_options options{};
   options.format = heif_compression_VVC;
   options.num_threads = 0;
   options.strict_decoding = false;

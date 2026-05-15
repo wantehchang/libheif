@@ -357,6 +357,7 @@ Error Decoder::decode_sequence_frame_from_compressed_data(bool upload_configurat
       plugin_options.format = get_compression_format();
       plugin_options.num_threads = options.num_codec_threads;
       plugin_options.strict_decoding = options.strict_decoding;
+      plugin_options.limits = limits;
 
       err = m_decoder_plugin->new_decoder2(&m_decoder, &plugin_options);
       if (err.code != heif_error_Ok) {
