@@ -450,6 +450,135 @@ TEST_CASE("create inline mask region from data") {
 }
 
 
+TEST_CASE("inline mask region followed by another region") {
+  // Regression test: when an inline mask is not the last region in a region_item,
+  // the parser must advance the data offset past the mask bytes so that the next
+  // region is read from the correct position. Prior to the fix, the trailing
+  // std::copy of the mask data did not increment *dataOffset, causing the next
+  // region to be misparsed or skipped.
+  struct heif_error err;
+
+  heif_image* img;
+  uint32_t input_width = 1280;
+  uint32_t input_height = 1024;
+  heif_image_create(input_width, input_height, heif_colorspace_YCbCr,
+                    heif_chroma_420, &img);
+  fill_new_plane(img, heif_channel_Y, input_width, input_height);
+  fill_new_plane(img, heif_channel_Cb, (input_width + 1) / 2,
+                 (input_height + 1) / 2);
+  fill_new_plane(img, heif_channel_Cr, (input_width + 1) / 2,
+                 (input_height + 1) / 2);
+
+  heif_context* ctx = heif_context_alloc();
+  heif_encoder* enc;
+  err = heif_context_get_encoder_for_format(ctx, heif_compression_AV1, &enc);
+  REQUIRE(err.code == heif_error_Ok);
+
+  struct heif_encoding_options* options;
+  options = heif_encoding_options_alloc();
+  options->macOS_compatibility_workaround = false;
+  options->macOS_compatibility_workaround_no_nclx_profile = false;
+  options->image_orientation = heif_orientation_normal;
+
+  heif_image_handle* handle;
+  err = heif_context_encode_image(ctx, img, enc, options, &handle);
+  REQUIRE(err.code == heif_error_Ok);
+
+  struct heif_region_item* region_item;
+  err = heif_image_handle_add_region_item(handle, input_width, input_height,
+                                          &region_item);
+  REQUIRE(err.code == heif_error_Ok);
+
+  // Inline mask region (not the last region in this item).
+  std::vector<uint8_t> mask_data((64 * 3) / 8);
+  mask_data[0] = 0x80;
+  mask_data[2] = 0x7f;
+  mask_data[10] = 0x3e;
+  mask_data[18] = 0x1d;
+  mask_data[23] = 0x01;
+  err = heif_region_item_add_region_inline_mask_data(
+      region_item, 20, 50, 64, 3, mask_data.data(), mask_data.size(), NULL);
+  REQUIRE(err.code == heif_error_Ok);
+
+  // A rectangle following the inline mask. With the bug, the parser would
+  // read this region's fields from inside the mask data and either misparse
+  // or treat the type byte as unknown and skip it.
+  err = heif_region_item_add_region_rectangle(region_item, 370, 420, 10, 16, NULL);
+  REQUIRE(err.code == heif_error_Ok);
+
+  // A point as a third region, to detect any offset slippage that might still
+  // leave room for a misparse to "land" on a valid type.
+  err = heif_region_item_add_region_point(region_item, 11, 22, NULL);
+  REQUIRE(err.code == heif_error_Ok);
+
+  err = heif_context_write_to_file(ctx, "regions_mask_inline_followed.heif");
+  REQUIRE(err.code == heif_error_Ok);
+
+  heif_region_item_release(region_item);
+  heif_image_handle_release(handle);
+  heif_encoder_release(enc);
+  heif_encoding_options_free(options);
+  heif_context_free(ctx);
+  heif_image_release(img);
+
+  heif_context* readbackCtx = get_context_for_local_file("regions_mask_inline_followed.heif");
+  heif_image_handle* readbackHandle = get_primary_image_handle(readbackCtx);
+  int num_region_items = heif_image_handle_get_number_of_region_items(readbackHandle);
+  REQUIRE(num_region_items == 1);
+  std::vector<heif_item_id> region_item_ids(num_region_items);
+  int num_returned = heif_image_handle_get_list_of_region_item_ids(
+      readbackHandle, region_item_ids.data(), num_region_items);
+  REQUIRE(num_returned == 1);
+  heif_region_item* in_region_item;
+  err = heif_context_get_region_item(readbackCtx, region_item_ids[0], &in_region_item);
+  REQUIRE(err.code == heif_error_Ok);
+
+  int num_regions = heif_region_item_get_number_of_regions(in_region_item);
+  REQUIRE(num_regions == 3);
+
+  std::vector<heif_region*> regions(num_regions);
+  int num_regions_returned = heif_region_item_get_list_of_regions(
+      in_region_item, regions.data(), (int)(regions.size()));
+  REQUIRE(num_regions_returned == num_regions);
+
+  // First region: inline mask
+  REQUIRE(heif_region_get_type(regions[0]) == heif_region_type_inline_mask);
+  int32_t x, y;
+  uint32_t width, height;
+  size_t data_len = heif_region_get_inline_mask_data_len(regions[0]);
+  std::vector<uint8_t> mask_data_in(data_len);
+  err = heif_region_get_inline_mask_data(regions[0], &x, &y, &width, &height, mask_data_in.data());
+  REQUIRE(err.code == heif_error_Ok);
+  REQUIRE(x == 20);
+  REQUIRE(y == 50);
+  REQUIRE(width == 64);
+  REQUIRE(height == 3);
+
+  // Second region: rectangle — must be readable with correct values, which
+  // requires the inline-mask parser to have advanced *dataOffset past the
+  // mask bytes.
+  REQUIRE(heif_region_get_type(regions[1]) == heif_region_type_rectangle);
+  err = heif_region_get_rectangle(regions[1], &x, &y, &width, &height);
+  REQUIRE(err.code == heif_error_Ok);
+  REQUIRE(x == 370);
+  REQUIRE(y == 420);
+  REQUIRE(width == 10);
+  REQUIRE(height == 16);
+
+  // Third region: point.
+  REQUIRE(heif_region_get_type(regions[2]) == heif_region_type_point);
+  err = heif_region_get_point(regions[2], &x, &y);
+  REQUIRE(err.code == heif_error_Ok);
+  REQUIRE(x == 11);
+  REQUIRE(y == 22);
+
+  heif_region_release_many(regions.data(), (int)(regions.size()));
+  heif_region_item_release(in_region_item);
+  heif_image_handle_release(readbackHandle);
+  heif_context_free(readbackCtx);
+}
+
+
 TEST_CASE("create inline mask region from image") {
   struct heif_error err;
 
